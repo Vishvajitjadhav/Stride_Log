@@ -120,3 +120,48 @@ export function useDeactivateMember() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['team'] }),
   })
 }
+
+// Admin: people who self-registered and are waiting for approval.
+export function usePendingApprovals({ enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['pending_approvals'],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, email, role, created_at')
+        .eq('is_approved', false)
+        .eq('is_active', true)
+        .order('created_at', { ascending: true })
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useApprovalMutations() {
+  const qc = useQueryClient()
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['pending_approvals'] })
+    qc.invalidateQueries({ queryKey: ['team'] })
+  }
+
+  const approve = useMutation({
+    mutationFn: async ({ id, role }) => {
+      const { error } = await supabase.from('profiles').update({ is_approved: true, role }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: invalidate,
+  })
+
+  const reject = useMutation({
+    mutationFn: async (id) => {
+      // Soft reject: keep unapproved and deactivate so they can't proceed.
+      const { error } = await supabase.from('profiles').update({ is_active: false }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: invalidate,
+  })
+
+  return { approve, reject }
+}

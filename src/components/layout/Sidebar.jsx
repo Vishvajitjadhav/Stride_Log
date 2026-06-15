@@ -1,20 +1,28 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { usePendingApprovals } from '../../hooks/useTeam'
 
 const employeeLinks = [
   { to: '/dashboard', label: 'Dashboard', icon: '▦' },
   { to: '/log',       label: 'Log Today',  icon: '✎' },
   { to: '/history',   label: 'History',    icon: '◷' },
+  { to: '/import',    label: 'Import',     icon: '↥' },
 ]
 
-const adminLinks = [
-  { to: '/admin',          label: 'Team',     icon: '◉' },
-  { to: '/admin/settings', label: 'Settings', icon: '⚙' },
+const staffLinks = [
+  { to: '/admin',           label: 'Team',      icon: '◉' },
+  { to: '/admin/analytics', label: 'Analytics', icon: '◓' },
 ]
+
+const linkClass = ({ isActive }) =>
+  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+    isActive ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+  }`
 
 export default function Sidebar() {
-  const { profile, isAdmin, signOut } = useAuth()
+  const { profile, isStaff, isAdmin, signOut } = useAuth()
   const navigate = useNavigate()
+  const { data: pending = [] } = usePendingApprovals({ enabled: isAdmin })
 
   async function handleSignOut() {
     await signOut()
@@ -32,39 +40,38 @@ export default function Sidebar() {
 
       <nav className="flex-1 px-3 py-4 space-y-0.5">
         {employeeLinks.map(({ to, label, icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`
-            }
-          >
+          <NavLink key={to} to={to} className={linkClass}>
             <span>{icon}</span>
             {label}
           </NavLink>
         ))}
 
-        {isAdmin && (
+        {isStaff && (
           <>
             <div className="pt-4 pb-1 px-3">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Admin</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Team</span>
             </div>
-            {adminLinks.map(({ to, label, icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`
-                }
-              >
+            {staffLinks.map(({ to, label, icon }) => (
+              <NavLink key={to} to={to} className={linkClass}>
                 <span>{icon}</span>
                 {label}
               </NavLink>
             ))}
+            {isAdmin && (
+              <NavLink to="/admin/approvals" className={linkClass}>
+                <span>⧉</span>
+                <span className="flex-1">Approvals</span>
+                {pending.length > 0 && (
+                  <span className="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+                    {pending.length}
+                  </span>
+                )}
+              </NavLink>
+            )}
+            <NavLink to="/admin/settings" className={linkClass}>
+              <span>⚙</span>
+              Settings
+            </NavLink>
           </>
         )}
       </nav>

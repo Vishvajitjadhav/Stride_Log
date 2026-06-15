@@ -1,12 +1,14 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts'
+import { parseISO, startOfWeek, endOfWeek, subWeeks } from 'date-fns'
+import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell, Legend } from 'recharts'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { useWorkLog } from '../hooks/useWorkLog'
 import { getGreeting, todayISO, formatDisplay } from '../utils/dates'
 import { calculateStreak } from '../utils/streak'
+import { categoryTotals } from '../utils/analytics'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 
@@ -24,7 +26,7 @@ function useDashboardData() {
 
       const { data: logs } = await supabase
         .from('work_logs')
-        .select('date, submitted_at, tasks(status)')
+        .select('date, submitted_at, tasks(status, categories(name, color))')
         .eq('user_id', userId)
         .gte('date', from)
         .order('date', { ascending: false })
@@ -69,6 +71,26 @@ export default function Dashboard() {
       tasks: (l.tasks ?? []).length,
     }))
   , [logs])
+
+  const categoryData = useMemo(
+    () => categoryTotals(logs.flatMap(l => l.tasks ?? [])),
+    [logs]
+  )
+
+  const week = useMemo(() => {
+    const thisStart = startOfWeek(new Date(), { weekStartsOn: 1 })
+    const lastStart = subWeeks(thisStart, 1)
+    const doneInWeek = (start) => {
+      const end = endOfWeek(start, { weekStartsOn: 1 })
+      return logs
+        .filter(l => { const d = parseISO(l.date); return d >= start && d <= end })
+        .flatMap(l => l.tasks ?? [])
+        .filter(t => t.status === 'done').length
+    }
+    const current = doneInWeek(thisStart)
+    const previous = doneInWeek(lastStart)
+    return { current, previous, delta: current - previous }
+  }, [logs])
 
   const isSubmittedToday = Boolean(todayLog?.submitted_at)
   const isLate = new Date().getHours() >= 18
@@ -124,6 +146,36 @@ export default function Dashboard() {
           </BarChart>
         </ResponsiveContainer>
       </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="p-5">
+          <p className="text-xs font-semibold text-primary-600 uppercase tracking-wider mb-3">My growth — this week</p>
+          <div className="flex items-end gap-3">
+            <p className="text-4xl font-black text-gray-900">{week.current}</p>
+            <p className="text-xs text-gray-400 mb-1">tasks done</p>
+          </div>
+          <p className={`text-sm font-medium mt-2 ${week.delta > 0 ? 'text-green-600' : week.delta < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+            {week.delta > 0 ? '▲' : week.delta < 0 ? '▼' : '–'} {Math.abs(week.delta)} vs last week ({week.previous})
+          </p>
+        </Card>
+
+        <Card className="p-5">
+          <p className="text-xs font-semibold text-primary-600 uppercase tracking-wider mb-3">My work by category</p>
+          {categoryData.length ? (
+            <ResponsiveContainer width="100%" height={140}>
+              <PieChart>
+                <Pie data={categoryData} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={55} innerRadius={32} paddingAngle={2}>
+                  {categoryData.map(c => <Cell key={c.name} fill={c.color} />)}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }} />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-sm text-gray-400 py-8 text-center">No tasks logged yet.</p>
+          )}
+        </Card>
+      </div>
 
       <div>
         <p className="text-sm font-semibold text-gray-700 mb-3">Recent entries</p>

@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom'
-import Button from '../components/ui/Button'
 
 export default function Landing() {
   const navigate = useNavigate()

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTeam, useAllCategories, useCategoryMutations, useDeactivateMember } from '../../hooks/useTeam'
+import { useAuth } from '../../contexts/AuthContext'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Input from '../../components/ui/Input'
@@ -7,7 +8,10 @@ import Input from '../../components/ui/Input'
 const PRESET_COLORS = ['#7c3aed', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6']
 
 export default function Settings() {
-  const [tab, setTab] = useState('members')
+  const { isAdmin } = useAuth()
+  // Managers can manage categories but not member accounts.
+  const tabs = isAdmin ? ['members', 'categories'] : ['categories']
+  const [tab, setTab] = useState(isAdmin ? 'members' : 'categories')
   const { data: members = [] } = useTeam()
   const { data: categories = [] } = useAllCategories()
   const { addCategory, toggleCategory } = useCategoryMutations()
@@ -26,7 +30,7 @@ export default function Settings() {
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       <div className="flex gap-2">
-        {['members', 'categories'].map(t => (
+        {tabs.map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
               tab === t ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
@@ -35,12 +39,13 @@ export default function Settings() {
         ))}
       </div>
 
-      {tab === 'members' && (
+      {tab === 'members' && isAdmin && (
         <Card className="overflow-hidden">
           <div className="p-4 bg-amber-50 rounded-t-xl">
             <p className="text-xs text-amber-800">
               To add a new member: go to <strong>Supabase Dashboard → Authentication → Users → Invite user</strong>.<br />
-              Then in SQL Editor: <code className="bg-amber-100 px-1 rounded text-[11px]">UPDATE profiles SET role = 'employee' WHERE email = 'user@email.com';</code>
+              Then in SQL Editor set their role (<code className="bg-amber-100 px-1 rounded text-[11px]">'employee'</code>, <code className="bg-amber-100 px-1 rounded text-[11px]">'manager'</code> or <code className="bg-amber-100 px-1 rounded text-[11px]">'admin'</code>):{' '}
+              <code className="bg-amber-100 px-1 rounded text-[11px]">UPDATE profiles SET role = 'manager' WHERE id = '&lt;user-uuid&gt;';</code>
             </p>
           </div>
           <div className="divide-y divide-gray-50">
