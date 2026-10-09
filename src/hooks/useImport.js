@@ -1,15 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 
-// Commit mapped import days for a target user.
-// days: [{ date, what_i_did, tasks: [{ title, status, hours, category }] }]
-// autoCreateCategories: only enable for staff (RLS lets staff create categories).
+// Commit mapped import days for a target user in one transaction (import_work
+// RPC — no notifications, RLS decides whose history you may write).
+// days: [{ date, what_i_did, tasks: [{ title, status, category }] }]
+// autoCreateCategories: only for roles that may manage categories.
 export function useImport() {
   const qc = useQueryClient()
 
   return useMutation({
     mutationFn: async ({ userId, days, autoCreateCategories = false }) => {
-      // Resolve category names -> ids (match existing; optionally create missing)
       const { data: cats } = await supabase.from('categories').select('id, name')
       const catByName = new Map((cats ?? []).map(c => [c.name.toLowerCase(), c.id]))
 
@@ -24,41 +24,20 @@ export function useImport() {
         }
       }
 
-      let logsCreated = 0
-      let tasksCreated = 0
+      const payload = days.map(d => ({
+        date: d.date,
+        what_i_did: d.what_i_did || '',
+        tasks: d.tasks.map(t => ({
+          title: t.title,
+          status: t.status,
+          category_id: t.category ? catByName.get(t.category.toLowerCase()) ?? '' : '',
+        })),
+      }))
 
-      for (const day of days) {
-        const { data: log, error: logErr } = await supabase
-          .from('work_logs')
-          .upsert(
-            { user_id: userId, date: day.date, what_i_did: day.what_i_did || null, submitted_at: new Date().toISOString() },
-            { onConflict: 'user_id,date' }
-          )
-          .select('id')
-          .single()
-        if (logErr) throw logErr
-        logsCreated++
-
-        if (day.tasks.length) {
-          const rows = day.tasks.map(t => ({
-            log_id: log.id,
-            user_id: userId,
-            title: t.title,
-            status: t.status,
-            hours: t.hours,
-            category_id: t.category ? catByName.get(t.category.toLowerCase()) ?? null : null,
-          }))
-          const { error: taskErr } = await supabase.from('tasks').insert(rows)
-          if (taskErr) throw taskErr
-          tasksCreated += rows.length
-        }
-      }
-
-      return { logsCreated, tasksCreated }
+      const { data, error } = await supabase.rpc('import_work', { p_user_id: userId, p_days: payload })
+      if (error) throw error
+      return data
     },
-    onSuccess: () => {
-      // Refresh dashboards, history and analytics
-      qc.invalidateQueries()
-    },
+    onSuccess: () => qc.invalidateQueries(),
   })
 }

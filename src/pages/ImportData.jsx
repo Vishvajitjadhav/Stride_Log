@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import { useAuth } from '../contexts/AuthContext'
-import { useTeam } from '../hooks/useTeam'
+import { usePeople } from '../hooks/usePeople'
 import { useImport } from '../hooks/useImport'
 import { mapRows } from '../utils/importMap'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
+import { STATUS_LABELS } from '../lib/labels'
 
 // Fields we map sheet columns onto, with header auto-detection hints.
 const FIELDS = [
@@ -13,7 +14,6 @@ const FIELDS = [
   { key: 'title',    label: 'Task',     required: false, hints: ['task', 'title', 'work', 'activity', 'description'] },
   { key: 'status',   label: 'Status',   required: false, hints: ['status', 'state', 'progress'] },
   { key: 'category', label: 'Category', required: false, hints: ['category', 'type', 'tag', 'project'] },
-  { key: 'hours',    label: 'Hours',    required: false, hints: ['hour', 'time', 'duration'] },
   { key: 'notes',    label: 'Notes',    required: false, hints: ['note', 'summary', 'detail', 'comment'] },
 ]
 
@@ -27,9 +27,9 @@ function autoMap(columns) {
 }
 
 export default function ImportData() {
-  const { session, profile, isAdmin, isStaff } = useAuth()
-  const myId = session?.user?.id
-  const { data: members = [] } = useTeam()
+  const { userId: myId, profile, can } = useAuth()
+  const isAdmin = can('importForOthers')
+  const { data: members = [] } = usePeople({ enabled: isAdmin })
   const importMutation = useImport()
 
   const [fileName, setFileName] = useState('')
@@ -74,7 +74,7 @@ export default function ImportData() {
     const res = await importMutation.mutateAsync({
       userId: effectiveTarget,
       days: preview.days,
-      autoCreateCategories: isStaff,
+      autoCreateCategories: can('manageCategories'),
     })
     setResult(res)
   }
@@ -136,7 +136,7 @@ export default function ImportData() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {FIELDS.map(f => (
                     <div key={f.key}>
                       <label className="text-xs font-medium text-gray-500 block mb-1">
@@ -181,7 +181,7 @@ export default function ImportData() {
                         <p className="text-xs font-semibold text-gray-700">{day.date}</p>
                         {day.tasks.map((t, i) => (
                           <div key={i} className="flex items-center gap-2 mt-1">
-                            <Badge variant={t.status}>{t.status.replace('_', ' ')}</Badge>
+                            <Badge variant={t.status}>{STATUS_LABELS[t.status]}</Badge>
                             <span className="text-sm text-gray-700">{t.title}</span>
                             {t.category && <span className="text-[10px] text-gray-400">· {t.category}</span>}
                           </div>

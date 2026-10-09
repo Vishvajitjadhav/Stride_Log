@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mapRows, parseDateCell, normalizeStatus } from '../../utils/importMap'
 
-const MAP = { date: 'Date', title: 'Task', status: 'Status', category: 'Category', hours: 'Hours', notes: 'Notes' }
+const MAP = { date: 'Date', title: 'Task', status: 'Status', category: 'Category', notes: 'Notes' }
 
 describe('parseDateCell', () => {
   it('passes through ISO dates', () => {
@@ -48,10 +48,10 @@ describe('mapRows', () => {
     expect(days).toHaveLength(2)
     expect(days[0]).toMatchObject({ date: '2026-05-15' })
     expect(days[0].tasks).toEqual([
-      { title: 'Setup repo', status: 'done', hours: 2, category: 'Development' },
-      { title: 'Standup', status: 'done', hours: null, category: 'Meeting' },
+      { title: 'Setup repo', status: 'done', category: 'Development' },
+      { title: 'Standup', status: 'done', category: 'Meeting' },
     ])
-    expect(days[1].tasks[0]).toMatchObject({ status: 'in_progress', hours: 3.5, category: null })
+    expect(days[1].tasks[0]).toMatchObject({ status: 'in_progress', category: null })
   })
 
   it('collects notes into what_i_did per day', () => {

@@ -1,114 +1,57 @@
-import { useState, useMemo } from 'react'
-import { format, eachDayOfInterval, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useWorkLogRange } from '../hooks/useWorkLog'
-import { getDateRange, formatDisplay, todayISO } from '../utils/dates'
+import { useHolidays } from '../hooks/useOrg'
+import { formatShort, isWorkingDay, todayISO } from '../utils/dates'
+import FilterBar, { useFilters } from '../components/FilterBar'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
+import { STATUS_LABELS } from '../lib/labels'
+import Icon from '../components/ui/Icon'
 
-const FILTERS = ['daily', 'weekly', 'monthly', 'custom']
-
-function HeatmapCalendar({ logs, month }) {
-  const start = startOfMonth(month)
-  const end = endOfMonth(month)
-  const days = eachDayOfInterval({ start, end })
-  const logMap = Object.fromEntries((logs ?? []).map(l => [l.date, (l.tasks ?? []).length]))
-
-  function intensity(count) {
-    if (!count) return 'bg-gray-100'
-    if (count <= 2) return 'bg-primary-200'
-    if (count <= 5) return 'bg-primary-400'
-    return 'bg-primary-600'
-  }
-
-  return (
-    <div>
-      <p className="text-xs font-semibold text-primary-600 uppercase tracking-wider mb-3">
-        {format(month, 'MMMM yyyy')}
-      </p>
-      <div className="grid grid-cols-7 gap-1">
-        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-          <div key={i} className="text-center text-[10px] text-gray-400 font-medium pb-1">{d}</div>
-        ))}
-        {Array.from({ length: (start.getDay() + 6) % 7 }).map((_, i) => <div key={`e${i}`} />)}
-        {days.map(day => {
-          const iso = format(day, 'yyyy-MM-dd')
-          return (
-            <div
-              key={iso}
-              title={`${iso}: ${logMap[iso] ?? 0} tasks`}
-              className={`aspect-square rounded-sm ${intensity(logMap[iso] ?? 0)}`}
-            />
-          )
-        })}
-      </div>
-      <div className="flex items-center gap-2 mt-3 text-[10px] text-gray-400">
-        <span>Less</span>
-        {['bg-gray-100', 'bg-primary-200', 'bg-primary-400', 'bg-primary-600'].map(c => (
-          <div key={c} className={`w-3 h-3 rounded-sm ${c}`} />
-        ))}
-        <span>More</span>
-      </div>
-    </div>
-  )
-}
-
-function LogEntry({ log }) {
+function LogEntry({ log, working }) {
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const tasks = log.tasks ?? []
   const done = tasks.filter(t => t.status === 'done').length
 
   return (
     <Card className="overflow-hidden">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-gray-900">{formatDisplay(log.date)}</span>
-          <Badge variant={log.submitted_at ? 'submitted' : 'draft'}>
-            {log.submitted_at ? 'Submitted' : 'Draft'}
-          </Badge>
+      <button onClick={() => setOpen(o => !o)} className="w-full px-4 py-3.5 flex items-center justify-between text-left hover:bg-gray-50">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-semibold text-gray-900">{formatShort(log.date)}</span>
+          {log.submitted_at
+            ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Submitted' : 'Extra ★'}</Badge>
+            : <Badge variant="draft">Draft</Badge>}
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-400">{done}/{tasks.length} done</span>
-          <span className="text-gray-300 text-xs">{open ? '▲' : '▼'}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-sm text-gray-500 tabular-nums">{done}/{tasks.length}</span>
+          <Icon name="down" size={16} className={`text-gray-300 transition-transform ${open ? 'rotate-180' : ''}`} />
         </div>
       </button>
 
       {open && (
-        <div className="px-5 pb-5 space-y-4 border-t border-gray-50">
+        <div className="px-4 pb-4 space-y-3 border-t border-gray-50">
           {tasks.length > 0 && (
-            <div className="pt-4 space-y-2">
+            <ul className="pt-3 space-y-1.5">
               {tasks.map(t => (
-                <div key={t.id} className="flex items-center gap-2">
-                  <Badge variant={t.status}>{t.status.replace('_', ' ')}</Badge>
-                  <span className="text-sm text-gray-700">{t.title}</span>
-                </div>
+                <li key={t.id} className="flex items-center gap-2 text-sm">
+                  <Badge variant={t.status}>{STATUS_LABELS[t.status]}</Badge>
+                  <span className="text-gray-700 flex-1 min-w-0 truncate">{t.title}</span>
+                  {t.categories && <span className="text-[11px] shrink-0" style={{ color: t.categories.color }}>{t.categories.name}</span>}
+                </li>
               ))}
-            </div>
+            </ul>
           )}
-          {(log.what_i_did || log.blockers || log.tomorrow_plan) && (
-            <div className="space-y-3 pt-2">
-              {log.what_i_did && (
-                <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">What I did</p>
-                  <p className="text-sm text-gray-600">{log.what_i_did}</p>
-                </div>
-              )}
-              {log.blockers && (
-                <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Blockers</p>
-                  <p className="text-sm text-gray-600">{log.blockers}</p>
-                </div>
-              )}
-              {log.tomorrow_plan && (
-                <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Tomorrow</p>
-                  <p className="text-sm text-gray-600">{log.tomorrow_plan}</p>
-                </div>
-              )}
+          {[['Highlights', log.what_i_did], ['Blockers', log.blockers], ['Plan for tomorrow', log.tomorrow_plan]].filter(([, v]) => v).map(([k, v]) => (
+            <div key={k}>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">{k}</p>
+              <p className="text-sm text-gray-600 whitespace-pre-line">{v}</p>
             </div>
-          )}
+          ))}
+          <button onClick={() => navigate(log.date === todayISO() ? '/today' : `/today?date=${log.date}`)} className="text-xs font-medium text-primary-600">
+            Open this day →
+          </button>
         </div>
       )}
     </Card>
@@ -116,92 +59,37 @@ function LogEntry({ log }) {
 }
 
 export default function History() {
-  const today = todayISO()
-  const [filter, setFilter] = useState('monthly')
-  const [customFrom, setCustomFrom] = useState(today)
-  const [customTo, setCustomTo] = useState(today)
-  const [calMonth, setCalMonth] = useState(new Date())
-
-  const range = useMemo(() => {
-    if (filter === 'custom') return { from: customFrom, to: customTo }
-    return getDateRange(filter)
-  }, [filter, customFrom, customTo])
-
-  const { data: logs = [], isLoading } = useWorkLogRange(range.from, range.to)
+  const { filters, setFilter, reset } = useFilters('this_month')
+  const { data: logs = [], isLoading } = useWorkLogRange(filters.from, filters.to)
+  const { data: holidays } = useHolidays()
 
   const stats = useMemo(() => {
-    const allTasks = logs.flatMap(l => l.tasks ?? [])
-    const done = allTasks.filter(t => t.status === 'done').length
+    const tasks = logs.flatMap(l => l.tasks ?? [])
+    const done = tasks.filter(t => t.status === 'done').length
     return {
-      total: allTasks.length,
-      done,
-      rate: allTasks.length ? Math.round((done / allTasks.length) * 100) : 0,
+      total: tasks.length, done,
+      rate: tasks.length ? Math.round((done / tasks.length) * 100) : 0,
       submitted: logs.filter(l => l.submitted_at).length,
     }
   }, [logs])
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Filter bar */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {FILTERS.map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors capitalize ${
-              filter === f
-                ? 'bg-primary-600 text-white'
-                : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
-            }`}
-          >
-            {f}
-          </button>
+    <div className="max-w-3xl mx-auto space-y-4">
+      <FilterBar filters={filters} setFilter={setFilter} reset={reset} />
+
+      <div className="grid grid-cols-4 gap-2">
+        {[['Tasks', stats.total], ['Done', stats.done], ['Rate', `${stats.rate}%`], ['Days', stats.submitted]].map(([l, v]) => (
+          <Card key={l} className="p-3 text-center">
+            <p className="text-lg font-bold text-primary-600 tabular-nums">{v}</p>
+            <p className="text-[11px] text-gray-500">{l}</p>
+          </Card>
         ))}
-        {filter === 'custom' && (
-          <div className="flex items-center gap-2 mt-1">
-            <input type="date" value={customFrom} max={customTo} onChange={e => setCustomFrom(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400" />
-            <span className="text-gray-400 text-sm">→</span>
-            <input type="date" value={customTo} min={customFrom} max={today} onChange={e => setCustomTo(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400" />
-          </div>
-        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: stats + heatmap */}
-        <div className="space-y-4">
-          <Card className="p-4 space-y-3">
-            {[['Total tasks', stats.total], ['Completion rate', `${stats.rate}%`], ['Days logged', stats.submitted]].map(([label, val]) => (
-              <div key={label} className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">{label}</span>
-                <span className="text-sm font-bold text-primary-600">{val}</span>
-              </div>
-            ))}
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <button onClick={() => setCalMonth(m => subMonths(m, 1))} className="text-gray-400 hover:text-gray-600 text-sm">◀</button>
-              <button onClick={() => setCalMonth(new Date())} className="text-xs text-primary-600 hover:underline">Today</button>
-              <button onClick={() => setCalMonth(m => addMonths(m, 1))} className="text-gray-400 hover:text-gray-600 text-sm">▶</button>
-            </div>
-            <HeatmapCalendar logs={logs} month={calMonth} />
-          </Card>
-        </div>
-
-        {/* Right: entry list */}
-        <div className="lg:col-span-2 space-y-3">
-          {isLoading && Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i} className="h-16 animate-pulse bg-gray-50" />
-          ))}
-          {!isLoading && logs.length === 0 && (
-            <div className="text-center py-16">
-              <p className="text-sm text-gray-400">No entries in this range.</p>
-            </div>
-          )}
-          {logs.map(log => <LogEntry key={log.id} log={log} />)}
-        </div>
+      <div className="space-y-2">
+        {isLoading && [0, 1, 2].map(i => <Card key={i} className="h-14 animate-pulse bg-gray-50" />)}
+        {!isLoading && logs.length === 0 && <p className="text-center text-sm text-gray-400 py-12">No entries in this range.</p>}
+        {logs.map(log => <LogEntry key={log.id} log={log} working={isWorkingDay(log.date, holidays?.set)} />)}
       </div>
     </div>
   )

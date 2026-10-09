@@ -3,19 +3,21 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { todayISO } from '../utils/dates'
 
-export function useWorkLog(date = todayISO()) {
-  const { session } = useAuth()
-  const userId = session?.user?.id
+// One person's daily notes (what I did / blockers / tomorrow) + submission.
+export function useWorkLog(date = todayISO(), userId) {
+  const { userId: me } = useAuth()
+  const uid = userId ?? me
   const qc = useQueryClient()
+  const key = ['work_log', uid, date]
 
   const query = useQuery({
-    queryKey: ['work_log', userId, date],
-    enabled: Boolean(userId),
+    queryKey: key,
+    enabled: Boolean(uid),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('work_logs')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', uid)
         .eq('date', date)
         .maybeSingle()
       if (error) throw error
@@ -23,56 +25,40 @@ export function useWorkLog(date = todayISO()) {
     },
   })
 
-  const upsert = useMutation({
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: key })
+    qc.invalidateQueries({ queryKey: ['work_logs_range'] })
+    qc.invalidateQueries({ queryKey: ['facts'] })
+  }
+
+  const save = useMutation({
     mutationFn: async (fields) => {
       const { data, error } = await supabase
         .from('work_logs')
-        .upsert({ user_id: userId, date, ...fields }, { onConflict: 'user_id,date' })
+        .upsert({ user_id: uid, date, ...fields }, { onConflict: 'user_id,date' })
         .select()
         .single()
       if (error) throw error
       return data
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['work_log', userId, date] }),
+    onSuccess: invalidate,
   })
 
-  const submit = useMutation({
-    mutationFn: async (logId) => {
-      const { error } = await supabase
-        .from('work_logs')
-        .update({ submitted_at: new Date().toISOString() })
-        .eq('id', logId)
-      if (error) throw error
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['work_log', userId, date] }),
-  })
-
-  const unsubmit = useMutation({
-    mutationFn: async (logId) => {
-      const { error } = await supabase
-        .from('work_logs')
-        .update({ submitted_at: null })
-        .eq('id', logId)
-      if (error) throw error
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['work_log', userId, date] }),
-  })
-
-  return { ...query, upsert, submit, unsubmit }
+  return { ...query, save, invalidate }
 }
 
-export function useWorkLogRange(from, to) {
-  const { session } = useAuth()
-  const userId = session?.user?.id
+export function useWorkLogRange(from, to, userId) {
+  const { userId: me } = useAuth()
+  const uid = userId ?? me
 
   return useQuery({
-    queryKey: ['work_logs_range', userId, from, to],
-    enabled: Boolean(userId && from && to),
+    queryKey: ['work_logs_range', uid, from, to],
+    enabled: Boolean(uid && from && to),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('work_logs')
-        .select('*, tasks(*)')
-        .eq('user_id', userId)
+        .select('*, tasks(id, title, status, date, assigned_by, categories(name, color))')
+        .eq('user_id', uid)
         .gte('date', from)
         .lte('date', to)
         .order('date', { ascending: false })

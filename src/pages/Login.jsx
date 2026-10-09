@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import BrandMark from '../components/BrandMark'
 import { useAuth } from '../contexts/AuthContext'
 import Input from '../components/ui/Input'
 
@@ -50,17 +51,18 @@ export default function Login() {
     }
 
     if (isSignup) {
-      const { error } = await signUp(email, password, name)
+      const { data, error } = await signUp(email, password, name)
       setLoading(false)
       if (error) setError(error.message || 'Could not create account.')
-      else navigate('/dashboard') // lands on the pending-approval screen
+      else if (!data.session) setNotice('Check your email to confirm your address, then sign in.')
+      else navigate('/today') // lands on the pending-approval screen
       return
     }
 
     const { error } = await signIn(email, password)
     setLoading(false)
-    if (error) setError('Invalid email or password.')
-    else navigate('/dashboard')
+    if (error) setError(/confirm/i.test(error.message) ? 'Please confirm your email first — check your inbox.' : 'Invalid email or password.')
+    else navigate('/today')
   }
 
   async function handleGoogle() {
@@ -79,13 +81,10 @@ export default function Login() {
     : isSignup ? 'An admin will approve your access' : 'Sign in to your workspace'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-600 to-primary-400 flex items-center justify-center px-4">
+    <div className="min-h-dvh bg-gradient-to-br from-primary-900 via-primary-600 to-primary-400 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-            <span className="text-white font-black text-lg">S</span>
-          </div>
-          <span className="text-white font-bold text-xl">StrideLog</span>
+        <div className="flex justify-center mb-8">
+          <BrandMark inverted />
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
@@ -101,7 +100,8 @@ export default function Login() {
               onChange={e => setEmail(e.target.value)} required autoFocus={!isSignup} />
             {!isForgot && (
               <Input label="Password" type="password" placeholder="••••••••" value={password}
-                onChange={e => setPassword(e.target.value)} required minLength={6} />
+                autoComplete={isSignup ? 'new-password' : 'current-password'}
+                onChange={e => setPassword(e.target.value)} required minLength={isSignup ? 8 : 6} />
             )}
 
             {!isForgot && !isSignup && (

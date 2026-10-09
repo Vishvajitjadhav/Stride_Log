@@ -1,0 +1,271 @@
+import { useMemo, useState } from 'react'
+import { useAuth } from '../../contexts/AuthContext'
+import { usePeople, usePendingApprovals, useUpdatePerson, useInviteUser } from '../../hooks/usePeople'
+import { useTeams } from '../../hooks/useOrg'
+import { ROLE_LABELS, assignableRoles } from '../../lib/permissions'
+import { formatDisplay } from '../../utils/dates'
+import Card from '../../components/ui/Card'
+import Badge from '../../components/ui/Badge'
+import Avatar from '../../components/ui/Avatar'
+import Button from '../../components/ui/Button'
+import Sheet from '../../components/ui/Sheet'
+import Icon from '../../components/ui/Icon'
+
+const INHERENT_ASSIGN = ['manager', 'admin']
+
+function PendingRow({ person, teams, roles }) {
+  const update = useUpdatePerson()
+  const [role, setRole] = useState('employee')
+  const [team, setTeam] = useState('')
+
+  return (
+    <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <Avatar person={person} />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">{person.name}</p>
+          <p className="text-xs text-gray-500 truncate">{person.email} · requested {formatDisplay(person.created_at.slice(0, 10))}</p>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <select className="field !py-1.5 sm:!w-36" value={role} onChange={e => setRole(e.target.value)} aria-label="Role">
+          {roles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+        </select>
+        {teams.length > 0 && (
+          <select className="field !py-1.5 sm:!w-36" value={team} onChange={e => setTeam(e.target.value)} aria-label="Team">
+            <option value="">No team</option>
+            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" className="flex-1" loading={update.isPending}
+          onClick={() => update.mutate({ id: person.id, is_approved: true, role, team_id: team || null })}>Approve</Button>
+        <Button size="sm" variant="outline" className="text-red-600"
+          onClick={() => confirm(`Reject ${person.name}?`) && update.mutate({ id: person.id, is_active: false })}>Reject</Button>
+      </div>
+    </div>
+  )
+}
+
+function PersonEditor({ person, teams, people, onClose }) {
+  const { profile, can } = useAuth()
+  const update = useUpdatePerson()
+  const roles = assignableRoles(profile)
+  const isSelf = person.id === profile.id
+  const lockedAdmin = person.role === 'admin' && !can('grantPermissions')
+  const [form, setForm] = useState({
+    name: person.name,
+    role: person.role,
+    team_id: person.team_id ?? '',
+    manager_id: person.manager_id ?? '',
+    can_assign_tasks: person.can_assign_tasks,
+    is_active: person.is_active,
+  })
+  const [error, setError] = useState('')
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  async function save() {
+    setError('')
+    try {
+      await update.mutateAsync({
+        id: person.id,
+        name: form.name.trim(),
+        role: form.role,
+        team_id: form.team_id || null,
+        manager_id: form.manager_id || null,
+        ...(can('grantPermissions') ? { can_assign_tasks: form.can_assign_tasks } : {}),
+        is_active: form.is_active,
+      })
+      onClose()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  return (
+    <Sheet open onClose={onClose} title={person.name}
+      footer={<><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save} loading={update.isPending} disabled={lockedAdmin}>Save</Button></>}>
+      <div className="space-y-4">
+        {lockedAdmin && <p className="text-xs bg-amber-50 text-amber-800 rounded-lg px-3 py-2">Only an admin can edit admin accounts.</p>}
+        <p className="text-xs text-gray-500">{person.email}</p>
+        <div>
+          <label className="label" htmlFor="p-name">Name</label>
+          <input id="p-name" className="field" value={form.name} onChange={e => set('name', e.target.value)} disabled={lockedAdmin} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label" htmlFor="p-role">Role</label>
+            <select id="p-role" className="field" value={form.role} onChange={e => set('role', e.target.value)} disabled={lockedAdmin || isSelf}>
+              {[...new Set([...roles, form.role])].map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="p-team">Team</label>
+            <select id="p-team" className="field" value={form.team_id} onChange={e => set('team_id', e.target.value)} disabled={lockedAdmin}>
+              <option value="">No team</option>
+              {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="label" htmlFor="p-mgr">Reports to</label>
+          <select id="p-mgr" className="field" value={form.manager_id} onChange={e => set('manager_id', e.target.value)} disabled={lockedAdmin}>
+            <option value="">—</option>
+            {people.filter(p => p.id !== person.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+
+        <label className={`flex items-start gap-3 rounded-xl border p-3 ${can('grantPermissions') ? 'border-primary-200 bg-primary-50/40' : 'border-gray-100 opacity-60'}`}>
+          <input type="checkbox" className="mt-1 w-4 h-4 accent-primary-600"
+            checked={INHERENT_ASSIGN.includes(form.role) || form.can_assign_tasks}
+            disabled={!can('grantPermissions') || INHERENT_ASSIGN.includes(form.role)}
+            onChange={e => set('can_assign_tasks', e.target.checked)} />
+          <span>
+            <span className="block text-sm font-medium text-gray-900">Can assign & edit tasks for others</span>
+            <span className="block text-xs text-gray-500">
+              {INHERENT_ASSIGN.includes(form.role)
+                ? `${ROLE_LABELS[form.role]}s always have this.`
+                : 'Lets this person (e.g. a BA or team lead) assign tasks to anyone and see team dashboards.'}
+              {!can('grantPermissions') && ' Only an admin can change this.'}
+            </span>
+          </span>
+        </label>
+
+        {!isSelf && (
+          <label className="flex items-center gap-3">
+            <input type="checkbox" className="w-4 h-4 accent-primary-600" checked={form.is_active} disabled={lockedAdmin}
+              onChange={e => set('is_active', e.target.checked)} />
+            <span className="text-sm text-gray-700">Active (unticking removes access and hides them from stats)</span>
+          </label>
+        )}
+        {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+      </div>
+    </Sheet>
+  )
+}
+
+function InviteSheet({ teams, roles, onClose }) {
+  const invite = useInviteUser()
+  const [form, setForm] = useState({ email: '', name: '', role: 'employee', team_id: '' })
+  const [done, setDone] = useState(false)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  async function send(e) {
+    e?.preventDefault()
+    try {
+      await invite.mutateAsync({ ...form, team_id: form.team_id || null })
+      setDone(true)
+    } catch { /* shown below */ }
+  }
+
+  return (
+    <Sheet open onClose={onClose} title="Invite someone"
+      footer={done ? <Button onClick={onClose}>Done</Button> : <><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={send} loading={invite.isPending}>Send invite</Button></>}>
+      {done ? (
+        <div className="text-center py-6">
+          <p className="text-3xl mb-2">📨</p>
+          <p className="text-sm text-gray-700">Invitation sent to <strong>{form.email}</strong>. They'll set a password from the email and can start right away.</p>
+        </div>
+      ) : (
+        <form onSubmit={send} className="space-y-4">
+          <div>
+            <label className="label" htmlFor="i-email">Work email</label>
+            <input id="i-email" type="email" required className="field" value={form.email} onChange={e => set('email', e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="i-name">Full name</label>
+            <input id="i-name" required className="field" value={form.name} onChange={e => set('name', e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label" htmlFor="i-role">Role</label>
+              <select id="i-role" className="field" value={form.role} onChange={e => set('role', e.target.value)}>
+                {roles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="i-team">Team</label>
+              <select id="i-team" className="field" value={form.team_id} onChange={e => set('team_id', e.target.value)}>
+                <option value="">No team</option>
+                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          </div>
+          {invite.isError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{invite.error.message}</p>}
+          <button type="submit" className="hidden" />
+        </form>
+      )}
+    </Sheet>
+  )
+}
+
+export default function People() {
+  const { profile } = useAuth()
+  const { data: pending = [] } = usePendingApprovals()
+  const { data: people = [], isLoading } = usePeople({ includeInactive: true })
+  const { data: teams = [] } = useTeams()
+  const roles = assignableRoles(profile)
+  const [chosenTab, setTab] = useState(null)
+  const tab = chosenTab ?? (pending.length ? 'pending' : 'people')
+  const [search, setSearch] = useState('')
+  const [editing, setEditing] = useState(null)
+  const [inviting, setInviting] = useState(false)
+  const teamName = Object.fromEntries(teams.map(t => [t.id, t.name]))
+
+  const filtered = useMemo(
+    () => people.filter(p => `${p.name} ${p.email ?? ''}`.toLowerCase().includes(search.toLowerCase())),
+    [people, search]
+  )
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-4">
+      <div className="flex items-center gap-2">
+        <div className="flex gap-1 bg-white border border-gray-100 rounded-xl p-1">
+          <button onClick={() => setTab('pending')} className={`px-4 py-1.5 rounded-lg text-sm font-medium ${tab === 'pending' ? 'bg-primary-600 text-white' : 'text-gray-600'}`}>
+            Pending{pending.length > 0 && <span className="ml-1.5 text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5">{pending.length}</span>}
+          </button>
+          <button onClick={() => setTab('people')} className={`px-4 py-1.5 rounded-lg text-sm font-medium ${tab === 'people' ? 'bg-primary-600 text-white' : 'text-gray-600'}`}>People</button>
+        </div>
+        <div className="flex-1" />
+        <Button onClick={() => setInviting(true)} aria-label="Invite someone"><Icon name="mail" size={16} /><span className="hidden sm:inline">Invite</span></Button>
+      </div>
+
+      {tab === 'pending' ? (
+        pending.length === 0 ? (
+          <Card className="p-10 text-center">
+            <p className="text-3xl mb-2">✅</p>
+            <p className="text-sm text-gray-400">No one is waiting for approval.</p>
+          </Card>
+        ) : (
+          <Card className="divide-y divide-gray-50">
+            {pending.map(p => <PendingRow key={p.id} person={p} teams={teams} roles={roles} />)}
+          </Card>
+        )
+      ) : (
+        <>
+          <input type="search" className="field" placeholder="Search name or email…" value={search} onChange={e => setSearch(e.target.value)} />
+          <Card className="divide-y divide-gray-50">
+            {isLoading && <div className="h-24 animate-pulse" />}
+            {filtered.map(p => (
+              <button key={p.id} onClick={() => setEditing(p)} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50">
+                <Avatar person={p} />
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium truncate ${p.is_active ? 'text-gray-900' : 'text-gray-400 line-through'}`}>{p.name}</p>
+                  <p className="text-xs text-gray-500 truncate">{p.email}{p.team_id ? ` · ${teamName[p.team_id]}` : ''}</p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1">
+                  {p.can_assign_tasks && !INHERENT_ASSIGN.includes(p.role) && <Badge variant="info">Can assign</Badge>}
+                  <Badge variant={p.role === 'admin' ? 'admin' : 'pending'}>{ROLE_LABELS[p.role]}</Badge>
+                </div>
+              </button>
+            ))}
+          </Card>
+        </>
+      )}
+
+      {editing && <PersonEditor person={editing} teams={teams} people={people.filter(p => p.is_active)} onClose={() => setEditing(null)} />}
+      {inviting && <InviteSheet teams={teams} roles={roles} onClose={() => setInviting(false)} />}
+    </div>
+  )
+}
