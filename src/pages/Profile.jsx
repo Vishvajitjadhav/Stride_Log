@@ -11,6 +11,7 @@ import Avatar from '../components/ui/Avatar'
 import InstallCard from '../components/InstallCard'
 import Icon from '../components/ui/Icon'
 import { useTheme } from '../lib/theme'
+import AvatarEditor from '../components/AvatarEditor'
 
 const PREFS = [
   { key: 'assigned', label: 'A task is assigned to me' },
@@ -26,6 +27,7 @@ export default function Profile() {
   const [pw, setPw] = useState({ next: '', confirm: '' })
   const [msg, setMsg] = useState({})
   const { pref, setTheme } = useTheme()
+  const [photo, setPhoto] = useState(false)
   const projectNames = projectsOf(projects, profile.id).map(p => p.name).join(', ')
   const prefs = profile.email_prefs ?? {}
 
@@ -51,7 +53,12 @@ export default function Profile() {
   return (
     <div className="max-w-xl mx-auto space-y-5">
       <Card className="p-5 flex items-center gap-4">
-        <Avatar person={profile} size="lg" />
+        <button onClick={() => setPhoto(true)} className="relative group shrink-0" aria-label="Change profile photo" title="Change profile photo">
+          <Avatar person={profile} size="lg" />
+          <span className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-brand text-white flex items-center justify-center ring-2 ring-surface group-hover:bg-brand-hover">
+            <Icon name="edit" size={12} />
+          </span>
+        </button>
         <div className="min-w-0">
           <p className="text-lg font-semibold text-gray-900 truncate">{profile.name}</p>
           <p className="text-sm text-gray-500 truncate">{user?.email}</p>
@@ -125,6 +132,7 @@ export default function Profile() {
       </Card>
 
       <Button variant="outline" className="w-full text-red-600" onClick={signOut}>Sign out</Button>
+      {photo && <AvatarEditor onClose={() => setPhoto(false)} />}
     </div>
   )
 }

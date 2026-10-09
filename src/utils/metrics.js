@@ -102,6 +102,7 @@ export function perPerson({ tasks, logs, people, range, holidays, today }) {
       id: p.id,
       name: p.name,
       avatar_initials: p.avatar_initials,
+      avatar_url: p.avatar_url,
       role: p.role,
       ...summarize({ tasks: byUser(t, p.id), logs: byUser(l, p.id), people: [p], range, holidays, today }),
     }))

@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePendingApprovals } from '../../hooks/usePeople'
@@ -7,23 +6,15 @@ import { visibleNav } from './nav'
 import Icon from '../ui/Icon'
 import Avatar from '../ui/Avatar'
 import BrandMark from '../BrandMark'
+import { useSidebar } from '../../lib/sidebar'
 
-const KEY = 'stridelog:sidebar'
-const readCollapsed = () => { try { return localStorage.getItem(KEY) === 'collapsed' } catch { return false } }
-
-// Desktop sidebar. Fixed navy in both themes; collapses to icons (remembered).
+// Desktop sidebar. Fixed navy in both themes; collapses to icons from the
+// button at the top left of the header (or the [ key).
 export default function Sidebar() {
   const { profile, can } = useAuth()
   const { data: pending = [] } = usePendingApprovals({ enabled: can('managePeople') })
-  const [collapsed, setCollapsed] = useState(readCollapsed)
+  const { collapsed } = useSidebar()
   const items = visibleNav(can)
-
-  function toggle() {
-    setCollapsed(c => {
-      try { localStorage.setItem(KEY, c ? 'open' : 'collapsed') } catch { /* storage unavailable */ }
-      return !c
-    })
-  }
 
   const link = ({ isActive }) =>
     `relative flex items-center gap-3 h-9 rounded-md text-sm transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${
@@ -32,7 +23,7 @@ export default function Sidebar() {
 
   return (
     <aside className={`hidden lg:flex shrink-0 h-dvh sticky top-0 bg-[#132238] flex-col transition-[width] duration-200 ${collapsed ? 'w-16' : 'w-60'}`}>
-      <div className={`h-16 flex items-center border-b border-white/10 ${collapsed ? 'justify-center' : 'px-5'}`}>
+      <div className={`h-14 flex items-center border-b border-white/10 ${collapsed ? 'justify-center' : 'px-5'}`}>
         <BrandMark inverted compact={collapsed} />
       </div>
 
@@ -49,12 +40,6 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-
-      <button onClick={toggle} title={collapsed ? 'Expand menu' : 'Collapse menu'} aria-label={collapsed ? 'Expand menu' : 'Collapse menu'}
-        className={`mx-3 mb-2 h-9 flex items-center gap-3 rounded-md text-sm text-[#c8d4e6]/70 hover:bg-white/5 hover:text-white ${collapsed ? 'justify-center' : 'px-3'}`}>
-        <Icon name="panel" size={18} />
-        {!collapsed && 'Collapse menu'}
-      </button>
 
       <NavLink to="/profile" title={collapsed ? profile?.name : undefined}
         className={({ isActive }) => `mx-3 mb-3 flex items-center gap-3 p-2 rounded-md transition-colors ${collapsed ? 'justify-center' : ''} ${isActive ? 'bg-white/10' : 'hover:bg-white/5'}`}>

@@ -14,7 +14,7 @@ const TASK_SELECT = `
   project:projects(id, name, color),
   assigner:profiles!tasks_assigned_by_fkey(id, name),
   editor:profiles!tasks_updated_by_fkey(id, name),
-  owner:profiles!tasks_user_id_fkey(id, name, avatar_initials)
+  owner:profiles!tasks_user_id_fkey(id, name, avatar_initials, avatar_url)
 `
 
 // A person's list for one day. For today (or any day viewed "live") unfinished

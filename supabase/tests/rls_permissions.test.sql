@@ -1,7 +1,7 @@
 -- Role & permission tests. Run with:  npx supabase test db
 -- Each block switches to a user via request.jwt.claims, exactly like PostgREST.
 BEGIN;
-SELECT plan(36);
+SELECT plan(38);
 
 -- ── Fixtures ──────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION pg_temp.mk_user(p_id uuid, p_email text, p_role text, p_approved bool DEFAULT true)
@@ -167,6 +167,15 @@ SELECT lives_ok(
 SELECT pg_temp.act_as('00000000-0000-0000-0000-0000000000e1');
 SELECT is((SELECT count(*)::int FROM project_members WHERE project_id = '20000000-0000-0000-0000-000000000001'), 2,
   'employees can see project membership');
+
+-- ── Profile photos ────────────────────────────────────────────────────────────
+SELECT pg_temp.act_as('00000000-0000-0000-0000-0000000000e1');
+SELECT lives_ok(
+  $$ INSERT INTO storage.objects (bucket_id, name, owner_id) VALUES ('avatars', '00000000-0000-0000-0000-0000000000e1/me.jpg', '00000000-0000-0000-0000-0000000000e1') $$,
+  'people can upload their own profile photo');
+SELECT throws_ok(
+  $$ INSERT INTO storage.objects (bucket_id, name, owner_id) VALUES ('avatars', '00000000-0000-0000-0000-0000000000e2/fake.jpg', '00000000-0000-0000-0000-0000000000e1') $$,
+  '42501', NULL, 'nobody can upload into someone else''s photo folder');
 
 SELECT * FROM finish();
 ROLLBACK;
