@@ -4,6 +4,11 @@
 
 export const ROLES = ['employee', 'ba', 'manager', 'hr', 'admin']
 
+// Roles expected to log their day. Managers, HR and admins mainly review
+// work, so logging is optional for them and they are left out of team numbers.
+const TRACKED_ROLES = ['employee', 'ba']
+export const isTracked = p => TRACKED_ROLES.includes(p?.role)
+
 export const ROLE_LABELS = {
   employee: 'Employee',
   ba: 'Business Analyst',
@@ -22,7 +27,7 @@ const RULES = {
   viewCompany: p => ['manager', 'hr', 'admin'].includes(p.role),
   // Approve sign-ups, edit people (role/team/manager), invite users
   managePeople: p => ['hr', 'admin'].includes(p.role),
-  manageTeams: p => ['hr', 'admin'].includes(p.role),
+  manageProjects: p => ['manager', 'hr', 'admin'].includes(p.role),
   manageHolidays: p => ['hr', 'admin'].includes(p.role),
   manageCategories: p => ['manager', 'hr', 'admin'].includes(p.role),
   // Grant can_assign_tasks, assign the admin role, company name & logo

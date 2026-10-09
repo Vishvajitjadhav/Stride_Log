@@ -14,13 +14,13 @@ export default function PendingApproval() {
   }, [inactive, refreshProfile])
 
   return (
-    <div className="min-h-dvh bg-primary-900 auth-bg flex items-center justify-center px-4">
+    <div className="min-h-dvh bg-[#132238] auth-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm text-center">
         <div className="flex justify-center mb-8">
           <BrandMark inverted />
         </div>
 
-        <div className="bg-white rounded-lg shadow-xl p-8 space-y-3">
+        <div className="bg-surface rounded-lg shadow-xl p-8 space-y-3">
           <h2 className="text-lg font-semibold text-gray-900">{inactive ? 'Account deactivated' : 'Waiting for approval'}</h2>
           <p className="text-sm text-gray-500">
             {inactive

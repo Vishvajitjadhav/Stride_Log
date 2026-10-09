@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useCategories, useCategoryMutations } from '../../hooks/useCategories'
-import { useTeams, useTeamMutations, useHolidays, useHolidayMutations, useOrgSettings, useUpdateOrg, useUploadLogo } from '../../hooks/useOrg'
-import { usePeople } from '../../hooks/usePeople'
+import { useHolidays, useHolidayMutations, useOrgSettings, useUpdateOrg, useUploadLogo } from '../../hooks/useOrg'
 import { formatShort, todayISO } from '../../utils/dates'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -71,53 +70,6 @@ export function Categories() {
   )
 }
 
-export function Teams() {
-  const { data: teams = [] } = useTeams()
-  const { data: people = [] } = usePeople()
-  const { save, remove } = useTeamMutations()
-  const [name, setName] = useState('')
-  const [error, setError] = useState('')
-  const count = id => people.filter(p => p.team_id === id).length
-
-  async function add(e) {
-    e.preventDefault()
-    if (!name.trim()) return
-    setError('')
-    try { await save.mutateAsync({ name: name.trim() }); setName('') } catch (err) { setError(err.message) }
-  }
-
-  return (
-    <div className="space-y-4">
-      <Card className="p-4">
-        <form onSubmit={add} className="flex gap-2">
-          <input className="field flex-1" placeholder="New team, e.g. Mobile" value={name} onChange={e => setName(e.target.value)} />
-          <Button type="submit" loading={save.isPending}>Add</Button>
-        </form>
-        {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
-      </Card>
-      <Card className="divide-y divide-gray-50">
-        {teams.length === 0 && <p className="text-sm text-gray-400 p-6 text-center">No teams yet.</p>}
-        {teams.map(t => (
-          <div key={t.id} className="flex items-center gap-3 px-4 py-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900">{t.name}</p>
-              <p className="text-xs text-gray-400">{count(t.id)} people</p>
-            </div>
-            <select className="field !w-40 !py-1.5" value={t.lead_id ?? ''} onChange={e => save.mutate({ id: t.id, lead_id: e.target.value || null })} aria-label="Team lead">
-              <option value="">No lead</option>
-              {people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <button onClick={() => confirm(`Delete team ${t.name}? Members keep their accounts.`) && remove.mutate(t.id)} className="p-2 text-gray-300 hover:text-red-500" aria-label="Delete team">
-              <Icon name="trash" size={16} />
-            </button>
-          </div>
-        ))}
-      </Card>
-      <p className="text-xs text-gray-400">Put people into teams from the People tab.</p>
-    </div>
-  )
-}
-
 export function Holidays() {
   const { data } = useHolidays()
   const { add, remove } = useHolidayMutations()
@@ -181,7 +133,7 @@ export function Company() {
         <p className="text-sm font-semibold text-gray-900">Branding</p>
         <div className="flex items-center gap-4">
           {org.logo_url
-            ? <img src={org.logo_url} alt="Company logo" className="w-16 h-16 rounded-md object-contain border border-gray-100 bg-white" />
+            ? <img src={org.logo_url} alt="Company logo" className="w-16 h-16 rounded-md object-contain border border-gray-100 bg-surface" />
             : <div className="w-16 h-16 rounded-md bg-primary-800 flex items-center justify-center text-white text-2xl font-semibold">{(org.company_name || 'S')[0]}</div>}
           <div className="space-y-1">
             <label className="inline-flex items-center gap-2 px-3 py-2 bg-primary-50 text-primary-700 rounded-lg text-sm font-medium cursor-pointer hover:bg-primary-100">

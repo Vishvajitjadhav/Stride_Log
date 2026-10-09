@@ -3,39 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useHolidays } from './useOrg'
 import { usePeople } from './usePeople'
-import { useTeams } from './useOrg'
-import { previousRange, weekStartISO, addDaysISO, todayISO } from '../utils/dates'
-import {
-  applyFilters, summarize, compare, perPerson, perTeam, weeklyTrend,
-  dailySeries, categoryMix, blockerFeed, inRange, notLoggedOn,
-} from '../utils/metrics'
+import { useProjects } from './useProjects'
+import { previousRange, weekStartISO, addDaysISO, todayISO, compareLabel } from '../utils/dates'
+import { summarize, compare, perPerson, perProject, trend, bucketSize, categoryMix, inRange } from '../utils/metrics'
+import { isTracked } from '../lib/permissions'
 
-const TASK_COLS = 'id, user_id, team_id, role, date, title, status, priority, category, category_color, assigned_by, due_date, completed_on'
-const LOG_COLS = 'user_id, team_id, role, date, submitted, blockers, summary'
+const TASK_COLS = 'id, user_id, role, date, title, status, category, category_color, assigned_by, due_date, completed_on, project_id, project'
+const LOG_COLS = 'user_id, role, date, submitted, blockers, summary'
 
-// Raw facts for a date window. RLS decides whose rows come back: employees
-// only get their own, managers/HR/admins get everyone.
-export function useFacts({ from, to, userId, teamId, enabled = true }) {
-  return useQuery({
-    queryKey: ['facts', from, to, userId ?? null, teamId ?? null],
-    enabled: Boolean(enabled && from && to),
-    queryFn: async () => {
-      const scope = q => {
-        q = q.gte('date', from).lte('date', to)
-        if (userId) q = q.eq('user_id', userId)
-        if (teamId) q = q.eq('team_id', teamId)
-        return q
-      }
-      const [tasks, logs] = await Promise.all([
-        fetchAll(() => scope(supabase.from('v_task_facts').select(TASK_COLS))),
-        fetchAll(() => scope(supabase.from('v_log_facts').select(LOG_COLS))),
-      ])
-      return { tasks, logs }
-    },
-  })
-}
-
-// PostgREST caps responses (1000 rows by default) — page through.
+// PostgREST caps responses (1000 rows by default), so page through.
 async function fetchAll(build, pageSize = 1000) {
   const out = []
   for (let page = 0; ; page++) {
@@ -46,78 +22,24 @@ async function fetchAll(build, pageSize = 1000) {
   }
 }
 
-// Everything a dashboard needs, computed from one fetch.
-// filters: { from, to, compare: 'previous'|'none', team, person, role, category, status, source }
-// self: restrict to one user (personal dashboard)
-export function useDashboard(filters, { self } = {}) {
-  const today = todayISO()
-  const range = { from: filters.from, to: filters.to }
-  const prev = previousRange(range)
-  const trendFrom = addDaysISO(weekStartISO(range.to), -7 * 7)
-  const fetchFrom = [range.from, prev.from, trendFrom].sort()[0]
-
-  const holidaysQ = useHolidays()
-  const peopleQ = usePeople({ enabled: !self })
-  const teamsQ = useTeams()
-  const factsQ = useFacts({
-    from: fetchFrom,
-    to: range.to,
-    userId: self?.id ?? (filters.person && filters.person !== 'all' ? filters.person : undefined),
-    teamId: filters.team && filters.team !== 'all' ? filters.team : undefined,
+// Raw facts for a date window. RLS decides whose rows come back: employees
+// only get their own, managers/HR/admins get everyone.
+export function useFacts({ from, to, userId, enabled = true }) {
+  return useQuery({
+    queryKey: ['facts', from, to, userId ?? null],
+    enabled: Boolean(enabled && from && to),
+    queryFn: async () => {
+      const scope = q => {
+        q = q.gte('date', from).lte('date', to)
+        return userId ? q.eq('user_id', userId) : q
+      }
+      const [tasks, logs] = await Promise.all([
+        fetchAll(() => scope(supabase.from('v_task_facts').select(TASK_COLS))),
+        fetchAll(() => scope(supabase.from('v_log_facts').select(LOG_COLS))),
+      ])
+      return { tasks, logs }
+    },
   })
-
-  const data = useMemo(() => {
-    if (!factsQ.data) return null
-    const holidays = holidaysQ.data?.set ?? new Set()
-    const on = v => v && v !== 'all'
-
-    let people = self ? [self] : (peopleQ.data ?? [])
-    if (on(filters.team)) people = people.filter(p => p.team_id === filters.team)
-    if (on(filters.person)) people = people.filter(p => p.id === filters.person)
-    if (on(filters.role)) people = people.filter(p => p.role === filters.role)
-
-    // Only count active, approved people (deactivated staff drop out of stats).
-    const ids = new Set(people.map(p => p.id))
-    const filtered = applyFilters(factsQ.data, filters)
-    const tasks = filtered.tasks.filter(t => ids.has(t.user_id))
-    const logs = filtered.logs.filter(l => ids.has(l.user_id))
-    const ctx = { tasks, logs, people, holidays, today }
-    const peopleById = Object.fromEntries(people.map(p => [p.id, p]))
-
-    const current = summarize({ ...ctx, range })
-    const previous = summarize({ ...ctx, range: prev })
-    const rangeTasks = inRange(tasks, range)
-
-    return {
-      range,
-      prev,
-      people,
-      current,
-      previous,
-      growth: compare(current, previous),
-      trend: weeklyTrend({ ...ctx, range }),
-      daily: dailySeries(tasks, range),
-      categories: categoryMix(rangeTasks),
-      persons: self ? [] : perPerson({ ...ctx, range }),
-      teams: self ? [] : perTeam({ ...ctx, teams: teamsQ.data ?? [], range }),
-      blockers: blockerFeed({ tasks, logs, range, peopleById }),
-      notLoggedToday: self ? [] : notLoggedOn(today, people, factsQ.data.logs, holidays),
-      topDone: rangeTasks.filter(t => t.status === 'done').slice(-15).reverse()
-        .map(t => ({ ...t, name: peopleById[t.user_id]?.name })),
-      rangeTasks,
-      rangeLogs: inRange(logs, range),
-      holidays,
-      categoryOptions: [...new Set(factsQ.data.tasks.map(t => t.category ?? 'Uncategorized'))].sort(),
-    }
-  }, [factsQ.data, holidaysQ.data, peopleQ.data, teamsQ.data, filters, self, today]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  return {
-    data,
-    isLoading: factsQ.isLoading || (!self && peopleQ.isLoading),
-    error: factsQ.error,
-    teams: teamsQ.data ?? [],
-    allPeople: peopleQ.data ?? [],
-  }
 }
 
 // Everything everyone worked on for one day: tasks planned for that day plus
@@ -136,4 +58,78 @@ export function useDayFacts(date) {
       return { tasks: t.data, logs: l.data }
     },
   })
+}
+
+// Everything a report screen needs, computed from one fetch.
+//   filters: { preset, from, to, person: id|'all', project: id|'all' }
+//   self:    a single profile (personal pages); skips the people directory
+export function useDashboard(filters, { self } = {}) {
+  const today = todayISO()
+  const range = { from: filters.from, to: filters.to }
+  const prev = previousRange(range)
+  const trendFrom = bucketSize(range) === 'week' ? addDaysISO(weekStartISO(range.to), -7 * 7) : range.from
+  const fetchFrom = [range.from, prev.from, trendFrom].sort()[0]
+  const person = filters.person && filters.person !== 'all' ? filters.person : null
+  const projectId = filters.project && filters.project !== 'all' ? filters.project : null
+
+  const holidaysQ = useHolidays()
+  const peopleQ = usePeople({ enabled: !self })
+  const projectsQ = useProjects()
+  const factsQ = useFacts({ from: fetchFrom, to: range.to, userId: self?.id ?? person ?? undefined })
+
+  const data = useMemo(() => {
+    if (!factsQ.data || (!self && !peopleQ.data)) return null
+    const holidays = holidaysQ.data?.set ?? new Set()
+    const projects = projectsQ.data ?? []
+    const project = projects.find(p => p.id === projectId) ?? null
+
+    // Who is analysed: employees and BAs (logging is optional for managers,
+    // HR and admins), narrowed by the employee and project filters.
+    let people = self ? [self] : (peopleQ.data ?? []).filter(isTracked)
+    if (person) people = (peopleQ.data ?? []).filter(p => p.id === person)
+    if (project) {
+      const members = new Set(project.members.map(m => m.user_id))
+      people = people.filter(p => members.has(p.id))
+    }
+    const ids = new Set(people.map(p => p.id))
+    let tasks = factsQ.data.tasks.filter(t => ids.has(t.user_id))
+    if (project) tasks = tasks.filter(t => t.project_id === project.id)
+    const logs = factsQ.data.logs.filter(l => ids.has(l.user_id))
+
+    const ctx = { tasks, logs, people, holidays, today }
+    const current = summarize({ ...ctx, range })
+    const previous = summarize({ ...ctx, range: prev })
+
+    // Project cards: the same people as the rest of the report (employees and
+    // BAs, or the one selected), across every project or just the selected one.
+    const tracked = new Set((self ? [self] : person ? people : (peopleQ.data ?? []).filter(isTracked)).map(p => p.id))
+    const projectTasks = factsQ.data.tasks.filter(t => tracked.has(t.user_id))
+    const scoped = (project ? [project] : projects)
+      .map(p => ({ ...p, members: p.members.filter(m => person ? m.user_id === person : tracked.has(m.user_id)) }))
+      .filter(p => !person || p.members.length)
+    const projectRows = perProject({ tasks: projectTasks, projects: scoped, range, today, holidays })
+
+    return {
+      range,
+      prev,
+      against: compareLabel(filters.preset),
+      people,
+      project,
+      current,
+      previous,
+      growth: compare(current, previous),
+      trend: trend({ ...ctx, range }),
+      categories: categoryMix(inRange(tasks, range)),
+      persons: perPerson({ ...ctx, range }),
+      projects: projectRows,
+    }
+  }, [factsQ.data, holidaysQ.data, peopleQ.data, projectsQ.data, filters.preset, range.from, range.to, person, projectId, self, today]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return {
+    data,
+    isLoading: factsQ.isLoading || (!self && peopleQ.isLoading),
+    error: factsQ.error,
+    allPeople: (peopleQ.data ?? []).filter(isTracked),
+    projects: projectsQ.data ?? [],
+  }
 }

@@ -1,4 +1,4 @@
-// HR / Admin: invite a person by email with role & team pre-set.
+// HR / Admin: invite a person by email with role (and optionally a project) pre-set.
 // Sends Supabase's "invite" auth email (supabase/templates/invite.html); the
 // link lands on /reset-password where they choose a password.
 import { createClient } from 'npm:@supabase/supabase-js@2'
@@ -28,7 +28,7 @@ Deno.serve(async req => {
     return json({ error: 'Only HR or an admin can invite people' }, 403)
   }
 
-  const { email, name, role = 'employee', team_id = null, redirectTo } = await req.json().catch(() => ({}))
+  const { email, name, role = 'employee', project_id = null, redirectTo } = await req.json().catch(() => ({}))
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: 'A valid email is required' }, 400)
   if (!name?.trim()) return json({ error: 'Name is required' }, 400)
   if (!ROLES.includes(role)) return json({ error: 'Unknown role' }, 400)
@@ -47,10 +47,13 @@ Deno.serve(async req => {
   const { error: upErr } = await admin.from('profiles').update({
     name: name.trim(),
     role,
-    team_id: team_id || null,
     is_approved: true,
   }).eq('id', invited.user.id)
   if (upErr) return json({ error: upErr.message }, 500)
+
+  if (project_id) {
+    await admin.from('project_members').insert({ project_id, user_id: invited.user.id, role: role === 'manager' ? 'manager' : 'member' })
+  }
 
   return json({ ok: true, id: invited.user.id })
 })

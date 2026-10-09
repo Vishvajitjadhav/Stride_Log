@@ -6,11 +6,12 @@ import { todayISO, addDaysISO } from '../utils/dates'
 
 // Unfinished tasks older than this stop following you around in My Day
 // (they're still in History, the calendar and reports).
-export const CARRY_OVER_DAYS = 30
+const CARRY_OVER_DAYS = 30
 
-export const TASK_SELECT = `
+const TASK_SELECT = `
   *,
   categories(name, color),
+  project:projects(id, name, color),
   assigner:profiles!tasks_assigned_by_fkey(id, name),
   editor:profiles!tasks_updated_by_fkey(id, name),
   owner:profiles!tasks_user_id_fkey(id, name, avatar_initials)

@@ -55,14 +55,14 @@ export default function Login() {
       setLoading(false)
       if (error) setError(error.message || 'Could not create account.')
       else if (!data.session) setNotice('Check your email to confirm your address, then sign in.')
-      else navigate('/today') // lands on the pending-approval screen
+      else navigate('/') // home page for the role (or the pending screen)
       return
     }
 
     const { error } = await signIn(email, password)
     setLoading(false)
     if (error) setError(/confirm/i.test(error.message) ? 'Please confirm your email first. Check your inbox.' : 'Invalid email or password.')
-    else navigate('/today')
+    else navigate('/')
   }
 
   async function handleGoogle() {
@@ -81,13 +81,13 @@ export default function Login() {
     : isSignup ? 'An admin will approve your access' : 'Sign in to your workspace'
 
   return (
-    <div className="min-h-dvh bg-primary-900 auth-bg flex items-center justify-center px-4">
+    <div className="min-h-dvh bg-[#132238] auth-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-8">
           <BrandMark inverted />
         </div>
 
-        <div className="bg-white rounded-lg shadow-xl p-8">
+        <div className="bg-surface rounded-lg shadow-xl p-8">
           <h2 className="text-xl font-bold text-gray-900 mb-1">{heading}</h2>
           <p className="text-sm text-gray-400 mb-6">{sub}</p>
 
@@ -116,7 +116,7 @@ export default function Login() {
             {notice && <p className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">{notice}</p>}
 
             <button type="submit" disabled={loading}
-              className="w-full bg-primary-700 text-white font-medium py-2.5 rounded-md hover:bg-primary-800 transition-colors disabled:opacity-50">
+              className="w-full bg-brand text-white font-medium py-2.5 rounded-md hover:bg-brand-hover transition-colors disabled:opacity-50">
               {loading ? 'Please wait' : isForgot ? 'Send reset link' : isSignup ? 'Create account' : 'Sign in'}
             </button>
           </form>
@@ -133,7 +133,7 @@ export default function Login() {
           )}
         </div>
 
-        <p className="text-center text-primary-200 text-xs mt-6">
+        <p className="text-center text-[#c8d4e6] text-xs mt-6">
           {isForgot ? (
             <button onClick={() => go('signin')} className="text-white font-semibold underline hover:no-underline">
               Back to sign in

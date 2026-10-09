@@ -12,12 +12,12 @@ export default function Landing() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-dvh bg-[#f5f6f8]">
-      <section className="bg-primary-900 auth-bg">
+    <div className="min-h-dvh bg-canvas">
+      <section className="bg-[#132238] auth-bg">
         <div className="max-w-5xl mx-auto px-6">
           <header className="h-20 flex items-center justify-between">
             <div className="flex items-center gap-3"><LogoMark size={36} onDark /><Wordmark inverted className="!text-xl" /></div>
-            <button onClick={() => navigate('/login')} className="text-sm font-medium text-primary-100 hover:text-white">Sign in</button>
+            <button onClick={() => navigate('/login')} className="text-sm font-medium text-[#e4eaf3] hover:text-white">Sign in</button>
           </header>
 
           <div className="py-20 sm:py-28 max-w-2xl">
@@ -25,13 +25,13 @@ export default function Landing() {
             <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-white leading-[1.1]">
               Daily work, clearly logged.<br />Productivity, clearly reported.
             </h1>
-            <p className="mt-6 text-lg text-primary-200 leading-relaxed">
+            <p className="mt-6 text-lg text-[#c8d4e6] leading-relaxed">
               StrideLog replaces scattered status messages with one simple daily log, and gives managers an honest view of
               how work is progressing across the team.
             </p>
             <div className="mt-10 flex items-center gap-4">
               <button onClick={() => navigate('/login')}
-                className="h-11 px-6 rounded-md bg-white text-primary-900 text-[15px] font-semibold hover:bg-primary-50 transition-colors">
+                className="h-11 px-6 rounded-md bg-[#ffffff] text-[#152540] text-[15px] font-semibold hover:bg-[#f3f6fa] transition-colors">
                 Sign in to your workspace
               </button>
             </div>
@@ -41,7 +41,7 @@ export default function Landing() {
 
       <section className="max-w-5xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-3 gap-6">
         {FEATURES.map(f => (
-          <div key={f.title} className="bg-white border border-gray-200 rounded-lg p-6">
+          <div key={f.title} className="bg-surface border border-gray-200 rounded-lg p-6">
             <span className="w-10 h-10 rounded-md bg-primary-50 text-primary-700 flex items-center justify-center mb-4"><Icon name={f.icon} /></span>
             <h3 className="text-base font-semibold text-gray-900">{f.title}</h3>
             <p className="mt-2 text-sm text-gray-600 leading-relaxed">{f.text}</p>

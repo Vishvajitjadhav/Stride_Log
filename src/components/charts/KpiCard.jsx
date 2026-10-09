@@ -6,15 +6,18 @@ import { GLOSSARY } from '../../lib/glossary'
 // and how it changed versus the previous period in plain words.
 //   metric: key in GLOSSARY       value / suffix: what to show
 //   context: e.g. "of 68 planned" growth: { value, prev, delta } from compare()
-//   periodName: 'week' | 'month' | 'period'
-export default function KpiCard({ metric, label, value, suffix = '', context, growth, periodName = 'period', lowerIsBetter = false, tone }) {
+//   against: the comparison period in words, e.g. 'last week'
+//   noPrevious: the comparison period had no data, so don't claim a change
+export default function KpiCard({ metric, label, value, suffix = '', context, growth, against = 'the previous period', noPrevious = false, lowerIsBetter = false, tone }) {
   const g = GLOSSARY[metric] ?? {}
   let change = null
-  if (growth) {
+  if (growth && noPrevious) {
+    change = <p className="text-xs text-gray-500">No data for {against}</p>
+  } else if (growth) {
     const d = growth.delta
     const good = lowerIsBetter ? d < 0 : d > 0
     const unit = suffix === '%' ? ' points' : ''
-    const text = d === 0 ? `Same as last ${periodName}` : `${d > 0 ? 'Up' : 'Down'} ${Math.abs(d)}${unit} from last ${periodName}`
+    const text = d === 0 ? `Same as ${against}` : `${d > 0 ? 'Up' : 'Down'} ${Math.abs(d)}${unit} vs ${against}`
     const color = d === 0 ? 'text-gray-500' : good ? 'text-emerald-700' : 'text-red-700'
     change = <p className={`text-xs font-medium ${color}`}>{text}</p>
   }

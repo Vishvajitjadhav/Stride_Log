@@ -1,7 +1,8 @@
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, format, parseISO } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { toISO, previousRange, weekStartISO, addDaysISO, todayISO, daysBetween, isWorkingDay } from '../../utils/dates'
-import { summarize, compare, perPerson, weeklyTrend, categoryMix, inRange, observations } from '../../utils/metrics'
+import { summarize, compare, perPerson, trend, categoryMix, inRange, observations } from '../../utils/metrics'
+import { isTracked } from '../../lib/permissions'
 
 // Selectable periods for the dialog: last 8 weeks / last 12 months.
 export function periodOptions(kind, ref = new Date()) {
@@ -72,14 +73,15 @@ function weekRows(person, tasks, logs, range, holidays, today) {
 }
 
 // Pure: turn raw rows into everything the PDF shows. Exported for tests.
-export function shapeReport({ kind, range, scope, org, people, allProfiles, teams, holidayRows, tasks, logs, generatedBy, today = todayISO() }) {
+export function shapeReport({ kind, range, scope, org, people, allProfiles, projects = [], holidayRows, tasks, logs, generatedBy, today = todayISO() }) {
   const prev = previousRange(range)
   const holidays = new Set(holidayRows.map(h => h.date))
   const holidayNames = Object.fromEntries(holidayRows.map(h => [h.date, h.name]))
   const nameById = Object.fromEntries(allProfiles.map(p => [p.id, p.name]))
-  const teamById = Object.fromEntries(teams.map(t => [t.id, t.name]))
+  const project = projects.find(p => p.id === scope.projectId) ?? null
+  const projectNames = id => projects.filter(p => p.members.some(m => m.user_id === id)).map(p => p.name).join(', ')
   const ids = new Set(people.map(p => p.id))
-  const t = tasks.filter(x => ids.has(x.user_id))
+  const t = tasks.filter(x => ids.has(x.user_id) && (!project || x.project_id === project.id))
   const l = logs.filter(x => ids.has(x.user_id))
   const ctx = { tasks: t, logs: l, people, holidays, today }
 
@@ -87,11 +89,11 @@ export function shapeReport({ kind, range, scope, org, people, allProfiles, team
   const previous = summarize({ ...ctx, range: prev })
   const persons = perPerson({ ...ctx, range }).sort((a, b) => a.name.localeCompare(b.name))
   const categories = categoryMix(inRange(t, range))
-  const periodName = kind === 'weekly' ? 'week' : 'month'
+  const against = kind === 'weekly' ? 'the week before' : 'the month before'
 
   const scopeName =
     scope.kind === 'me' || scope.kind === 'person' ? (people[0]?.name ?? 'Unknown')
-    : scope.kind === 'team' ? (teamById[scope.teamId] ?? 'Team')
+    : scope.kind === 'project' ? (project?.name ?? 'Project')
     : 'All employees'
 
   const details = persons.map(row => {
@@ -100,7 +102,7 @@ export function shapeReport({ kind, range, scope, org, people, allProfiles, team
     const pl = l.filter(x => x.user_id === row.id)
     return {
       ...row,
-      team: teamById[person.team_id] ?? null,
+      projects: projectNames(person.id),
       days: kind === 'weekly' ? dayRows(person, inRange(pt, range), inRange(pl, range), range, holidays, holidayNames, nameById, today) : null,
       weeks: kind === 'monthly' ? weekRows(person, pt, pl, range, holidays, today) : null,
       open: kind === 'monthly'
@@ -112,7 +114,7 @@ export function shapeReport({ kind, range, scope, org, people, allProfiles, team
   return {
     org,
     kind,
-    periodName,
+    against,
     scope: { ...scope, name: scopeName },
     range,
     prev,
@@ -121,45 +123,53 @@ export function shapeReport({ kind, range, scope, org, people, allProfiles, team
     current,
     previous,
     growth: compare(current, previous),
-    trend: weeklyTrend({ ...ctx, range }),
+    trend: trend({ ...ctx, range }),
     categories,
     persons,
     details,
-    observations: observations({ current, previous, persons, categories, periodName }),
+    observations: observations({ current, previous, persons, categories, against }),
     holidaysInRange: holidayRows.filter(h => h.date >= range.from && h.date <= range.to),
   }
 }
 
-// scope: { kind: 'me'|'person'|'team'|'all', userId?, teamId? }
+// scope: { kind: 'me'|'person'|'project'|'all', userId?, projectId? }
 export async function buildReportData({ kind, range, scope, generatedBy }) {
   const prev = previousRange(range)
   const trendFrom = addDaysISO(weekStartISO(range.to), -7 * 7)
   const fetchFrom = [range.from, prev.from, trendFrom].sort()[0]
 
-  const scopeQ = q => {
+  // Logs belong to people, tasks to projects: only tasks are filtered by
+  // project here; logs are narrowed to the project's members below.
+  const scopeQ = (q, { byProject = false } = {}) => {
     q = q.gte('date', fetchFrom).lte('date', range.to)
     if (scope.userId) q = q.eq('user_id', scope.userId)
-    if (scope.teamId) q = q.eq('team_id', scope.teamId)
+    if (byProject && scope.projectId) q = q.eq('project_id', scope.projectId)
     return q
   }
 
-  const [org, holidaysRes, peopleRes, teamsRes, tasks, logs] = await Promise.all([
+  const [org, holidaysRes, peopleRes, projectsRes, tasks, logs] = await Promise.all([
     supabase.from('org_settings').select('*').eq('id', 1).single(),
     supabase.from('holidays').select('date, name'),
-    supabase.from('profiles').select('id, name, role, team_id, created_at, avatar_initials, is_active').eq('is_approved', true).order('name'),
-    supabase.from('teams').select('id, name').order('name'),
-    all(() => scopeQ(supabase.from('v_task_facts').select('*'))),
+    supabase.from('profiles').select('id, name, role, created_at, avatar_initials, is_active').eq('is_approved', true).order('name'),
+    supabase.from('projects').select('id, name, members:project_members(user_id, role)').order('name'),
+    all(() => scopeQ(supabase.from('v_task_facts').select('*'), { byProject: true })),
     all(() => scopeQ(supabase.from('v_log_facts').select('*'))),
   ])
-  for (const r of [org, holidaysRes, peopleRes, teamsRes]) if (r.error) throw r.error
+  for (const r of [org, holidaysRes, peopleRes, projectsRes]) if (r.error) throw r.error
 
   const allProfiles = peopleRes.data ?? []
   let people = allProfiles.filter(p => p.is_active !== false)
   if (scope.userId) people = people.filter(p => p.id === scope.userId)
-  if (scope.teamId) people = people.filter(p => p.team_id === scope.teamId)
+  // Team reports cover employees and BAs; logging is optional for managers, HR and admins.
+  if (!scope.userId) people = people.filter(isTracked)
+  const projects = projectsRes.data ?? []
+  if (scope.projectId) {
+    const members = new Set(projects.find(p => p.id === scope.projectId)?.members.map(m => m.user_id) ?? [])
+    people = people.filter(p => members.has(p.id))
+  }
 
   return shapeReport({
-    kind, range, scope, org: org.data, people, allProfiles, teams: teamsRes.data ?? [],
+    kind, range, scope, org: org.data, people, allProfiles, projects,
     holidayRows: holidaysRes.data ?? [], tasks, logs, generatedBy,
   })
 }

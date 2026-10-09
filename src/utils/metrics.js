@@ -1,38 +1,18 @@
-// Productivity metrics — pure functions over the rows of v_task_facts and
-// v_log_facts. Deliberately outcome based: there is no time tracking.
+// Productivity metrics: pure functions over the rows of v_task_facts and
+// v_log_facts. Deliberately outcome based; there is no time tracking.
 //
-//   task  : { user_id, team_id, role, date, title, status, category, category_color,
-//             assigned_by, due_date, completed_on }
-//   log   : { user_id, team_id, role, date, submitted, blockers }
-//   person: { id, name, team_id, role, created_at }
+//   task   : { user_id, role, date, title, status, category, category_color,
+//              assigned_by, due_date, completed_on, project_id, project }
+//   log    : { user_id, role, date, submitted, blockers, summary }
+//   person : { id, name, role, created_at }
+//   project: { id, name, color, members: [{ user_id, role }] }
 //
 // A task belongs to the period of its `date` (the day it was planned for).
 
-import { format, parseISO } from 'date-fns'
-import { isWorkingDay, workingDays, weekStartISO, addDaysISO, daysBetween } from './dates'
+import { format, parseISO, differenceInCalendarDays } from 'date-fns'
+import { isWorkingDay, workingDays, weekStartISO, addDaysISO, monthStartISO, monthEndISO } from './dates'
 
 const pct = (num, den) => (den ? Math.round((num / den) * 100) : 0)
-
-// ── Filtering ───────────────────────────────────────────────────────────────
-
-// filters: { team, person, role, category, status, source } — 'all'/'' = no filter
-export function applyFilters({ tasks = [], logs = [] }, f = {}) {
-  const on = v => v && v !== 'all'
-  const personOk = r =>
-    (!on(f.team) || r.team_id === f.team) &&
-    (!on(f.person) || r.user_id === f.person) &&
-    (!on(f.role) || r.role === f.role)
-
-  return {
-    tasks: tasks.filter(t =>
-      personOk(t) &&
-      (!on(f.category) || (t.category ?? 'Uncategorized') === f.category) &&
-      (!on(f.status) || t.status === f.status) &&
-      (!on(f.source) || (f.source === 'assigned' ? Boolean(t.assigned_by) : !t.assigned_by))
-    ),
-    logs: logs.filter(personOk),
-  }
-}
 
 export function inRange(rows, { from, to }) {
   return rows.filter(r => r.date >= from && r.date <= to)
@@ -83,18 +63,15 @@ export function summarize({ tasks = [], logs = [], people = [], range, holidays 
     planned: t.length,
     done: done.length,
     completionRate: pct(done.length, t.length),
-    inProgress: t.filter(x => x.status === 'in_progress').length,
     blocked: t.filter(x => x.status === 'blocked').length,
     carried: carried.length,
     assigned: assigned.length,
-    assignedDone: assigned.filter(x => x.status === 'done').length,
     onTimeRate: pct(onTime.length, assignedDue.length),
     onTimeBase: assignedDue.length,
     loggedDays: workSubmitted.length,
     expectedDays: expected,
     consistency: Math.min(100, pct(workSubmitted.length, expected)),
     extraDays: extraDays.length,
-    blockersRaised: l.filter(x => x.blockers).length + t.filter(x => x.status === 'blocked').length,
     activePeople: new Set([...t.map(x => x.user_id), ...submitted.map(x => x.user_id)]).size,
   }
 }
@@ -103,100 +80,77 @@ export function summarize({ tasks = [], logs = [], people = [], range, holidays 
 
 const COMPARE_KEYS = ['planned', 'done', 'completionRate', 'consistency', 'onTimeRate', 'carried', 'blocked', 'extraDays']
 
-// -> { key: { value, prev, delta, deltaPct } }
+// -> { key: { value, prev, delta } }
 export function compare(current, previous) {
   const out = {}
   COMPARE_KEYS.forEach(k => {
     const value = current?.[k] ?? 0
     const prev = previous?.[k] ?? 0
-    out[k] = {
-      value,
-      prev,
-      delta: value - prev,
-      deltaPct: prev ? Math.round(((value - prev) / prev) * 100) : null,
-    }
+    out[k] = { value, prev, delta: value - prev }
   })
   return out
 }
 
 // ── Breakdowns ──────────────────────────────────────────────────────────────
 
-function groupBy(rows, key) {
-  const m = new Map()
-  rows.forEach(r => {
-    const k = r[key] ?? null
-    if (!m.has(k)) m.set(k, [])
-    m.get(k).push(r)
-  })
-  return m
-}
-
 export function perPerson({ tasks, logs, people, range, holidays, today }) {
-  const tBy = groupBy(inRange(tasks, range), 'user_id')
-  const lBy = groupBy(inRange(logs, range), 'user_id')
+  const byUser = (rows, id) => rows.filter(r => r.user_id === id)
+  const t = inRange(tasks, range)
+  const l = inRange(logs, range)
   return people
     .map(p => ({
       id: p.id,
       name: p.name,
       avatar_initials: p.avatar_initials,
       role: p.role,
-      team_id: p.team_id,
-      ...summarize({ tasks: tBy.get(p.id) ?? [], logs: lBy.get(p.id) ?? [], people: [p], range, holidays, today }),
+      ...summarize({ tasks: byUser(t, p.id), logs: byUser(l, p.id), people: [p], range, holidays, today }),
     }))
     .sort((a, b) => b.done - a.done || b.consistency - a.consistency || a.name.localeCompare(b.name))
 }
 
-export function perTeam({ tasks, logs, people, teams = [], range, holidays, today }) {
-  const groups = [...teams.map(t => ({ id: t.id, name: t.name })), { id: null, name: 'No team' }]
-  return groups
-    .map(g => {
-      const members = people.filter(p => (p.team_id ?? null) === g.id)
-      const ids = new Set(members.map(m => m.id))
-      return {
-        id: g.id,
-        name: g.name,
-        members: members.length,
-        ...summarize({
-          tasks: tasks.filter(t => ids.has(t.user_id)),
-          logs: logs.filter(l => ids.has(l.user_id)),
-          people: members, range, holidays, today,
-        }),
-      }
-    })
-    .filter(g => g.members > 0)
+// Week buckets for periods up to ~3 months, month buckets for longer ones.
+export function bucketSize(range) {
+  return differenceInCalendarDays(parseISO(range.to), parseISO(range.from)) > 95 ? 'month' : 'week'
 }
 
-// Weekly buckets ending with the week containing range.to; at least `minWeeks`.
-export function weeklyTrend({ tasks, logs, people, range, holidays, today, minWeeks = 8 }) {
-  const lastWeek = weekStartISO(range.to)
-  let first = weekStartISO(range.from)
-  const minFirst = addDaysISO(lastWeek, -7 * (minWeeks - 1))
-  if (first > minFirst) first = minFirst
-
+function buckets(range, size, minWeeks) {
   const out = []
-  for (let ws = first; ws <= lastWeek; ws = addDaysISO(ws, 7)) {
-    const r = { from: ws, to: addDaysISO(ws, 6) }
-    if (r.from > today) break
-    const s = summarize({ tasks, logs, people, range: r, holidays, today })
-    out.push({
-      week: ws,
-      label: format(parseISO(ws), 'd MMM'),
-      planned: s.planned,
-      done: s.done,
-      completionRate: s.completionRate,
-      consistency: s.consistency,
-    })
+  if (size === 'month') {
+    for (let m = monthStartISO(range.from); m <= range.to; m = addDaysISO(monthEndISO(m), 1)) {
+      out.push({ from: m, to: monthEndISO(m), label: format(parseISO(m), 'MMM yyyy') })
+    }
+    return out
+  }
+  const last = weekStartISO(range.to)
+  let first = weekStartISO(range.from)
+  const minFirst = addDaysISO(last, -7 * (minWeeks - 1))
+  if (first > minFirst) first = minFirst
+  for (let w = first; w <= last; w = addDaysISO(w, 7)) {
+    out.push({ from: w, to: addDaysISO(w, 6), label: format(parseISO(w), 'd MMM') })
   }
   return out
 }
 
-// Per-day counts inside the range (for short ranges).
-export function dailySeries(tasks, range) {
-  const byDate = groupBy(inRange(tasks, range), 'date')
-  return daysBetween(range.from, range.to).map(d => {
-    const rows = byDate.get(d) ?? []
-    return { date: d, planned: rows.length, done: rows.filter(r => r.status === 'done').length }
-  })
+// One row per week (or month) with the main numbers. Short periods show at
+// least `minWeeks` weeks so a trend is visible. Future buckets are dropped.
+export function trend({ tasks, logs, people, range, holidays, today, minWeeks = 8 }) {
+  const size = bucketSize(range)
+  return buckets(range, size, minWeeks)
+    .filter(b => b.from <= today)
+    .map(b => {
+      const s = summarize({ tasks, logs, people, range: b, holidays, today })
+      return {
+        ...b,
+        size,
+        planned: s.planned,
+        done: s.done,
+        completionRate: s.completionRate,
+        consistency: s.consistency,
+        loggedDays: s.loggedDays,
+        expectedDays: s.expectedDays,
+        blocked: s.blocked,
+      }
+    })
 }
 
 // -> [{ name, color, count, done }] desc by count
@@ -204,7 +158,7 @@ export function categoryMix(tasks = []) {
   const m = new Map()
   tasks.forEach(t => {
     const name = t.category ?? 'Uncategorized'
-    if (!m.has(name)) m.set(name, { name, color: t.category_color ?? '#9ca3af', count: 0, done: 0 })
+    if (!m.has(name)) m.set(name, { name, color: t.category_color ?? '#94a3b8', count: 0, done: 0 })
     const e = m.get(name)
     e.count++
     if (t.status === 'done') e.done++
@@ -212,27 +166,26 @@ export function categoryMix(tasks = []) {
   return [...m.values()].sort((a, b) => b.count - a.count)
 }
 
-// Most recent blockers first: blocked tasks + blocker notes on daily logs.
-export function blockerFeed({ tasks = [], logs = [], range, peopleById = {} }, limit = 20) {
-  const items = [
-    ...inRange(tasks, range).filter(t => t.status === 'blocked').map(t => ({
-      date: t.date, user_id: t.user_id, text: t.title, kind: 'task',
-    })),
-    ...inRange(logs, range).filter(l => l.blockers).map(l => ({
-      date: l.date, user_id: l.user_id, text: l.blockers, kind: 'note',
-    })),
-  ]
-  return items
-    .sort((a, b) => (a.date < b.date ? 1 : -1))
-    .slice(0, limit)
-    .map(i => ({ ...i, name: peopleById[i.user_id]?.name ?? 'Unknown' }))
-}
-
-// Who has not submitted a log for `day` (working day only).
-export function notLoggedOn(day, people, logs, holidays = new Set()) {
-  if (!isWorkingDay(day, holidays)) return []
-  const ok = new Set(logs.filter(l => l.date === day && l.submitted).map(l => l.user_id))
-  return people.filter(p => !ok.has(p.id))
+// Per project: members, people who actually worked on it, tasks and trend.
+export function perProject({ tasks, projects = [], range, today, holidays }) {
+  return projects.map(p => {
+    const pt = tasks.filter(t => t.project_id === p.id)
+    const inR = inRange(pt, range)
+    const done = inR.filter(t => t.status === 'done').length
+    return {
+      id: p.id,
+      name: p.name,
+      color: p.color,
+      members: p.members.length,
+      managers: p.members.filter(m => m.role === 'manager').length,
+      activePeople: new Set(inR.map(t => t.user_id)).size,
+      planned: inR.length,
+      done,
+      completionRate: pct(done, inR.length),
+      blocked: inR.filter(t => t.status === 'blocked').length,
+      trend: trend({ tasks: pt, logs: [], people: [], range, holidays, today }).map(b => ({ label: b.label, done: b.done, planned: b.planned })),
+    }
+  }).sort((a, b) => b.done - a.done || a.name.localeCompare(b.name))
 }
 
 // ── Plain-English observations ──────────────────────────────────────────────
@@ -240,26 +193,28 @@ export function notLoggedOn(day, people, logs, holidays = new Set()) {
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 // A few short sentences a manager can read in seconds.
-// periodName: 'week' | 'month' | 'period' (used as "last week" etc.)
-export function observations({ current, previous, persons = [], categories = [], periodName = 'period' }) {
+// against: wording for the comparison period, e.g. "last week".
+export function observations({ current, previous, persons = [], categories = [], against = 'the previous period' }) {
   const out = []
-  const prevLabel = `the previous ${periodName}`
-
   if (current.planned === 0) return ['No tasks were planned in this period.']
 
-  if (previous && previous.done !== current.done) {
+  if (previous && previous.planned === 0) {
+    out.push(`There is no data from ${against} to compare with.`)
+  } else if (previous && previous.done !== current.done) {
     const dir = current.done > previous.done ? 'rose' : 'fell'
-    out.push(`Tasks completed ${dir} from ${previous.done} to ${current.done} compared with ${prevLabel}.`)
+    out.push(`Tasks completed ${dir} from ${previous.done} to ${current.done} compared with ${against}.`)
   } else if (previous) {
-    out.push(`Tasks completed held steady at ${current.done} compared with ${prevLabel}.`)
+    out.push(`Tasks completed held steady at ${current.done} compared with ${against}.`)
   }
 
-  const top = [...persons].filter(p => p.done > 0).sort((a, b) => b.done - a.done)[0]
-  if (top && persons.length > 1) {
-    out.push(`${top.name} completed the most tasks (${top.done}, ${top.completionRate}% of planned).`)
-  }
-
-  if (persons.length) {
+  if (persons.length === 1) {
+    const p = persons[0]
+    const missed = Math.max(0, p.expectedDays - p.loggedDays)
+    out.push(`Finished ${p.completionRate}% of planned tasks.`)
+    out.push(missed ? `Missed the daily log on ${plural(missed, 'working day')}.` : 'Submitted a daily log on every working day.')
+  } else if (persons.length > 1) {
+    const top = [...persons].filter(p => p.done > 0).sort((a, b) => b.done - a.done)[0]
+    if (top) out.push(`${top.name} completed the most tasks (${top.done}, ${top.completionRate}% of planned).`)
     const missed = persons
       .map(p => ({ name: p.name, days: Math.max(0, p.expectedDays - p.loggedDays) }))
       .filter(p => p.days > 0)

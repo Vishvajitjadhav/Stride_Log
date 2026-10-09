@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePeople, usePendingApprovals, useUpdatePerson, useInviteUser } from '../../hooks/usePeople'
-import { useTeams } from '../../hooks/useOrg'
+import { useProjects, projectsOf } from '../../hooks/useProjects'
+import { supabase } from '../../lib/supabase'
 import { ROLE_LABELS, assignableRoles } from '../../lib/permissions'
 import { formatDisplay } from '../../utils/dates'
 import Card from '../../components/ui/Card'
@@ -13,10 +14,10 @@ import Icon from '../../components/ui/Icon'
 
 const INHERENT_ASSIGN = ['manager', 'admin']
 
-function PendingRow({ person, teams, roles }) {
+function PendingRow({ person, projects, roles }) {
   const update = useUpdatePerson()
   const [role, setRole] = useState('employee')
-  const [team, setTeam] = useState('')
+  const [project, setProject] = useState('')
 
   return (
     <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -31,16 +32,19 @@ function PendingRow({ person, teams, roles }) {
         <select className="field !py-1.5 sm:!w-36" value={role} onChange={e => setRole(e.target.value)} aria-label="Role">
           {roles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
         </select>
-        {teams.length > 0 && (
-          <select className="field !py-1.5 sm:!w-36" value={team} onChange={e => setTeam(e.target.value)} aria-label="Team">
-            <option value="">No team</option>
-            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        {projects.length > 0 && (
+          <select className="field !py-1.5 sm:!w-40" value={project} onChange={e => setProject(e.target.value)} aria-label="Project">
+            <option value="">No project yet</option>
+            {projects.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         )}
       </div>
       <div className="flex gap-2">
         <Button size="sm" className="flex-1" loading={update.isPending}
-          onClick={() => update.mutate({ id: person.id, is_approved: true, role, team_id: team || null })}>Approve</Button>
+          onClick={async () => {
+            await update.mutateAsync({ id: person.id, is_approved: true, role })
+            if (project) await supabase.from('project_members').insert({ project_id: project, user_id: person.id })
+          }}>Approve</Button>
         <Button size="sm" variant="outline" className="text-red-600"
           onClick={() => confirm(`Reject ${person.name}?`) && update.mutate({ id: person.id, is_active: false })}>Reject</Button>
       </div>
@@ -48,7 +52,7 @@ function PendingRow({ person, teams, roles }) {
   )
 }
 
-function PersonEditor({ person, teams, people, onClose }) {
+function PersonEditor({ person, projects, people, onClose }) {
   const { profile, can } = useAuth()
   const update = useUpdatePerson()
   const roles = assignableRoles(profile)
@@ -57,7 +61,6 @@ function PersonEditor({ person, teams, people, onClose }) {
   const [form, setForm] = useState({
     name: person.name,
     role: person.role,
-    team_id: person.team_id ?? '',
     manager_id: person.manager_id ?? '',
     can_assign_tasks: person.can_assign_tasks,
     is_active: person.is_active,
@@ -72,7 +75,6 @@ function PersonEditor({ person, teams, people, onClose }) {
         id: person.id,
         name: form.name.trim(),
         role: form.role,
-        team_id: form.team_id || null,
         manager_id: form.manager_id || null,
         ...(can('grantPermissions') ? { can_assign_tasks: form.can_assign_tasks } : {}),
         is_active: form.is_active,
@@ -100,13 +102,13 @@ function PersonEditor({ person, teams, people, onClose }) {
               {[...new Set([...roles, form.role])].map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
             </select>
           </div>
-          <div>
-            <label className="label" htmlFor="p-team">Team</label>
-            <select id="p-team" className="field" value={form.team_id} onChange={e => set('team_id', e.target.value)} disabled={lockedAdmin}>
-              <option value="">No team</option>
-              {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </div>
+        </div>
+        <div>
+          <span className="label">Projects</span>
+          <p className="text-sm text-gray-700">
+            {projectsOf(projects, person.id).map(p => p.name).join(', ') || 'Not in any project'}
+            <span className="text-gray-400"> · change on the Projects page</span>
+          </p>
         </div>
         <div>
           <label className="label" htmlFor="p-mgr">Reports to</label>
@@ -126,7 +128,7 @@ function PersonEditor({ person, teams, people, onClose }) {
             <span className="block text-xs text-gray-500">
               {INHERENT_ASSIGN.includes(form.role)
                 ? `${ROLE_LABELS[form.role]}s always have this.`
-                : 'Lets this person (e.g. a BA or team lead) assign tasks to anyone and see team dashboards.'}
+                : 'Lets this person (for example a BA or project lead) assign tasks to anyone and see team reports.'}
               {!can('grantPermissions') && ' Only an admin can change this.'}
             </span>
           </span>
@@ -145,16 +147,16 @@ function PersonEditor({ person, teams, people, onClose }) {
   )
 }
 
-function InviteSheet({ teams, roles, onClose }) {
+function InviteSheet({ projects, roles, onClose }) {
   const invite = useInviteUser()
-  const [form, setForm] = useState({ email: '', name: '', role: 'employee', team_id: '' })
+  const [form, setForm] = useState({ email: '', name: '', role: 'employee', project_id: '' })
   const [done, setDone] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function send(e) {
     e?.preventDefault()
     try {
-      await invite.mutateAsync({ ...form, team_id: form.team_id || null })
+      await invite.mutateAsync({ ...form, project_id: form.project_id || null })
       setDone(true)
     } catch { /* shown below */ }
   }
@@ -184,10 +186,10 @@ function InviteSheet({ teams, roles, onClose }) {
               </select>
             </div>
             <div>
-              <label className="label" htmlFor="i-team">Team</label>
-              <select id="i-team" className="field" value={form.team_id} onChange={e => set('team_id', e.target.value)}>
-                <option value="">No team</option>
-                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              <label className="label" htmlFor="i-project">Project</label>
+              <select id="i-project" className="field" value={form.project_id} onChange={e => set('project_id', e.target.value)}>
+                <option value="">None yet</option>
+                {projects.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
           </div>
@@ -203,14 +205,13 @@ export default function People() {
   const { profile } = useAuth()
   const { data: pending = [] } = usePendingApprovals()
   const { data: people = [], isLoading } = usePeople({ includeInactive: true })
-  const { data: teams = [] } = useTeams()
+  const { data: projects = [] } = useProjects()
   const roles = assignableRoles(profile)
   const [chosenTab, setTab] = useState(null)
   const tab = chosenTab ?? (pending.length ? 'pending' : 'people')
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState(null)
   const [inviting, setInviting] = useState(false)
-  const teamName = Object.fromEntries(teams.map(t => [t.id, t.name]))
 
   const filtered = useMemo(
     () => people.filter(p => `${p.name} ${p.email ?? ''}`.toLowerCase().includes(search.toLowerCase())),
@@ -220,7 +221,7 @@ export default function People() {
   return (
     <div className="max-w-4xl mx-auto space-y-4">
       <div className="flex items-center gap-2">
-        <div className="flex gap-1 bg-white border border-gray-100 rounded-md p-1">
+        <div className="flex gap-1 bg-surface border border-gray-100 rounded-md p-1">
           <button onClick={() => setTab('pending')} className={`px-4 py-1.5 rounded-lg text-sm font-medium ${tab === 'pending' ? 'bg-primary-600 text-white' : 'text-gray-600'}`}>
             Pending{pending.length > 0 && <span className="ml-1.5 text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5">{pending.length}</span>}
           </button>
@@ -237,7 +238,7 @@ export default function People() {
           </Card>
         ) : (
           <Card className="divide-y divide-gray-50">
-            {pending.map(p => <PendingRow key={p.id} person={p} teams={teams} roles={roles} />)}
+            {pending.map(p => <PendingRow key={p.id} person={p} projects={projects} roles={roles} />)}
           </Card>
         )
       ) : (
@@ -250,7 +251,7 @@ export default function People() {
                 <Avatar person={p} />
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium truncate ${p.is_active ? 'text-gray-900' : 'text-gray-400 line-through'}`}>{p.name}</p>
-                  <p className="text-xs text-gray-500 truncate">{p.email}{p.team_id ? ` · ${teamName[p.team_id]}` : ''}</p>
+                  <p className="text-xs text-gray-500 truncate">{p.email}{projectsOf(projects, p.id).length ? ` · ${projectsOf(projects, p.id).map(x => x.name).join(', ')}` : ''}</p>
                 </div>
                 <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1">
                   {p.can_assign_tasks && !INHERENT_ASSIGN.includes(p.role) && <Badge variant="info">Can assign</Badge>}
@@ -262,8 +263,8 @@ export default function People() {
         </>
       )}
 
-      {editing && <PersonEditor person={editing} teams={teams} people={people.filter(p => p.is_active)} onClose={() => setEditing(null)} />}
-      {inviting && <InviteSheet teams={teams} roles={roles} onClose={() => setInviting(false)} />}
+      {editing && <PersonEditor person={editing} projects={projects} people={people.filter(p => p.is_active)} onClose={() => setEditing(null)} />}
+      {inviting && <InviteSheet projects={projects} roles={roles} onClose={() => setInviting(false)} />}
     </div>
   )
 }

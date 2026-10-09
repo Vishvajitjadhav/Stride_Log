@@ -18,6 +18,7 @@ export default function TaskItem({ task, onStatus, onOpen, showOwner = false, co
 
   const meta = [
     showOwner && task.owner && <span key="o" className="font-medium text-gray-700">{task.owner.name}</span>,
+    task.project && <span key="p" className="font-medium text-gray-600">{task.project.name}</span>,
     task.categories && (
       <span key="c" className="inline-flex items-center gap-1.5">
         <span className="w-2 h-2 rounded-full" style={{ background: task.categories.color }} />{task.categories.name}

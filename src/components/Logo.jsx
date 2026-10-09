@@ -17,7 +17,7 @@ export function LogoMark({ size = 32, className = '', onDark = false }) {
 
 export function Wordmark({ inverted = false, className = '' }) {
   return (
-    <span className={`text-[17px] tracking-tight ${inverted ? 'text-white' : 'text-primary-900'} ${className}`}>
+    <span className={`text-[17px] tracking-tight ${inverted ? 'text-white' : 'text-gray-900'} ${className}`}>
       <span className="font-bold">Stride</span><span className="font-normal">Log</span>
     </span>
   )

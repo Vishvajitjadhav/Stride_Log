@@ -11,7 +11,7 @@ export default function BrandMark({ compact = false, inverted = false }) {
   return (
     <div className="flex items-center gap-2.5 min-w-0">
       {custom
-        ? <img src={custom} alt="" style={{ width: size, height: size }} className="rounded-md object-contain bg-white" />
+        ? <img src={custom} alt="" style={{ width: size, height: size }} className="rounded-md object-contain bg-surface" />
         : <LogoMark size={size} onDark={inverted} />}
       {!compact && (company
         ? <span className={`font-semibold truncate ${inverted ? 'text-white' : 'text-gray-900'}`}>{company}</span>

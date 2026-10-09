@@ -1,22 +1,22 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePeople } from '../../hooks/usePeople'
-import { useTeams } from '../../hooks/useOrg'
+import { useProjects } from '../../hooks/useProjects'
 import { periodOptions, buildReportData, reportFileName } from './buildReport'
 import Sheet from '../ui/Sheet'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 
 // Download a weekly or monthly PDF. defaultScope: 'me' | 'all';
-// personId / teamId preselect one employee or team.
-export default function ReportButton({ defaultScope = 'me', personId, teamId, label = 'Download report' }) {
+// personId / projectId preselect one employee or project.
+export default function ReportButton({ defaultScope = 'me', personId, projectId, label = 'Download report' }) {
   const [open, setOpen] = useState(false)
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)} className="shrink-0">
         <Icon name="download" size={16} /><span className="hidden sm:inline">{label}</span>
       </Button>
-      {open && <ReportDialog onClose={() => setOpen(false)} defaultScope={defaultScope} personId={personId} teamId={teamId} />}
+      {open && <ReportDialog onClose={() => setOpen(false)} defaultScope={defaultScope} personId={personId} projectId={projectId} />}
     </>
   )
 }
@@ -37,26 +37,26 @@ function Choice({ active, onClick, title, hint }) {
   )
 }
 
-function ReportDialog({ onClose, defaultScope, personId, teamId }) {
+function ReportDialog({ onClose, defaultScope, personId, projectId }) {
   const { profile, can } = useAuth()
   const viewTeam = can('viewTeam')
   const viewAll = can('viewCompany')
   const { data: people = [] } = usePeople({ enabled: viewTeam })
-  const { data: teams = [] } = useTeams()
+  const { data: projects = [] } = useProjects()
 
   const fallback = defaultScope === 'all' && !viewAll ? (viewTeam ? 'person' : 'me') : defaultScope
   const [kind, setKind] = useState('weekly')
   const [periodIdx, setPeriodIdx] = useState(() => defaultPeriodIndex('weekly'))
-  const [scope, setScope] = useState(personId ? 'person' : teamId ? 'team' : fallback)
+  const [scope, setScope] = useState(personId ? 'person' : projectId ? 'project' : fallback)
   const [person, setPerson] = useState(personId ?? '')
-  const [team, setTeam] = useState(teamId ?? '')
+  const [project, setProject] = useState(projectId ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   const periods = useMemo(() => periodOptions(kind), [kind])
   const scopes = [
     viewAll && { key: 'all', title: 'All employees', hint: 'Summary plus a section per employee' },
-    viewTeam && teams.length > 0 && { key: 'team', title: 'One team' },
+    viewTeam && projects.length > 0 && { key: 'project', title: 'One project' },
     viewTeam && { key: 'person', title: 'One employee' },
     { key: 'me', title: 'Only me' },
   ].filter(Boolean)
@@ -64,7 +64,7 @@ function ReportDialog({ onClose, defaultScope, personId, teamId }) {
   async function generate() {
     setError('')
     if (scope === 'person' && !person) return setError('Choose an employee.')
-    if (scope === 'team' && !team) return setError('Choose a team.')
+    if (scope === 'project' && !project) return setError('Choose a project.')
     setBusy(true)
     try {
       // react-pdf is large; load it only when someone actually downloads.
@@ -79,7 +79,7 @@ function ReportDialog({ onClose, defaultScope, personId, teamId }) {
         scope: {
           kind: scope,
           userId: scope === 'me' ? profile.id : scope === 'person' ? person : undefined,
-          teamId: scope === 'team' ? team : undefined,
+          projectId: scope === 'project' ? project : undefined,
         },
         generatedBy: profile.name,
       })
@@ -136,10 +136,10 @@ function ReportDialog({ onClose, defaultScope, personId, teamId }) {
             {people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         )}
-        {scope === 'team' && (
-          <select className="field" value={team} onChange={e => setTeam(e.target.value)} aria-label="Team">
-            <option value="">Choose a team</option>
-            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        {scope === 'project' && (
+          <select className="field" value={project} onChange={e => setProject(e.target.value)} aria-label="Project">
+            <option value="">Choose a project</option>
+            {projects.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         )}
 

@@ -16,10 +16,10 @@ describe('observations', () => {
         { name: 'Raj', done: 2, completionRate: 67, expectedDays: 5, loggedDays: 3 },
       ],
       categories: [{ name: 'Development', count: 6 }, { name: 'Design', count: 4 }],
-      periodName: 'week',
+      against: 'last week',
     })
     expect(out).toEqual([
-      'Tasks completed rose from 5 to 8 compared with the previous week.',
+      'Tasks completed rose from 5 to 8 compared with last week.',
       'Ana completed the most tasks (6, 86% of planned).',
       'Missed daily logs: Raj (2 days).',
       'Most work went to Development (60% of tasks).',
@@ -29,9 +29,27 @@ describe('observations', () => {
   })
 
   it('praises full log consistency and handles empty periods', () => {
-    expect(observations({ current: base, persons: [{ name: 'A', done: 1, completionRate: 50, expectedDays: 2, loggedDays: 2 }] }))
+    expect(observations({ current: base, persons: [
+      { name: 'A', done: 1, completionRate: 50, expectedDays: 2, loggedDays: 2 },
+      { name: 'B', done: 2, completionRate: 60, expectedDays: 2, loggedDays: 2 },
+    ] }))
       .toContain('Everyone submitted a daily log on every working day.')
     expect(observations({ current: { planned: 0, done: 0, blocked: 0 } })).toEqual(['No tasks were planned in this period.'])
+  })
+})
+
+describe('observations for one employee', () => {
+  it('speaks about the person, not a ranking', () => {
+    const out = observations({
+      current: { planned: 10, done: 7, blocked: 0 }, previous: { done: 7 },
+      persons: [{ name: 'Ana', done: 7, completionRate: 70, expectedDays: 5, loggedDays: 4 }],
+      against: 'last month',
+    })
+    expect(out).toEqual([
+      'Tasks completed held steady at 7 compared with last month.',
+      'Finished 70% of planned tasks.',
+      'Missed the daily log on 1 working day.',
+    ])
   })
 })
 
@@ -44,10 +62,10 @@ describe('formatRange', () => {
 
 describe('shapeReport', () => {
   const people = [
-    { id: 'a', name: 'Ana', role: 'employee', team_id: 't1', created_at: '2026-01-01' },
-    { id: 'b', name: 'Ben', role: 'ba', team_id: null, created_at: '2026-01-01' },
+    { id: 'a', name: 'Ana', role: 'employee', created_at: '2026-01-01' },
+    { id: 'b', name: 'Ben', role: 'ba', created_at: '2026-01-01' },
   ]
-  const task = o => ({ user_id: 'a', team_id: 't1', role: 'employee', status: 'done', category: 'Development', assigned_by: null, due_date: null, completed_on: o.date, ...o })
+  const task = o => ({ user_id: 'a', project_id: 'p1', role: 'employee', status: 'done', category: 'Development', assigned_by: null, due_date: null, completed_on: o.date, ...o })
   const input = {
     kind: 'weekly',
     range: { from: '2026-10-05', to: '2026-10-11' },
@@ -55,7 +73,7 @@ describe('shapeReport', () => {
     org: { company_name: 'Acme' },
     people,
     allProfiles: [...people, { id: 'm', name: 'Maya Manager' }],
-    teams: [{ id: 't1', name: 'Engineering' }],
+    projects: [{ id: 'p1', name: 'Engineering', members: [{ user_id: 'a', role: 'member' }] }],
     holidayRows: [{ date: '2026-10-06', name: 'Founders Day' }],
     tasks: [
       task({ id: 1, date: '2026-10-05', title: 'Build login' }),
@@ -85,7 +103,7 @@ describe('shapeReport', () => {
     expect(ana.days.find(d => d.date === '2026-10-10').state).toBe('Extra day')
     // Sunday with no work is left out
     expect(ana.days.find(d => d.date === '2026-10-11')).toBeUndefined()
-    expect(ana.team).toBe('Engineering')
+    expect(ana.projects).toBe('Engineering')
   })
 
   it('computes summary numbers and observations without dashes', () => {

@@ -1,13 +1,14 @@
 // One navigation definition for the desktop sidebar and the phone tab bar.
 //   perm:    permission needed to see the item (lib/permissions.js)
 //   notPerm: hide the item from people who have this permission
-// Managers / HR / admins: Team · Reports · Today · Admin
-// Everyone else:          Today · My Progress
+// Managers / HR / admins: Team · Reports · Projects · Admin (their own day is
+// optional and lives under Account). Everyone else: Today · My Progress.
 
-export const NAV = [
+const NAV = [
   { to: '/team',     label: 'Team',        icon: 'team',      perm: 'viewTeam' },
   { to: '/reports',  label: 'Reports',     icon: 'analytics', perm: 'viewTeam' },
-  { to: '/today',    label: 'Today',       icon: 'today' },
+  { to: '/projects', label: 'Projects',    icon: 'flag',      perm: 'viewTeam' },
+  { to: '/today',    label: 'Today',       icon: 'today',     notPerm: 'viewTeam' },
   { to: '/progress', label: 'My Progress', icon: 'dashboard', notPerm: 'viewTeam' },
   { to: '/admin',    label: 'Admin',       icon: 'settings',  perm: 'manageCategories', badge: 'pending' },
 ]
@@ -28,6 +29,7 @@ const TITLES = {
   '/assigned': 'Assigned by me',
   '/import': 'Import from Excel',
   '/progress': 'My Progress',
+  '/today': 'My day',
 }
 
 export function pageTitle(pathname, can) {

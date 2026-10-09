@@ -11,7 +11,7 @@ export default function UpdatePrompt() {
 
   if (!needRefresh) return null
   return (
-    <div className="fixed z-50 left-4 right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 lg:left-auto lg:right-6 lg:w-80 bg-gray-900 text-white rounded-xl shadow-xl px-4 py-3 flex items-center gap-3">
+    <div className="fixed z-50 left-4 right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 lg:left-auto lg:right-6 lg:w-80 bg-[#0f172a] ring-1 ring-white/10 text-white rounded-xl shadow-xl px-4 py-3 flex items-center gap-3">
       <p className="text-sm flex-1">A new version of the app is available.</p>
       <button onClick={() => setNeedRefresh(false)} className="text-sm text-gray-300">Later</button>
       <button onClick={() => updateServiceWorker(true)} className="text-sm font-semibold text-primary-300">Reload</button>

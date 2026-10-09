@@ -47,7 +47,7 @@ export default function PersonProgress({ person, actions }) {
         </div>
         {view === 'week' && (
           <>
-            <div className="flex items-center bg-white border border-gray-200 rounded-md">
+            <div className="flex items-center bg-surface border border-gray-200 rounded-md">
               <button onClick={() => set({ week: addDaysISO(weekStart, -7) })} className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Previous week"><Icon name="left" size={16} /></button>
               <span className="px-2 text-sm font-medium text-gray-900 min-w-[10rem] text-center">{formatRange(weekStart, weekEnd)}</span>
               <button onClick={() => set({ week: addDaysISO(weekStart, 7) })} className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Next week"><Icon name="right" size={16} /></button>
@@ -63,9 +63,9 @@ export default function PersonProgress({ person, actions }) {
         <>
           {data ? (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <KpiCard metric="done" value={data.current.done} context={`of ${data.current.planned}`} growth={data.growth.done} periodName="week" />
-              <KpiCard metric="completionRate" value={data.current.completionRate} suffix="%" growth={data.growth.completionRate} periodName="week" />
-              <KpiCard metric="consistency" value={data.current.loggedDays} context={`of ${data.current.expectedDays} days`} periodName="week" />
+              <KpiCard metric="done" value={data.current.done} context={`of ${data.current.planned}`} growth={data.growth.done} against="last week" />
+              <KpiCard metric="completionRate" value={data.current.completionRate} suffix="%" growth={data.growth.completionRate} against="last week" />
+              <KpiCard metric="consistency" value={data.current.loggedDays} context={`of ${data.current.expectedDays} days`} against="last week" />
             </div>
           ) : <div className="grid grid-cols-3 gap-4">{[0, 1, 2].map(i => <Card key={i} className="h-28 animate-pulse" />)}</div>}
 
@@ -75,7 +75,7 @@ export default function PersonProgress({ person, actions }) {
           </Section>
 
           {data && (
-            <Section title="Tasks completed each week" hint="Last 8 weeks. Dark shows done; light shows planned but not done.">
+            <Section title="Tasks completed each week" hint="Last 8 weeks. Solid bars show tasks done; faded bars show tasks planned but not done.">
               <DoneColumns data={data.trend} height={180} />
             </Section>
           )}

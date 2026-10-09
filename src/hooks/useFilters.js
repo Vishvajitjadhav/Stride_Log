@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { presetRange, todayISO } from '../utils/dates'
 
-const DIMENSIONS = ['team', 'person', 'role', 'category', 'status', 'source']
+const DIMENSIONS = ['person', 'project']
 
 // Filters live in the URL so a filtered view can be bookmarked or shared.
 export function useFilters(defaultPreset = 'this_week') {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { usePerson } from '../hooks/usePeople'
-import { useTeams } from '../hooks/useOrg'
+import { useProjects, projectsOf } from '../hooks/useProjects'
 import { ROLE_LABELS } from '../lib/permissions'
 import PersonProgress from '../components/PersonProgress'
 import ReportButton from '../components/reports/ReportButton'
@@ -17,11 +17,11 @@ export default function MemberDetail() {
   const navigate = useNavigate()
   const { can } = useAuth()
   const { data: person } = usePerson(id)
-  const { data: teams = [] } = useTeams()
+  const { data: projects = [] } = useProjects()
   const [assigning, setAssigning] = useState(false)
 
   if (!person) return <Card className="h-40 animate-pulse max-w-6xl mx-auto" />
-  const team = teams.find(t => t.id === person.team_id)
+  const projectNames = projectsOf(projects, person.id).map(p => p.name).join(', ')
 
   return (
     <div className="max-w-6xl mx-auto space-y-5">
@@ -33,7 +33,7 @@ export default function MemberDetail() {
         <div className="flex-1 min-w-0">
           <h2 className="page-title truncate">{person.name}</h2>
           <p className="text-sm text-gray-500 truncate">
-            {ROLE_LABELS[person.role]}{team ? `, ${team.name}` : ''}{person.email ? ` · ${person.email}` : ''}
+            {ROLE_LABELS[person.role]}{projectNames ? `, ${projectNames}` : ''}{person.email ? ` · ${person.email}` : ''}
           </p>
         </div>
         {can('assignTasks') && (

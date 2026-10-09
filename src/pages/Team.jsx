@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { usePeople } from '../hooks/usePeople'
-import { useTeams, useHolidays } from '../hooks/useOrg'
+import { useHolidays } from '../hooks/useOrg'
+import { useProjects, projectsOf } from '../hooks/useProjects'
 import { useDayFacts, useFacts } from '../hooks/useAnalytics'
 import {
   todayISO, addDaysISO, weekStartISO, daysBetween, isWorkingDay, formatLong, formatRange,
 } from '../utils/dates'
-import { ROLE_LABELS } from '../lib/permissions'
+import { ROLE_LABELS, isTracked } from '../lib/permissions'
 import { STATUS_LABELS } from '../lib/labels'
 import TaskEditor from '../components/tasks/TaskEditor'
+import DayDrawer from '../components/DayDrawer'
 import ReportButton from '../components/reports/ReportButton'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
@@ -47,7 +49,7 @@ function Summary({ items }) {
 }
 
 // ── Day view: who is doing what ─────────────────────────────────────────────
-function PersonDay({ person, tasks, log, kind, teamName, onAssign, onOpen }) {
+function PersonDay({ person, tasks, log, kind, projectNames, onAssign, onOpen }) {
   const done = tasks.filter(t => t.status === 'done').length
   const status = log?.submitted
     ? (kind === 'work' ? <Badge variant="submitted">Submitted</Badge> : <Badge variant="extra">Extra day</Badge>)
@@ -60,7 +62,7 @@ function PersonDay({ person, tasks, log, kind, teamName, onAssign, onOpen }) {
           <Avatar person={person} />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{person.name}</p>
-            <p className="text-xs text-gray-500 truncate">{ROLE_LABELS[person.role]}{teamName ? `, ${teamName}` : ''}</p>
+            <p className="text-xs text-gray-500 truncate">{projectNames || ROLE_LABELS[person.role]}</p>
           </div>
         </button>
         <div className="flex flex-col items-end gap-1 shrink-0">
@@ -103,8 +105,7 @@ function PersonDay({ person, tasks, log, kind, teamName, onAssign, onOpen }) {
   )
 }
 
-function DayView({ date, people, teamName, holidays, canAssign, onAssign }) {
-  const navigate = useNavigate()
+function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen }) {
   const { data, isLoading } = useDayFacts(date)
   const kind = dayKind(date, holidays)
 
@@ -132,14 +133,15 @@ function DayView({ date, people, teamName, holidays, canAssign, onAssign }) {
         { label: 'Blocked', value: blocked, of: blocked === 1 ? 'task' : 'tasks', tip: 'Tasks waiting on someone or something. Open the person to help.' },
       ]} />
       {kind !== 'work' && (
-        <p className="text-sm text-gray-600 bg-white border border-gray-200 rounded-lg px-4 py-2.5">
+        <p className="text-sm text-gray-600 bg-surface border border-gray-200 rounded-lg px-4 py-2.5">
           {kind === 'holiday' ? `${holidays.byDate[date]} is a company holiday.` : 'This is a weekend.'} Logging is optional and counts as an extra day.
         </p>
       )}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         {rows.map(r => (
-          <PersonDay key={r.person.id} {...r} kind={kind} teamName={teamName[r.person.team_id]}
-            onOpen={() => navigate(`/team/${r.person.id}`)}
+          <PersonDay key={r.person.id} {...r} kind={kind}
+            projectNames={projectsOf(projects, r.person.id).map(pr => pr.name).join(', ')}
+            onOpen={() => onOpen(r.person, date)}
             onAssign={canAssign ? () => onAssign(r.person.id) : undefined} />
         ))}
       </div>
@@ -148,8 +150,7 @@ function DayView({ date, people, teamName, holidays, canAssign, onAssign }) {
 }
 
 // ── Week view: employees × days ─────────────────────────────────────────────
-function WeekView({ weekStart, people, holidays, onPickDay }) {
-  const navigate = useNavigate()
+function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
   const today = todayISO()
   const days = daysBetween(weekStart, addDaysISO(weekStart, 6))
   const { data, isLoading } = useFacts({ from: days[0], to: days[6] })
@@ -174,7 +175,7 @@ function WeekView({ weekStart, people, holidays, onPickDay }) {
     missed: 'bg-red-50 text-red-800',
     off: 'bg-gray-50 text-gray-400',
     future: 'text-gray-300',
-    open: 'bg-white text-gray-700',
+    open: 'bg-surface text-gray-700',
   }
   const LABEL = { submitted: 'Submitted', extra: 'Extra day', missed: 'Not submitted', off: 'Day off', future: 'Upcoming', open: 'In progress' }
 
@@ -208,15 +209,15 @@ function WeekView({ weekStart, people, holidays, onPickDay }) {
               const logged = workDays.filter(c => c.state === 'submitted').length
               return (
                 <tr key={p.id}>
-                  <td className="sticky left-0 z-10 bg-white">
-                    <button onClick={() => navigate(`/team/${p.id}`)} className="flex items-center gap-2.5 text-left">
+                  <td className="sticky left-0 z-10 bg-surface">
+                    <Link to={`/team/${p.id}`} className="flex items-center gap-2.5 text-left hover:underline">
                       <Avatar person={p} size="xs" />
                       <span className="text-sm font-medium text-gray-900 truncate max-w-[9rem]">{p.name}</span>
-                    </button>
+                    </Link>
                   </td>
                   {cells.map(c => (
                     <td key={c.d} className="!px-1.5 !py-1.5">
-                      <button onClick={() => onPickDay(c.d)} title={`${LABEL[c.state]}: ${c.done} of ${c.total} tasks done`}
+                      <button onClick={() => onOpen(p, c.d)} title={`${LABEL[c.state]}: ${c.done} of ${c.total} tasks done. Click to see the tasks.`}
                         className={`w-full h-11 rounded-md flex flex-col items-center justify-center text-xs tabular-nums ${STYLE[c.state]}`}>
                         {c.total > 0 ? <span className="font-semibold">{c.done}/{c.total}</span> : <span>{c.state === 'off' || c.state === 'future' ? '' : '0'}</span>}
                         {c.state === 'missed' && <span className="text-[10px]">missed</span>}
@@ -260,16 +261,18 @@ export default function Team() {
   }
 
   const { data: people = [], isLoading } = usePeople()
-  const { data: teams = [] } = useTeams()
+  const { data: projects = [] } = useProjects()
   const { data: holidays } = useHolidays()
   const [search, setSearch] = useState('')
-  const [team, setTeam] = useState('all')
+  const [project, setProject] = useState('all')
+  const [drawer, setDrawer] = useState(null)   // { person, date }
   const [assignTo, setAssignTo] = useState(null)
   const canAssign = can('assignTasks')
-  const teamName = Object.fromEntries(teams.map(t => [t.id, t.name]))
 
   const visible = people.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) && (team === 'all' || p.team_id === team))
+    isTracked(p) &&
+    p.name.toLowerCase().includes(search.toLowerCase()) &&
+    (project === 'all' || projects.find(pr => pr.id === project)?.members.some(m => m.user_id === p.id)))
 
   const weekStart = weekStartISO(date)
   const step = view === 'week' ? 7 : 1
@@ -293,7 +296,7 @@ export default function Team() {
 
       {/* Date + view controls */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center bg-white border border-gray-200 rounded-md">
+        <div className="flex items-center bg-surface border border-gray-200 rounded-md">
           <button onClick={() => set({ date: addDaysISO(date, -step) })} className="h-9 w-9 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Previous"><Icon name="left" size={18} /></button>
           <span className="px-2 text-sm font-medium text-gray-900 min-w-[11rem] text-center">{label}</span>
           <button onClick={() => set({ date: addDaysISO(date, step) })} className="h-9 w-9 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Next"><Icon name="right" size={18} /></button>
@@ -305,10 +308,10 @@ export default function Team() {
         </div>
         <div className="flex-1" />
         <input type="search" placeholder="Search employee" value={search} onChange={e => setSearch(e.target.value)} className="field !h-9 !py-0 sm:!w-52" />
-        {teams.length > 0 && (
-          <select value={team} onChange={e => setTeam(e.target.value)} className="field !h-9 !py-0 sm:!w-40" aria-label="Team">
-            <option value="all">All teams</option>
-            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        {projects.length > 0 && (
+          <select value={project} onChange={e => setProject(e.target.value)} className="field !h-9 !py-0 sm:!w-44" aria-label="Project">
+            <option value="all">All projects</option>
+            {projects.map(pr => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
           </select>
         )}
       </div>
@@ -316,9 +319,16 @@ export default function Team() {
       {isLoading ? <Card className="h-48 animate-pulse" /> : visible.length === 0 ? (
         <Card className="p-10 text-center text-sm text-gray-500">No employees match your search.</Card>
       ) : view === 'day' ? (
-        <DayView date={date} people={visible} teamName={teamName} holidays={holidays} canAssign={canAssign} onAssign={setAssignTo} />
+        <DayView date={date} people={visible} projects={projects} holidays={holidays} canAssign={canAssign} onAssign={setAssignTo}
+          onOpen={(person, d) => setDrawer({ person, date: d })} />
       ) : (
-        <WeekView weekStart={weekStart} people={visible} holidays={holidays} onPickDay={d => set({ view: 'day', date: d })} />
+        <WeekView weekStart={weekStart} people={visible} holidays={holidays} onPickDay={d => set({ view: 'day', date: d })}
+          onOpen={(person, d) => setDrawer({ person, date: d })} />
+      )}
+
+      {drawer && (
+        <DayDrawer person={drawer.person} date={drawer.date}
+          onDate={d => setDrawer(x => ({ ...x, date: d }))} onClose={() => setDrawer(null)} />
       )}
 
       {assignTo !== null && (

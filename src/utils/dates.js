@@ -1,6 +1,6 @@
 import {
   format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter,
-  endOfQuarter, subDays, subWeeks, subMonths, addDays, differenceInCalendarDays,
+  endOfQuarter, startOfYear, endOfYear, subDays, subWeeks, subMonths, subYears, addDays, differenceInCalendarDays,
   eachDayOfInterval, isWeekend,
 } from 'date-fns'
 
@@ -13,12 +13,6 @@ export function todayISO() {
   return format(new Date(), ISO)
 }
 
-// Local-calendar date N days ago. (Date#toISOString is UTC, which is the
-// previous day for IST users before 05:30.)
-export function daysAgoISO(n, ref = new Date()) {
-  return format(subDays(ref, n), ISO)
-}
-
 export function getGreeting() {
   const hour = new Date().getHours()
   if (hour < 12) return 'Good morning'
@@ -26,27 +20,22 @@ export function getGreeting() {
   return 'Good evening'
 }
 
-export function getDateRange(filter, ref = new Date()) {
-  switch (filter) {
-    case 'daily':
-      return { from: toISO(ref), to: toISO(ref) }
-    case 'weekly':
-      return { from: toISO(startOfWeek(ref, WEEK)), to: toISO(endOfWeek(ref, WEEK)) }
-    case 'monthly':
-      return { from: toISO(startOfMonth(ref)), to: toISO(endOfMonth(ref)) }
-    default:
-      return { from: toISO(ref), to: toISO(ref) }
-  }
-}
-
-// Named ranges used by the dashboards' filter bar.
+// Named ranges for report filters. compare: wording for "versus the previous period".
 export const PRESETS = [
-  { key: 'this_week',    label: 'This week' },
-  { key: 'last_week',    label: 'Last week' },
-  { key: 'this_month',   label: 'This month' },
-  { key: 'last_month',   label: 'Last month' },
-  { key: 'custom',       label: 'Custom' },
+  { key: 'this_week',     label: 'This week',     compare: 'last week' },
+  { key: 'last_week',     label: 'Last week',     compare: 'the week before' },
+  { key: 'this_month',    label: 'This month',    compare: 'last month' },
+  { key: 'last_month',    label: 'Last month',    compare: 'the month before' },
+  { key: 'last_3_months', label: 'Last 3 months', compare: 'the 3 months before' },
+  { key: 'last_6_months', label: 'Last 6 months', compare: 'the 6 months before' },
+  { key: 'this_year',     label: 'This year',     compare: 'last year' },
+  { key: 'last_year',     label: 'Last year',     compare: 'the year before' },
+  { key: 'custom',        label: 'Custom dates',  compare: 'the previous period' },
 ]
+
+export function compareLabel(preset) {
+  return PRESETS.find(p => p.key === preset)?.compare ?? 'the previous period'
+}
 
 export function presetRange(key, ref = new Date()) {
   switch (key) {
@@ -60,7 +49,15 @@ export function presetRange(key, ref = new Date()) {
       const d = subMonths(ref, 1)
       return { from: toISO(startOfMonth(d)), to: toISO(endOfMonth(d)) }
     }
-    case 'this_quarter': return { from: toISO(startOfQuarter(ref)), to: toISO(endOfQuarter(ref)) }
+    // Rolling windows of whole months, ending with the current month.
+    case 'last_3_months': return { from: toISO(startOfMonth(subMonths(ref, 2))), to: toISO(endOfMonth(ref)) }
+    case 'last_6_months': return { from: toISO(startOfMonth(subMonths(ref, 5))), to: toISO(endOfMonth(ref)) }
+    case 'this_quarter':  return { from: toISO(startOfQuarter(ref)), to: toISO(endOfQuarter(ref)) }
+    case 'this_year':     return { from: toISO(startOfYear(ref)), to: toISO(endOfYear(ref)) }
+    case 'last_year': {
+      const d = subYears(ref, 1)
+      return { from: toISO(startOfYear(d)), to: toISO(endOfYear(d)) }
+    }
     default:             return null
   }
 }
@@ -113,9 +110,6 @@ export function formatLong(dateStr) {
   return format(new Date(dateStr + 'T00:00:00'), 'EEEE, d MMMM yyyy')
 }
 
-// 'week' | 'month' | 'period' — used in sentences like "compared with last week".
-export function periodNoun(preset) {
-  if (preset?.includes('week')) return 'week'
-  if (preset?.includes('month')) return 'month'
-  return 'period'
-}
+
+export const monthStartISO = iso => toISO(startOfMonth(parseISO(iso)))
+export const monthEndISO = iso => toISO(endOfMonth(parseISO(iso)))

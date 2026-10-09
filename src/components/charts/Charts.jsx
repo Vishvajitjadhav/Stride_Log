@@ -1,23 +1,19 @@
-import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
-  LineChart, Line, PieChart, Pie, Cell, Legend,
-} from 'recharts'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 
 // Chart conventions (see dataviz guidance): one y-axis per chart, thin marks
 // with rounded data-ends, hairline solid grid, legend for ≥2 series, text in
 // gray ink (never series colour), hover tooltip on every chart.
 const C = {
-  done: '#2f4e7e',
-  open: '#c8d4e6',
-  line: '#2f4e7e',
-  grid: '#eef1f5',
-  axis: '#94a3b8',
+  done: 'var(--chart-done)',
+  open: 'var(--chart-open)',
+  grid: 'var(--chart-grid)',
+  axis: 'var(--chart-axis)',
 }
 
 const tooltipStyle = {
-  contentStyle: { fontSize: 12, borderRadius: 6, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(15,23,42,0.08)' },
-  labelStyle: { color: '#0f172a', fontWeight: 600 },
-  itemStyle: { color: '#334155' },
+  contentStyle: { fontSize: 12, borderRadius: 6, border: '1px solid var(--color-gray-200)', background: 'var(--color-surface)', boxShadow: '0 4px 12px rgba(15,23,42,0.12)' },
+  labelStyle: { color: 'var(--color-gray-900)', fontWeight: 600 },
+  itemStyle: { color: 'var(--color-gray-700)' },
   cursor: { fill: 'rgba(47,78,126,0.06)' },
 }
 const axisProps = { tick: { fontSize: 11, fill: C.axis }, axisLine: false, tickLine: false }
@@ -47,48 +43,15 @@ export function DoneColumns({ data, xKey = 'label', height = 200, xFormatter }) 
           <YAxis allowDecimals={false} {...axisProps} width={40} />
           <Tooltip {...tooltipStyle} labelFormatter={xFormatter}
             formatter={(v, name) => [v, name === 'done' ? 'Done' : 'Not done']} />
-          <Bar dataKey="done" stackId="a" fill={C.done} maxBarSize={24} stroke="#fff" strokeWidth={2} />
-          <Bar dataKey="open" stackId="a" fill={C.open} maxBarSize={24} radius={[4, 4, 0, 0]} stroke="#fff" strokeWidth={2} />
+          <Bar dataKey="done" stackId="a" fill={C.done} maxBarSize={24} stroke="var(--color-surface)" strokeWidth={2} />
+          <Bar dataKey="open" stackId="a" fill={C.open} maxBarSize={24} radius={[4, 4, 0, 0]} stroke="var(--color-surface)" strokeWidth={2} />
         </BarChart>
       </ResponsiveContainer>
     </div>
   )
 }
 
-// Single-series percentage line (e.g. log consistency per week).
-export function PercentLine({ data, dataKey, xKey = 'label', height = 140, name }) {
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
-        <CartesianGrid vertical={false} stroke={C.grid} />
-        <XAxis dataKey={xKey} {...axisProps} interval="preserveStartEnd" minTickGap={8} />
-        <YAxis domain={[0, 100]} ticks={[0, 50, 100]} {...axisProps} width={44} tickFormatter={v => `${v}%`} />
-        <Tooltip {...tooltipStyle} cursor={{ stroke: C.grid, strokeWidth: 1 }} formatter={v => [`${v}%`, name]} />
-        <Line type="monotone" dataKey={dataKey} stroke={C.line} strokeWidth={2}
-          dot={{ r: 4, fill: C.line, stroke: '#fff', strokeWidth: 2 }}
-          activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }} />
-      </LineChart>
-    </ResponsiveContainer>
-  )
-}
 
-// Category mix — colours come from each category's own setting.
-export function CategoryDonut({ data, height = 220 }) {
-  if (!data.length) return <p className="text-sm text-gray-400 text-center py-10">No tasks in this period.</p>
-  const total = data.reduce((n, d) => n + d.count, 0)
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <PieChart>
-        <Pie data={data} dataKey="count" nameKey="name" cx="50%" cy="45%" outerRadius="75%" innerRadius="50%"
-          paddingAngle={1} stroke="#fff" strokeWidth={2}>
-          {data.map(c => <Cell key={c.name} fill={c.color} />)}
-        </Pie>
-        <Tooltip {...tooltipStyle} formatter={(v, n) => [`${v} tasks (${Math.round((v / total) * 100)}%)`, n]} />
-        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: '#6b7280' }} />
-      </PieChart>
-    </ResponsiveContainer>
-  )
-}
 
 // Horizontal bars (e.g. tasks done per team) — single series, value at tip.
 export function HBars({ data, valueKey, labelKey = 'name', color = C.done, suffix = '' }) {

@@ -4,35 +4,37 @@ import { can as canDo } from '../lib/permissions'
 
 const AuthContext = createContext(null)
 
+const PROFILE_KEY = 'stridelog:profile'
+const cachedProfile = () => { try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) } catch { return null } }
+const cacheProfile = p => { try { p ? localStorage.setItem(PROFILE_KEY, JSON.stringify(p)) : localStorage.removeItem(PROFILE_KEY) } catch { /* storage unavailable */ } }
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined) // undefined = initialising
   const [profile, setProfile] = useState(null)
   const [recovering, setRecovering] = useState(false)
 
   const fetchProfile = useCallback(async (userId) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    setProfile(data)
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    if (data) { setProfile(data); cacheProfile(data) }
   }, [])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session ?? null)
-      if (session) fetchProfile(session.user.id)
-    })
-
+    // INITIAL_SESSION fires once on subscribe, so no separate getSession call.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // The reset-password email link signs the user in with a recovery
       // session; keep them on the "set new password" screen.
       if (event === 'PASSWORD_RECOVERY') setRecovering(true)
       setSession(session ?? null)
-      if (session) fetchProfile(session.user.id)
-      else setProfile(null)
-    })
+      if (!session) { setProfile(null); cacheProfile(null); return }
+      if (event === 'TOKEN_REFRESHED') return
 
+      // Show the cached profile instantly (no splash for returning users),
+      // then refresh it in the background.
+      const cached = cachedProfile()
+      if (cached?.id === session.user.id) setProfile(p => p ?? cached)
+      // Defer: calling Supabase inside this callback can deadlock the auth lock.
+      setTimeout(() => fetchProfile(session.user.id), 0)
+    })
     return () => subscription.unsubscribe()
   }, [fetchProfile])
 
@@ -43,14 +45,14 @@ export function AuthProvider({ children }) {
   async function signUp(email, password, name) {
     return supabase.auth.signUp({
       email, password,
-      options: { data: { name }, emailRedirectTo: `${window.location.origin}/today` },
+      options: { data: { name }, emailRedirectTo: `${window.location.origin}/` },
     })
   }
 
   async function signInWithGoogle() {
     return supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/today` },
+      options: { redirectTo: `${window.location.origin}/` },
     })
   }
 
@@ -70,7 +72,7 @@ export function AuthProvider({ children }) {
   async function updateProfile(fields) {
     const { data, error } = await supabase
       .from('profiles').update(fields).eq('id', session.user.id).select().single()
-    if (!error) setProfile(data)
+    if (!error) { setProfile(data); cacheProfile(data) }
     return { data, error }
   }
 

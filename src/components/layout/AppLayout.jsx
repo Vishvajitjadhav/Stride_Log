@@ -7,7 +7,7 @@ import UpdatePrompt from '../UpdatePrompt'
 
 export default function AppLayout() {
   return (
-    <div className="flex min-h-dvh bg-[#f5f6f8]">
+    <div className="flex min-h-dvh bg-canvas">
       <Sidebar />
       <div className="flex-1 min-w-0 flex flex-col">
         <TopBar />

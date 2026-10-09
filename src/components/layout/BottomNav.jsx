@@ -11,7 +11,7 @@ export default function BottomNav() {
   const tabs = [...visibleNav(can), { to: '/profile', label: 'Account', icon: 'user' }]
 
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">
       <div className="flex">
         {tabs.map(t => (
           <NavLink key={t.to} to={t.to}

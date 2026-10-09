@@ -20,12 +20,12 @@ export default function Sheet({ open, onClose, title, children, footer, wide = f
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-gray-900/40 animate-[fade_.15s_ease-out]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 animate-[fade_.15s_ease-out]" onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`relative bg-white w-full ${wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'} rounded-t-2xl sm:rounded-lg shadow-xl
+        className={`relative bg-surface w-full ${wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'} rounded-t-2xl sm:rounded-lg shadow-xl
           max-h-[92dvh] flex flex-col animate-[sheet_.2s_ease-out] pb-[env(safe-area-inset-bottom)]`}
       >
         <div className="sm:hidden mx-auto mt-2 h-1.5 w-10 rounded-full bg-gray-200" />

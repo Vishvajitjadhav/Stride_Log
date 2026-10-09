@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useCategories } from '../../hooks/useCategories'
 import { usePeople } from '../../hooks/usePeople'
 import { useTaskMutations } from '../../hooks/useTasks'
+import { useProjects, projectsOf } from '../../hooks/useProjects'
 import { todayISO, formatDisplay } from '../../utils/dates'
 import { STATUS_LABELS } from '../../lib/labels'
 import Sheet from '../ui/Sheet'
@@ -27,6 +28,7 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
 
   const { data: categories = [] } = useCategories()
   const { data: people = [] } = usePeople({ enabled: canAssign && open })
+  const { data: projects = [] } = useProjects()
   const { add, update, remove } = useTaskMutations()
 
   const [form, setForm] = useState(() => ({
@@ -37,6 +39,7 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
     date: task?.date ?? defaultDate ?? todayISO(),
     due_date: task?.due_date ?? '',
     description: task?.description ?? '',
+    project_id: task?.project_id ?? '',
   }))
   const [details, setDetails] = useState(Boolean(task?.description))
   const [error, setError] = useState('')
@@ -45,6 +48,8 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
   const canDelete = !isNew && (canAssign || (isMine && !task.assigned_by))
   const busy = add.isPending || update.isPending || remove.isPending
   const assigning = isNew && form.user_id !== userId
+  // Projects of the person the task is for; the field only shows when they have any.
+  const ownProjects = projectsOf(projects, form.user_id)
 
   async function handleSave(e) {
     e?.preventDefault()
@@ -59,6 +64,7 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
       date: form.date,
       due_date: form.due_date || null,
       description: form.description.trim() || null,
+      project_id: form.project_id || (ownProjects.length === 1 ? ownProjects[0].id : null),
     }
     try {
       if (isNew) await add.mutateAsync(fields)
@@ -107,7 +113,7 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
         {canAssign && (isNew || !isMine) && (
           <div>
             <label className="label" htmlFor="t-owner">Assign to</label>
-            <select id="t-owner" className="field" value={form.user_id} onChange={e => set('user_id', e.target.value)} disabled={!isNew}>
+            <select id="t-owner" className="field" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value, project_id: '' }))} disabled={!isNew}>
               {picking && <option value="">Choose an employee</option>}
               <option value={userId}>Myself</option>
               {people.filter(p => p.id !== userId).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -135,6 +141,17 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
               onChange={e => set('due_date', e.target.value)} />
           </div>
         </div>
+
+        {ownProjects.length > 0 && (
+          <div>
+            <label className="label" htmlFor="t-project">Project</label>
+            <select id="t-project" className="field" value={form.project_id || (ownProjects.length === 1 ? ownProjects[0].id : '')}
+              onChange={e => set('project_id', e.target.value)}>
+              {ownProjects.length > 1 && <option value="">No project</option>}
+              {ownProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        )}
 
         <div>
           <span className="label">Status</span>

@@ -2,7 +2,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePendingApprovals } from '../../hooks/usePeople'
 import People from './People'
-import { Categories, Teams, Holidays, Company } from './SettingsSections'
+import { Categories, Holidays, Company } from './SettingsSections'
 
 // One place for administration; tabs depend on the role.
 export default function Admin() {
@@ -13,7 +13,6 @@ export default function Admin() {
   const tabs = [
     can('managePeople') && { key: 'people', label: 'People', badge: pending.length, el: <People /> },
     can('manageCategories') && { key: 'categories', label: 'Categories', el: <Categories /> },
-    can('manageTeams') && { key: 'teams', label: 'Teams', el: <Teams /> },
     can('manageHolidays') && { key: 'holidays', label: 'Holidays', el: <Holidays /> },
     can('manageCompany') && { key: 'company', label: 'Company', el: <Company /> },
   ].filter(Boolean)
@@ -33,7 +32,7 @@ export default function Admin() {
           {tabs.map(t => (
             <button key={t.key} onClick={() => setParams({ tab: t.key }, { replace: true })}
               className={`-mb-px pb-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                current.key === t.key ? 'border-primary-700 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>
+                current.key === t.key ? 'border-brand text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>
               {t.label}
               {t.badge > 0 && <span className="ml-1.5 text-[10px] font-semibold bg-accent-500 text-primary-900 rounded px-1.5 py-0.5">{t.badge}</span>}
             </button>

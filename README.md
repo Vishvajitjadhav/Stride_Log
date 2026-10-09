@@ -10,28 +10,27 @@ consistency of daily logs, assigned work done on time), not hours.
 
 ## Features
 
-- **Today**: the employee's task list for the day, with unfinished work carried
-  over and tasks assigned by a manager. Quick add, a two field daily note
-  (summary and blockers) and one tap "Submit day". Works on phone and desktop.
-- **Team** (managers, HR, admins): pick a date and see what every employee is
-  working on that day, or switch to **Week** for an employees by day grid showing
-  tasks done and whether each day was submitted. Assign tasks from here.
-- **Reports**: four meaningful numbers (tasks completed, completion rate, daily
-  logs submitted, blocked tasks), each explained with a tooltip. Also plain
-  English key observations, an 8 week trend, where the work went, and an
-  employee table.
-- **PDF reports**: weekly or monthly, for one employee, a team or **all
-  employees**. A professional summary page is followed by a page per employee.
-  Weekly reports list every task day by day with its status and the day's notes.
-- **My Progress**: the employee's own week (day by day), month calendar and trend.
+- **Team** (managers, HR, admins land here): pick a date to see what every
+  employee is working on, or switch to **Week** for an employees by day grid.
+  Click any day to open that person's tasks in a side panel (like Jira).
+- **Reports**: three simple filters, **Period** (this week up to last year),
+  **Employee** (all or one) and **Project** (all or one). Four headline numbers
+  with tooltips, plain observations, a weekly or monthly trend, where the work
+  went, project cards and an employee table.
+- **Projects**: managers, HR and admins create projects, add employees and
+  project managers. People can be in several projects; tasks carry a project so
+  each project's progress can be analysed.
+- **PDF reports**: weekly or monthly, for one employee, one project or all
+  employees, with the company logo (Admin, Company tab) on the cover.
+- **Today / My Progress** for employees: plan the day, tick tasks off, submit,
+  and see their own week and month. Logging is optional for managers, HR and
+  admins (it sits under Account) and they are left out of team numbers.
 - **Email**: branded sign up, password reset and invite emails, plus
   notifications for assignments, approvals, a 6 pm reminder and a Monday summary.
-- **Admin**: approve and invite people, set roles and teams, grant "can assign
-  tasks", and manage categories, holidays and company branding.
-- **Installable app (PWA)** with a phone tab bar and an offline app shell.
-
-The interface follows a calm corporate style: navy and slate colours, plain
-language, tooltips for every metric and no dash characters in the text.
+- **Admin**: approve and invite people, set roles, grant "can assign tasks",
+  manage categories, holidays and company branding.
+- **Look and feel**: calm navy theme, **dark mode** (Light, Dark or System),
+  collapsible sidebar, animated splash, installable app (PWA) with a phone tab bar.
 
 ## Roles
 
@@ -78,7 +77,7 @@ Load the demo company (optional). The password for every demo account is `stride
 docker exec -i supabase_db_stridelog psql -U postgres < supabase/seed_demo_team.sql
 ```
 
-Accounts: `admin@`, `manager@`, `hr@`, `ba@` (can assign), `arjun@`, `sara@`, `liam@` — all `@speedit.test`.
+Accounts: `admin@`, `manager@`, `hr@`, `ba@` (can assign), `arjun@`, `sara@`, `liam@`, all `@speedit.test`. The demo has three projects: Mobile App, Web Platform and Client Portal.
 
 ```bash
 npm run dev          # http://localhost:5173

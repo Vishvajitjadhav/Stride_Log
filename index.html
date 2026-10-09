@@ -13,6 +13,16 @@
     <link rel="icon" href="/favicon.svg" sizes="any" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
     <title>StrideLog</title>
+    <script>
+      // Apply the saved theme before first paint (see src/lib/theme.js).
+      (function () {
+        try {
+          var pref = localStorage.getItem('stridelog:theme') || 'system'
+          var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+          if (dark) document.documentElement.classList.add('dark')
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

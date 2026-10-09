@@ -41,11 +41,6 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com',
-            handler: 'CacheFirst',
-            options: { cacheName: 'google-fonts', expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 } },
-          },
-          {
             urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/assets/'),
             handler: 'CacheFirst',
             options: { cacheName: 'lazy-chunks', expiration: { maxEntries: 30 } },

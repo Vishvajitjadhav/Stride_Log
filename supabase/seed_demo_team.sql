@@ -1,5 +1,5 @@
 -- Demo company for trying every role locally.
--- Creates login-able accounts, two teams, and ~3 weeks of work relative to
+-- Creates login-able accounts, three projects, and ~3 weeks of work relative to
 -- CURRENT_DATE so dashboards, calendars and reports have data.
 --
 -- Login for all demo accounts:  password = stridelog123
@@ -7,24 +7,23 @@
 --   manager@speedit.test   (manager)
 --   hr@speedit.test        (HR)
 --   ba@speedit.test        (business analyst, granted "can assign tasks")
---   arjun@speedit.test     (employee, Engineering)
---   sara@speedit.test      (employee, Engineering)
---   liam@speedit.test      (employee, Product)
+--   arjun@speedit.test     (employee)
+--   sara@speedit.test      (employee)
+--   liam@speedit.test      (employee)
 --
 -- Idempotent: safe to run more than once.
 
-INSERT INTO teams (name) VALUES ('Engineering'), ('Product') ON CONFLICT (name) DO NOTHING;
 
 DO $$
 DECLARE
   users jsonb := '[
-    {"email":"admin@speedit.test","name":"Ada Admin","role":"admin","team":null},
-    {"email":"manager@speedit.test","name":"Maya Manager","role":"manager","team":"Engineering"},
-    {"email":"hr@speedit.test","name":"Hana HR","role":"hr","team":null},
-    {"email":"ba@speedit.test","name":"Bilal Analyst","role":"ba","team":"Product","assign":true},
-    {"email":"arjun@speedit.test","name":"Arjun Rao","role":"employee","team":"Engineering"},
-    {"email":"sara@speedit.test","name":"Sara Khan","role":"employee","team":"Engineering"},
-    {"email":"liam@speedit.test","name":"Liam Patel","role":"employee","team":"Product"}
+    {"email":"admin@speedit.test","name":"Ada Admin","role":"admin"},
+    {"email":"manager@speedit.test","name":"Maya Manager","role":"manager"},
+    {"email":"hr@speedit.test","name":"Hana HR","role":"hr"},
+    {"email":"ba@speedit.test","name":"Bilal Analyst","role":"ba","assign":true},
+    {"email":"arjun@speedit.test","name":"Arjun Rao","role":"employee"},
+    {"email":"sara@speedit.test","name":"Sara Khan","role":"employee"},
+    {"email":"liam@speedit.test","name":"Liam Patel","role":"employee"}
   ]';
   u jsonb;
   uid uuid;
@@ -67,7 +66,6 @@ BEGIN
       is_approved = true,
       is_active = true,
       created_at = least(created_at, now() - interval '30 days'),
-      team_id = (SELECT id FROM teams WHERE name = u->>'team'),
       can_assign_tasks = coalesce((u->>'assign')::boolean, false)
     WHERE id = uid;
 
@@ -116,6 +114,45 @@ BEGIN
     FROM profiles p JOIN auth.users au ON au.id = p.id WHERE au.email = 'liam@speedit.test';
   END IF;
 
-  RAISE NOTICE 'Demo company seeded — password stridelog123';
+  -- Projects: people can be in several; managers can run several.
+  INSERT INTO projects (name, description, color) VALUES
+    ('Mobile App',    'Customer mobile app for iOS and Android', '#2f4e7e'),
+    ('Web Platform',  'Main web product and admin console',     '#2c7a7b'),
+    ('Client Portal', 'Portal for enterprise clients',          '#b8902f')
+  ON CONFLICT (name) DO NOTHING;
+
+  INSERT INTO project_members (project_id, user_id, role)
+  SELECT pr.id, p.id, m.role
+  FROM (VALUES
+    ('Mobile App',    'manager@speedit.test', 'manager'),
+    ('Mobile App',    'arjun@speedit.test',   'member'),
+    ('Mobile App',    'sara@speedit.test',    'member'),
+    ('Mobile App',    'ba@speedit.test',      'member'),
+    ('Web Platform',  'manager@speedit.test', 'manager'),
+    ('Web Platform',  'arjun@speedit.test',   'member'),
+    ('Web Platform',  'liam@speedit.test',    'member'),
+    ('Client Portal', 'admin@speedit.test',   'manager'),
+    ('Client Portal', 'liam@speedit.test',    'member'),
+    ('Client Portal', 'sara@speedit.test',    'member'),
+    ('Client Portal', 'ba@speedit.test',      'member')
+  ) AS m(project, email, role)
+  JOIN projects pr ON pr.name = m.project
+  JOIN auth.users au ON au.email = m.email
+  JOIN profiles p ON p.id = au.id
+  ON CONFLICT DO NOTHING;
+
+  -- Tag each demo task with one of its owner's projects (spread evenly).
+  UPDATE tasks t SET project_id = (
+    SELECT pm.project_id FROM project_members pm
+    JOIN projects pr ON pr.id = pm.project_id
+    WHERE pm.user_id = t.user_id AND pr.name IN ('Mobile App', 'Web Platform', 'Client Portal')
+    ORDER BY pm.project_id
+    OFFSET (abs(hashtext(t.id::text)) % greatest(1, (SELECT count(*) FROM project_members x JOIN projects y ON y.id = x.project_id
+             WHERE x.user_id = t.user_id AND y.name IN ('Mobile App', 'Web Platform', 'Client Portal'))))
+    LIMIT 1)
+  WHERE EXISTS (SELECT 1 FROM project_members pm JOIN projects pr ON pr.id = pm.project_id
+                WHERE pm.user_id = t.user_id AND pr.name IN ('Mobile App', 'Web Platform', 'Client Portal'));
+
+  RAISE NOTICE 'Demo company seeded. Password stridelog123';
 END;
 $$;

@@ -88,22 +88,22 @@ function Mark({ size = 34 }) {
   )
 }
 
-function Change({ g, suffix = '', lowerIsBetter, periodName }) {
+function Change({ g, suffix = '', lowerIsBetter, against }) {
   if (!g) return null
   const d = g.delta
   const good = lowerIsBetter ? d < 0 : d > 0
   const color = d === 0 ? MUTED : good ? STATUS_COLOR.done : STATUS_COLOR.blocked
   const unit = suffix === '%' ? ' points' : ''
-  const text = d === 0 ? `Same as last ${periodName}` : `${d > 0 ? 'Up' : 'Down'} ${Math.abs(d)}${unit} from last ${periodName}`
+  const text = d === 0 ? `Same as ${against}` : `${d > 0 ? 'Up' : 'Down'} ${Math.abs(d)}${unit} vs ${against}`
   return <Text style={[s.kpiChange, { color }]}>{text}</Text>
 }
 
-function Kpi({ metric, value, suffix = '', of, g, lowerIsBetter, periodName }) {
+function Kpi({ metric, value, suffix = '', of, g, lowerIsBetter, against }) {
   return (
     <View style={s.kpi}>
       <Text style={s.kpiLabel}>{GLOSSARY[metric].label}</Text>
       <Text style={s.kpiValue}>{value}{suffix}{of ? <Text style={s.kpiOf}>  {of}</Text> : null}</Text>
-      <Change g={g} suffix={suffix} lowerIsBetter={lowerIsBetter} periodName={periodName} />
+      <Change g={g} suffix={suffix} lowerIsBetter={lowerIsBetter} against={against} />
       <Text style={s.kpiMeaning}>{GLOSSARY[metric].short}</Text>
     </View>
   )
@@ -150,7 +150,7 @@ function PersonHeader({ p, data }) {
       <View style={s.personHead}>
         <View>
           <Text style={s.personName}>{p.name}</Text>
-          <Text style={s.personSub}>{ROLE_LABELS[p.role] ?? p.role}{p.team ? `, ${p.team}` : ''}</Text>
+          <Text style={s.personSub}>{ROLE_LABELS[p.role] ?? p.role}{p.projects ? `, ${p.projects}` : ''}</Text>
         </View>
         <Text style={{ fontSize: 8.5, color: MUTED }}>{rangeText(data.range)}</Text>
       </View>
@@ -253,7 +253,7 @@ function Chrome({ data, company, title, footer }) {
 
 // ── Document ────────────────────────────────────────────────────────────────
 export default function ReportDocument({ data }) {
-  const { org, current: c, growth: g, periodName } = data
+  const { org, current: c, growth: g, against } = data
   const kindLabel = data.kind === 'weekly' ? 'Weekly' : 'Monthly'
   const company = org.company_name || 'StrideLog'
   const logoOk = org.logo_url && !/\.svg($|\?)/i.test(org.logo_url)
@@ -301,12 +301,12 @@ export default function ReportDocument({ data }) {
         </Text>
 
         <Text style={s.h2}>Summary</Text>
-        <Text style={s.hint}>Headline numbers for the period, compared with the previous {periodName}.</Text>
+        <Text style={s.hint}>Headline numbers for the period, compared with {against}.</Text>
         <View style={s.kpis}>
-          <Kpi metric="done" value={c.done} of={`of ${c.planned}`} g={g.done} periodName={periodName} />
-          <Kpi metric="completionRate" value={c.completionRate} suffix="%" g={g.completionRate} periodName={periodName} />
-          <Kpi metric="consistency" value={c.consistency} suffix="%" of={`${c.loggedDays} of ${c.expectedDays}`} g={g.consistency} periodName={periodName} />
-          <Kpi metric="blocked" value={c.blocked} g={g.blocked} lowerIsBetter periodName={periodName} />
+          <Kpi metric="done" value={c.done} of={`of ${c.planned}`} g={g.done} against={against} />
+          <Kpi metric="completionRate" value={c.completionRate} suffix="%" g={g.completionRate} against={against} />
+          <Kpi metric="consistency" value={c.consistency} suffix="%" of={`${c.loggedDays} of ${c.expectedDays}`} g={g.consistency} against={against} />
+          <Kpi metric="blocked" value={c.blocked} g={g.blocked} lowerIsBetter against={against} />
         </View>
 
         <Text style={s.h2}>Key observations</Text>

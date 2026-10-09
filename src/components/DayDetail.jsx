@@ -10,8 +10,9 @@ import TaskEditor from './tasks/TaskEditor'
 import Badge from './ui/Badge'
 import Button from './ui/Button'
 
-// Tasks + notes of one person on one day (calendar side panel / member page).
-export default function DayDetail({ userId, date }) {
+// Tasks + notes of one person on one day (calendar side panel, team drawer).
+// compact: the date is already shown by the container.
+export default function DayDetail({ userId, date, compact = false }) {
   const navigate = useNavigate()
   const { userId: me, can } = useAuth()
   const isMe = userId === me
@@ -29,8 +30,11 @@ export default function DayDetail({ userId, date }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="section-title">{formatShort(date)}</p>
-          <p className="section-hint">{holiday ? `Holiday: ${holiday}` : working ? 'Working day' : 'Weekend'}</p>
+          {!compact && <p className="section-title">{formatShort(date)}</p>}
+          <p className={compact ? 'text-sm text-gray-600' : 'section-hint'}>
+            {holiday ? `Holiday: ${holiday}` : working ? 'Working day' : 'Weekend'}
+            {tasks.length > 0 && <>, {tasks.filter(t => t.status === 'done').length} of {tasks.length} tasks done</>}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {log?.submitted_at ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Submitted' : 'Extra day'}</Badge>
@@ -47,7 +51,7 @@ export default function DayDetail({ userId, date }) {
       {isLoading ? <div className="h-16 bg-gray-50 rounded-lg animate-pulse" /> : tasks.length === 0 ? (
         <p className="text-sm text-gray-500 py-4">No tasks planned for this day.</p>
       ) : (
-        <div className="divide-y divide-gray-50">
+        <div className="divide-y divide-gray-100">
           {tasks.map(t => (
             <TaskItem key={t.id} task={t} contextDate={date} readOnly={!editable}
               onStatus={(task, status) => update.mutate({ id: task.id, status })}

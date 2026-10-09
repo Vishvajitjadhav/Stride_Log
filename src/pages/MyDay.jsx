@@ -5,6 +5,7 @@ import { useDayTasks, useTaskMutations, useTasksRealtime } from '../hooks/useTas
 import { useWorkLog } from '../hooks/useWorkLog'
 import { useCategories } from '../hooks/useCategories'
 import { useHolidays } from '../hooks/useOrg'
+import { useProjects, projectsOf } from '../hooks/useProjects'
 import { todayISO, addDaysISO, formatShort, formatLong, isWorkingDay } from '../utils/dates'
 import TaskItem from '../components/tasks/TaskItem'
 import TaskEditor from '../components/tasks/TaskEditor'
@@ -61,11 +62,14 @@ export default function MyDay() {
   const { data: log, save } = useWorkLog(date)
   const { data: categories = [] } = useCategories()
   const { data: holidays } = useHolidays()
+  const { data: projects = [] } = useProjects()
+  const myProjects = projectsOf(projects, userId)
   const { add, update } = useTaskMutations()
 
   const [editing, setEditing] = useState(null)   // task | 'new' | null
   const [quick, setQuick] = useState('')
   const [quickCat, setQuickCat] = useState('')
+  const [quickProject, setQuickProject] = useState(() => { try { return localStorage.getItem('stridelog:project') ?? '' } catch { return '' } })
   const [notes, setNotes] = useState({ what_i_did: '', blockers: '' })
   const [showDone, setShowDone] = useState(true)
   const [msg, setMsg] = useState('')
@@ -106,7 +110,10 @@ export default function MyDay() {
     const title = quick.trim()
     if (!title) return
     setQuick('')
-    await add.mutateAsync({ title, date, category_id: quickCat || null })
+    // One project: always use it. Several: use the one picked (remembered).
+    const project_id = myProjects.length === 1 ? myProjects[0].id
+      : myProjects.some(p => p.id === quickProject) ? quickProject : null
+    await add.mutateAsync({ title, date, category_id: quickCat || null, project_id })
   }
 
   function setStatus(task, status) {
@@ -144,7 +151,7 @@ export default function MyDay() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {!isToday && <Button variant="outline" size="sm" onClick={() => setDate(today)}>Today</Button>}
-          <div className="flex items-center bg-white border border-gray-200 rounded-md">
+          <div className="flex items-center bg-surface border border-gray-200 rounded-md">
             <button onClick={() => setDate(addDaysISO(date, -1))} className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Previous day"><Icon name="left" size={16} /></button>
             <button onClick={() => setDate(addDaysISO(date, 1))} disabled={date >= today} className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-gray-900 disabled:opacity-30" aria-label="Next day"><Icon name="right" size={16} /></button>
           </div>
@@ -176,6 +183,13 @@ export default function MyDay() {
             <option value="">Category</option>
             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
+          {myProjects.length > 1 && (
+            <select value={quickProject} aria-label="Project" className="field !w-[6.5rem] sm:!w-40"
+              onChange={e => { setQuickProject(e.target.value); try { localStorage.setItem('stridelog:project', e.target.value) } catch { /* storage unavailable */ } }}>
+              <option value="">Project</option>
+              {myProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          )}
           <Button type="submit" disabled={!quick.trim()} aria-label="Add task"><Icon name="plus" size={16} /><span className="hidden sm:inline">Add</span></Button>
         </form>
         <button onClick={() => setEditing('new')} className="text-xs font-medium text-primary-700 hover:text-primary-900 mt-2">
@@ -220,7 +234,7 @@ export default function MyDay() {
 
       {/* Actions, sticky above the tab bar on phones */}
       <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] lg:bottom-4 z-20">
-        <div className="bg-white border border-gray-200 rounded-lg shadow-[0_4px_16px_rgba(15,23,42,0.08)] px-4 py-3 flex items-center gap-2">
+        <div className="bg-surface border border-gray-200 rounded-lg shadow-[0_4px_16px_rgba(15,23,42,0.08)] px-4 py-3 flex items-center gap-2">
           <p className="flex-1 text-sm text-emerald-700 font-medium truncate">{msg}</p>
           {submitted ? (
             <Button variant="outline" onClick={reopen} loading={save.isPending}>Edit submission</Button>

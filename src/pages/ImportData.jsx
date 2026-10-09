@@ -99,7 +99,7 @@ export default function ImportData() {
             Imported <strong>{result.logsCreated}</strong> day{result.logsCreated === 1 ? '' : 's'} and{' '}
             <strong>{result.tasksCreated}</strong> task{result.tasksCreated === 1 ? '' : 's'}.
           </p>
-          <button onClick={reset} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">
+          <button onClick={reset} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-brand">
             Import another file
           </button>
         </Card>
@@ -195,7 +195,7 @@ export default function ImportData() {
                   <button
                     onClick={handleCommit}
                     disabled={!preview.days.length || importMutation.isPending}
-                    className="px-5 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-semibold hover:bg-primary-700 disabled:opacity-50"
+                    className="px-5 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-semibold hover:bg-brand disabled:opacity-50"
                   >
                     {importMutation.isPending ? 'Importing' : `Import ${preview.taskCount} tasks`}
                   </button>

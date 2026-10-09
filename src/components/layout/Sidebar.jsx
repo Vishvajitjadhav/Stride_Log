@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePendingApprovals } from '../../hooks/usePeople'
@@ -7,44 +8,66 @@ import Icon from '../ui/Icon'
 import Avatar from '../ui/Avatar'
 import BrandMark from '../BrandMark'
 
-const linkClass = ({ isActive }) =>
-  `flex items-center gap-3 h-9 px-3 rounded-md text-sm transition-colors ${
-    isActive ? 'bg-white/10 text-white font-medium' : 'text-primary-100/80 hover:bg-white/5 hover:text-white'
-  }`
+const KEY = 'stridelog:sidebar'
+const readCollapsed = () => { try { return localStorage.getItem(KEY) === 'collapsed' } catch { return false } }
 
-// Dark navy sidebar for desktop.
+// Desktop sidebar. Fixed navy in both themes; collapses to icons (remembered).
 export default function Sidebar() {
   const { profile, can } = useAuth()
   const { data: pending = [] } = usePendingApprovals({ enabled: can('managePeople') })
+  const [collapsed, setCollapsed] = useState(readCollapsed)
   const items = visibleNav(can)
 
+  function toggle() {
+    setCollapsed(c => {
+      try { localStorage.setItem(KEY, c ? 'open' : 'collapsed') } catch { /* storage unavailable */ }
+      return !c
+    })
+  }
+
+  const link = ({ isActive }) =>
+    `relative flex items-center gap-3 h-9 rounded-md text-sm transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${
+      isActive ? 'bg-white/10 text-white font-medium' : 'text-[#c8d4e6]/80 hover:bg-white/5 hover:text-white'
+    }`
+
   return (
-    <aside className="hidden lg:flex w-60 shrink-0 h-dvh sticky top-0 bg-primary-900 flex-col">
-      <div className="px-5 h-16 flex items-center border-b border-white/10">
-        <BrandMark inverted />
+    <aside className={`hidden lg:flex shrink-0 h-dvh sticky top-0 bg-[#132238] flex-col transition-[width] duration-200 ${collapsed ? 'w-16' : 'w-60'}`}>
+      <div className={`h-16 flex items-center border-b border-white/10 ${collapsed ? 'justify-center' : 'px-5'}`}>
+        <BrandMark inverted compact={collapsed} />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
         {items.map(i => (
-          <NavLink key={i.to} to={i.to} className={linkClass}>
+          <NavLink key={i.to} to={i.to} className={link} title={collapsed ? i.label : undefined}>
             <Icon name={i.icon} size={18} />
-            <span className="flex-1">{i.label}</span>
+            {!collapsed && <span className="flex-1">{i.label}</span>}
             {i.badge === 'pending' && pending.length > 0 && (
-              <span className="text-[10px] font-semibold bg-accent-500 text-primary-900 rounded px-1.5 py-0.5 min-w-[18px] text-center" title="Sign ups waiting for approval">
-                {pending.length}
-              </span>
+              collapsed
+                ? <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-[#c9a43f]" />
+                : <span className="text-[10px] font-semibold bg-[#c9a43f] text-[#132238] rounded px-1.5 py-0.5 min-w-[18px] text-center" title="Sign ups waiting for approval">{pending.length}</span>
             )}
           </NavLink>
         ))}
       </nav>
 
-      <NavLink to="/profile" className={({ isActive }) => `mx-3 mb-3 flex items-center gap-3 p-2 rounded-md transition-colors ${isActive ? 'bg-white/10' : 'hover:bg-white/5'}`}>
-        <Avatar person={profile} />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white truncate">{profile?.name}</p>
-          <p className="text-xs text-primary-200/80">{ROLE_LABELS[profile?.role] ?? profile?.role}</p>
-        </div>
-        <Icon name="right" size={16} className="text-primary-200/60" />
+      <button onClick={toggle} title={collapsed ? 'Expand menu' : 'Collapse menu'} aria-label={collapsed ? 'Expand menu' : 'Collapse menu'}
+        className={`mx-3 mb-2 h-9 flex items-center gap-3 rounded-md text-sm text-[#c8d4e6]/70 hover:bg-white/5 hover:text-white ${collapsed ? 'justify-center' : 'px-3'}`}>
+        <Icon name="panel" size={18} />
+        {!collapsed && 'Collapse menu'}
+      </button>
+
+      <NavLink to="/profile" title={collapsed ? profile?.name : undefined}
+        className={({ isActive }) => `mx-3 mb-3 flex items-center gap-3 p-2 rounded-md transition-colors ${collapsed ? 'justify-center' : ''} ${isActive ? 'bg-white/10' : 'hover:bg-white/5'}`}>
+        <Avatar person={profile} className="!bg-white/15 !text-white" />
+        {!collapsed && (
+          <>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">{profile?.name}</p>
+              <p className="text-xs text-[#c8d4e6]/70">{ROLE_LABELS[profile?.role] ?? profile?.role}</p>
+            </div>
+            <Icon name="right" size={16} className="text-[#c8d4e6]/50" />
+          </>
+        )}
       </NavLink>
     </aside>
   )

@@ -1,7 +1,7 @@
 -- Role & permission tests. Run with:  npx supabase test db
 -- Each block switches to a user via request.jwt.claims, exactly like PostgREST.
 BEGIN;
-SELECT plan(32);
+SELECT plan(36);
 
 -- ── Fixtures ──────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION pg_temp.mk_user(p_id uuid, p_email text, p_role text, p_approved bool DEFAULT true)
@@ -148,6 +148,25 @@ SELECT lives_ok(
   'granted BA can assign to anyone');
 SELECT is((SELECT count(*)::int FROM tasks WHERE user_id = '00000000-0000-0000-0000-0000000000e2') >= 2, true,
   'granted BA can see everyone''s tasks');
+
+-- ── Projects ──────────────────────────────────────────────────────────────────
+SELECT pg_temp.act_as('00000000-0000-0000-0000-0000000000e1');
+SELECT throws_ok(
+  $$ INSERT INTO projects (name) VALUES ('Secret project') $$, '42501', NULL, 'employee cannot create projects');
+
+SELECT pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+SELECT lives_ok(
+  $$ INSERT INTO projects (id, name) VALUES ('20000000-0000-0000-0000-000000000001', 'Mobile app') $$,
+  'manager can create a project');
+SELECT lives_ok(
+  $$ INSERT INTO project_members (project_id, user_id, role) VALUES
+       ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1', 'member'),
+       ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'manager') $$,
+  'manager can add members and managers to a project');
+
+SELECT pg_temp.act_as('00000000-0000-0000-0000-0000000000e1');
+SELECT is((SELECT count(*)::int FROM project_members WHERE project_id = '20000000-0000-0000-0000-000000000001'), 2,
+  'employees can see project membership');
 
 SELECT * FROM finish();
 ROLLBACK;

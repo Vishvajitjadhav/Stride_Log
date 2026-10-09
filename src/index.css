@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* Corporate palette: navy primary, slate neutrals, one muted gold accent. */
@@ -31,7 +30,82 @@
   --color-gray-800: #1e293b;
   --color-gray-900: #0f172a;
 
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Semantic tokens (switch with the theme). */
+  --color-surface: #ffffff;
+  --color-canvas: #f5f6f8;
+  --color-brand: #253f68;
+  --color-brand-hover: #1d3254;
+
+  --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* Chart colours used by Recharts via CSS variables. */
+:root {
+  --chart-done: #2f4e7e;
+  --chart-open: #c8d4e6;
+  --chart-grid: #eef1f5;
+  --chart-axis: #94a3b8;
+  color-scheme: light;
+}
+
+/* Dark theme: the same tokens with dark values, so every component follows
+   without per-component dark classes. Toggled by <html class="dark">. */
+.dark {
+  color-scheme: dark;
+  --color-surface: #141b29;
+  --color-canvas: #0c111b;
+  --color-brand: #3a5f9c;
+  --color-brand-hover: #4670b3;
+
+  --color-gray-50:  #192131;
+  --color-gray-100: #1e2738;
+  --color-gray-200: #2a3447;
+  --color-gray-300: #3a4559;
+  --color-gray-400: #6b7890;
+  --color-gray-500: #8c97ad;
+  --color-gray-600: #a8b2c5;
+  --color-gray-700: #c3cad8;
+  --color-gray-800: #dce1ea;
+  --color-gray-900: #eef1f6;
+
+  --color-primary-50:  #172238;
+  --color-primary-100: #1c2b45;
+  --color-primary-200: #29405f;
+  --color-primary-300: #3d5a88;
+  --color-primary-400: #6d8cc0;
+  --color-primary-500: #8eaad6;
+  --color-primary-600: #a6bde4;
+  --color-primary-700: #bacdeb;
+  --color-primary-800: #d0ddf2;
+  --color-primary-900: #0a1220;
+
+  --color-accent-50:  #2a2413;
+  --color-accent-100: #4a3d1a;
+  --color-accent-500: #d4ad4b;
+  --color-accent-700: #e5c672;
+
+  --color-emerald-50:  #10261d;
+  --color-emerald-200: #1f4a37;
+  --color-emerald-600: #3aa77a;
+  --color-emerald-700: #5cc497;
+  --color-emerald-800: #86d8b3;
+  --color-emerald-900: #a9e6ca;
+  --color-red-50:  #2c1519;
+  --color-red-200: #5b242b;
+  --color-red-600: #e06666;
+  --color-red-700: #ef8080;
+  --color-red-800: #f5a1a1;
+  --color-amber-50:  #2a2010;
+  --color-amber-200: #594318;
+  --color-amber-500: #e0a53a;
+  --color-amber-600: #e9b24d;
+  --color-amber-700: #efc068;
+  --color-amber-800: #f4d18c;
+
+  --chart-done: #6d8cc0;
+  --chart-open: #2a3f5f;
+  --chart-grid: #222c3d;
+  --chart-axis: #6b7890;
 }
 
 @layer base {
@@ -42,8 +116,8 @@
   }
   body {
     font-family: var(--font-sans);
-    background-color: #f5f6f8;
-    color: #0f172a;
+    background-color: var(--color-canvas);
+    color: var(--color-gray-900);
     margin: 0;
     overscroll-behavior-y: none;
     -webkit-font-smoothing: antialiased;
@@ -64,6 +138,7 @@
 
 @keyframes fade  { from { opacity: 0 } to { opacity: 1 } }
 @keyframes sheet { from { transform: translateY(24px); opacity: .6 } to { transform: none; opacity: 1 } }
+@keyframes drawer { from { transform: translateX(32px); opacity: .6 } to { transform: none; opacity: 1 } }
 
 /* ── Type scale ─────────────────────────────────────────────────────────── */
 .page-title {
@@ -87,17 +162,17 @@
 
 /* ── Controls ───────────────────────────────────────────────────────────── */
 .field {
-  @apply w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900
+  @apply w-full rounded-md border border-gray-300 bg-surface px-3 py-2 text-sm text-gray-900
          placeholder:text-gray-400
          focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-500
          disabled:bg-gray-50 disabled:text-gray-500 transition;
 }
 .chip {
   @apply px-3 h-8 inline-flex items-center rounded-md text-sm font-medium whitespace-nowrap transition-colors
-         border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900;
+         border border-gray-200 bg-surface text-gray-600 hover:bg-gray-50 hover:text-gray-900;
 }
 .chip-active {
-  @apply bg-primary-700 border-primary-700 text-white hover:bg-primary-700 hover:text-white;
+  @apply bg-brand border-brand text-white hover:bg-brand hover:text-white;
 }
 .segmented {
   @apply inline-flex p-0.5 rounded-md bg-gray-100 border border-gray-200;
@@ -106,7 +181,7 @@
   @apply px-3 h-7 rounded text-sm font-medium text-gray-600 transition-colors;
 }
 .segmented > button[aria-pressed='true'] {
-  @apply bg-white text-gray-900 shadow-sm;
+  @apply bg-surface text-gray-900 shadow-sm;
 }
 .scrollbar-none { scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }

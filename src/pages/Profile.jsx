@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { useTeams } from '../hooks/useOrg'
+import { useProjects, projectsOf } from '../hooks/useProjects'
 import { ROLE_LABELS } from '../lib/permissions'
 import { getInitials } from '../utils/initials'
 import Card from '../components/ui/Card'
@@ -10,6 +10,7 @@ import Input from '../components/ui/Input'
 import Avatar from '../components/ui/Avatar'
 import InstallCard from '../components/InstallCard'
 import Icon from '../components/ui/Icon'
+import { useTheme } from '../lib/theme'
 
 const PREFS = [
   { key: 'assigned', label: 'A task is assigned to me' },
@@ -20,11 +21,12 @@ const PREFS = [
 
 export default function Profile() {
   const { profile, user, can, updateProfile, updatePassword, signOut } = useAuth()
-  const { data: teams = [] } = useTeams()
+  const { data: projects = [] } = useProjects()
   const [name, setName] = useState(profile.name)
   const [pw, setPw] = useState({ next: '', confirm: '' })
   const [msg, setMsg] = useState({})
-  const team = teams.find(t => t.id === profile.team_id)
+  const { pref, setTheme } = useTheme()
+  const projectNames = projectsOf(projects, profile.id).map(p => p.name).join(', ')
   const prefs = profile.email_prefs ?? {}
 
   async function saveName(e) {
@@ -53,14 +55,27 @@ export default function Profile() {
         <div className="min-w-0">
           <p className="text-lg font-semibold text-gray-900 truncate">{profile.name}</p>
           <p className="text-sm text-gray-500 truncate">{user?.email}</p>
-          <p className="text-xs text-gray-400">{ROLE_LABELS[profile.role]}{team ? `, ${team.name}` : ''}{profile.can_assign_tasks ? '. Can assign tasks' : ''}</p>
+          <p className="text-xs text-gray-400">{ROLE_LABELS[profile.role]}{projectNames ? `, ${projectNames}` : ''}{profile.can_assign_tasks ? '. Can assign tasks' : ''}</p>
         </div>
       </Card>
 
       <InstallCard />
 
+      <Card className="p-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-900">Appearance</p>
+          <p className="text-xs text-gray-500">System follows your device setting.</p>
+        </div>
+        <div className="segmented" role="group" aria-label="Theme">
+          {[['light', 'Light'], ['dark', 'Dark'], ['system', 'System']].map(([k, l]) => (
+            <button key={k} aria-pressed={pref === k} onClick={() => setTheme(k)}>{l}</button>
+          ))}
+        </div>
+      </Card>
+
       <Card className="divide-y divide-gray-100">
         {[
+          can('viewTeam') && { to: '/today', icon: 'today', title: 'My day', hint: 'Optional: log your own tasks for the day' },
           can('viewTeam') && { to: '/progress', icon: 'dashboard', title: 'My progress', hint: 'Your own week, month and calendar' },
           can('assignTasks') && { to: '/assigned', icon: 'assign', title: 'Tasks I assigned', hint: 'Follow up on work you handed out' },
           { to: '/import', icon: 'upload', title: 'Import from Excel', hint: 'Bring in past work from a spreadsheet' },

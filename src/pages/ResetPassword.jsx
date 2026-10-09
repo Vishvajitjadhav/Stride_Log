@@ -34,19 +34,19 @@ export default function ResetPassword() {
   const invalid = !isLoading && !session
 
   return (
-    <div className="min-h-dvh bg-primary-900 auth-bg flex items-center justify-center px-4">
+    <div className="min-h-dvh bg-[#132238] auth-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-8">
           <BrandMark inverted />
         </div>
 
-        <div className="bg-white rounded-lg shadow-xl p-6 sm:p-8">
+        <div className="bg-surface rounded-lg shadow-xl p-6 sm:p-8">
           {done ? (
             <div className="text-center space-y-3">
               <h2 className="text-xl font-bold text-gray-900">Password saved</h2>
               <p className="text-sm text-gray-500">You're signed in and ready to go.</p>
-              <button onClick={() => navigate('/today', { replace: true })}
-                className="mt-2 w-full bg-primary-700 text-white font-medium py-3 rounded-md hover:bg-primary-800 transition-colors">
+              <button onClick={() => navigate('/', { replace: true })}
+                className="mt-2 w-full bg-brand text-white font-medium py-3 rounded-md hover:bg-brand-hover transition-colors">
                 Continue
               </button>
             </div>
@@ -55,7 +55,7 @@ export default function ResetPassword() {
               <h2 className="text-xl font-bold text-gray-900">Link expired</h2>
               <p className="text-sm text-gray-500">{linkError || 'This link is invalid or has already been used.'} Request a new one from the sign in page.</p>
               <button onClick={() => navigate('/login', { replace: true })}
-                className="mt-2 w-full bg-primary-700 text-white font-medium py-3 rounded-md hover:bg-primary-800 transition-colors">
+                className="mt-2 w-full bg-brand text-white font-medium py-3 rounded-md hover:bg-brand-hover transition-colors">
                 Back to sign in
               </button>
             </div>
@@ -70,7 +70,7 @@ export default function ResetPassword() {
                   onChange={e => setConfirm(e.target.value)} required minLength={8} />
                 {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
                 <button type="submit" disabled={loading}
-                  className="w-full bg-primary-700 text-white font-medium py-3 rounded-md hover:bg-primary-800 transition-colors disabled:opacity-50">
+                  className="w-full bg-brand text-white font-medium py-3 rounded-md hover:bg-brand-hover transition-colors disabled:opacity-50">
                   {loading ? 'Saving' : 'Save password'}
                 </button>
               </form>
