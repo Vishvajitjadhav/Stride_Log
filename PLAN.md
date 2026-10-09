@@ -7,6 +7,20 @@ dashboards, calendar views and downloadable PDF reports — usable as an install
 Stack stays the same (React 19 + Vite + Tailwind + TanStack Query + Supabase/Postgres).
 Every phase is one or more small commits on a feature branch (`feat/v2-*`), merged into `main`.
 
+## Status (2026-10-09)
+
+Phases 0–7 are implemented on branch `feat/v2` and verified locally (32 pgTAP
+permission tests, 58 unit tests, lint, production build, and the main flows in
+the browser at phone and desktop sizes). Phase 8 needs your Supabase, Resend and
+hosting accounts — the steps are in the README under **Deploying**.
+
+Changes from the original plan:
+- Analytics read two RLS-respecting views (`v_task_facts`, `v_log_facts`) and
+  aggregate in `src/utils/metrics.js` (pure, unit-tested) rather than one RPC per chart.
+- Managers and granted BAs work company-wide, as decided.
+- Unfinished tasks carry over in My Day for 30 days; older ones stay in History and reports.
+- Offline: the app shell and today's notes work offline; task edits sync when the connection returns.
+
 ---
 
 ## Guiding principles
@@ -73,47 +87,47 @@ read like the table above.
 
 ## Phase 0 — Security fix & housekeeping  *(do first, small)*
 
-- [ ] Branch off `main`; set local default branch to match.
-- [ ] **Fix privilege escalation:** `"own profile update"` lets a user change their own
+- [x] Branch off `main`; set local default branch to match.
+- [x] **Fix privilege escalation:** `"own profile update"` lets a user change their own
       `role` / `is_approved`. Replace with a trigger that blocks changes to `role`,
       `is_approved`, `is_active`, `team_id`, `manager_id`, `can_assign_tasks` unless the caller is HR/admin.
-- [ ] Add `SET search_path = public` to all `SECURITY DEFINER` functions.
-- [ ] Fix UTC date bug in dashboard 30-day window (use `date-fns` local dates everywhere).
-- [ ] Page title / favicon → "StrideLog".
+- [x] Add `SET search_path = public` to all `SECURITY DEFINER` functions.
+- [x] Fix UTC date bug in dashboard 30-day window (use `date-fns` local dates everywhere).
+- [x] Page title / favicon → "StrideLog".
 
 ## Phase 1 — Roles, teams, permissions (DB)
 
-- [ ] Migration: roles `ba`, `hr`; `teams`; `team_id`, `manager_id`, `can_assign_tasks` on profiles.
-- [ ] Migration: helper functions + rewritten RLS for profiles / work_logs / tasks / categories.
-- [ ] **pgTAP tests** (`supabase test db`) that sign in as each role and assert allowed/denied
+- [x] Migration: roles `ba`, `hr`; `teams`; `team_id`, `manager_id`, `can_assign_tasks` on profiles.
+- [x] Migration: helper functions + rewritten RLS for profiles / work_logs / tasks / categories.
+- [x] **pgTAP tests** (`supabase test db`) that sign in as each role and assert allowed/denied
       reads & writes — this is the safety net that keeps permissions maintainable.
-- [ ] `AuthContext` exposes `role`, `can(action, targetUser?)` helper; replace scattered
+- [x] `AuthContext` exposes `role`, `can(action, targetUser?)` helper; replace scattered
       `isStaff/isAdmin` checks with it.
 
 ## Phase 2 — Connected tasks & assignment
 
-- [ ] Migration: `tasks.date`, `assigned_by`, `description`, `priority`, `due_date`,
+- [x] Migration: `tasks.date`, `assigned_by`, `description`, `priority`, `due_date`,
       `updated_by/updated_at`, `blocked` status, nullable `log_id`; **drop `hours`**
       (also remove from Excel import mapping & CSV export).
-- [ ] Reseed categories.
-- [ ] **My Day** (replaces "Log Today"): today's tasks = my tasks for today + unfinished
+- [x] Reseed categories.
+- [x] **My Day** (replaces "Log Today"): today's tasks = my tasks for today + unfinished
       tasks carried over from earlier days + tasks assigned to me. Badge "Assigned by Priya".
       Quick add, swipe/tap to change status, notes (what I did / blockers / tomorrow), Submit.
-- [ ] **Assign Task** sheet (for users with permission): pick person (only those I may
+- [x] **Assign Task** sheet (for users with permission): pick person (only those I may
       manage), title, category, priority, due date, description. Appears instantly in the
       assignee's My Day (Supabase Realtime subscription).
-- [ ] Managers/BAs can edit status/title/due date of their team's tasks; every change records
+- [x] Managers/BAs can edit status/title/due date of their team's tasks; every change records
       `updated_by` and shows "edited by X" to the employee.
-- [ ] In-app notification bell (new assignment, task edited, account approved).
+- [x] In-app notification bell (new assignment, task edited, account approved).
 
 ## Phase 3 — Calendar
 
-- [ ] Month calendar (own; manager/HR can switch person/team).
+- [x] Month calendar (own; manager/HR can switch person/team).
       Each day coloured: submitted ✓ / missed ✗ / partial / weekend / holiday / future;
       weekend or holiday days with logged work get a distinct "extra day" ★ marker.
       Dots for tasks due. Tap a day → that day's log & tasks (editable if allowed).
-- [ ] Week strip version on mobile dashboard.
-- [ ] HR/Admin: Holidays manager.
+- [x] Week strip version on mobile dashboard.
+- [x] HR/Admin: Holidays manager.
 
 ## Phase 4 — Dashboards & analytics
 
@@ -128,12 +142,12 @@ Metrics (no hours):
 - **Growth** = every metric vs previous period (▲/▼ %), and 8-12 week trend lines
 
 Dashboards:
-- [ ] **My Dashboard** (everyone): this week KPIs, trend vs last week, streak, category donut, upcoming due tasks.
-- [ ] **Team Dashboard** (manager / granted BA): KPI row, per-person table (sortable),
+- [x] **My Dashboard** (everyone): this week KPIs, trend vs last week, streak, category donut, upcoming due tasks.
+- [x] **Team Dashboard** (manager / granted BA): KPI row, per-person table (sortable),
       who hasn't logged today, open blockers feed, category mix, weekly trend.
-- [ ] **Company Dashboard** (HR/Admin): same, grouped by team; team comparison chart;
+- [x] **Company Dashboard** (HR/Admin): same, grouped by team; team comparison chart;
       compliance heatmap (people × days).
-- [ ] **Person drill-down**: any row → that person's trends, calendar, tasks.
+- [x] **Person drill-down**: any row → that person's trends, calendar, tasks.
 
 Filters (one shared `FilterBar`, stored in URL so views are shareable/bookmarkable):
 - Date: This week · Last week · This month · Last month · This quarter · Custom range
@@ -145,46 +159,46 @@ instead of downloading every row to the browser.
 
 ## Phase 5 — PDF reports
 
-- [ ] Library: `@react-pdf/renderer` (lazy-loaded, real selectable text, crisp vector charts).
-- [ ] Report types: **Weekly** and **Monthly** × scope **Me / Person / Team / Company**
+- [x] Library: `@react-pdf/renderer` (lazy-loaded, real selectable text, crisp vector charts).
+- [x] Report types: **Weekly** and **Monthly** × scope **Me / Person / Team / Company**
       (scope options limited by role).
-- [ ] Layout: header with **company logo + name**, report title, **date range**,
+- [x] Layout: header with **company logo + name**, report title, **date range**,
       generated on/by; KPI summary with growth arrows; trend bar chart; category breakdown;
       per-person table (team/company); highlights (top completed tasks) & blockers;
       footer with page numbers and confidentiality note.
-- [ ] "Download PDF" button on every dashboard uses the current filters.
-- [ ] Admin Settings: company name, logo upload (Supabase Storage), week start day, timezone.
+- [x] "Download PDF" button on every dashboard uses the current filters.
+- [x] Admin Settings: company name, logo upload (Supabase Storage), week start day, timezone.
 
 ## Phase 6 — Email (auth + notifications)
 
 Auth emails (Supabase Auth):
-- [ ] Branded HTML templates in `supabase/templates/`: confirm sign-up, **reset password**,
+- [x] Branded HTML templates in `supabase/templates/`: confirm sign-up, **reset password**,
       invite user, magic link, email change. Logo, button, plain-text fallback.
-- [ ] Wire templates in `config.toml` (local) and dashboard (hosted).
+- [x] Wire templates in `config.toml` (local). Hosted: paste into the dashboard at deploy time.
 - [ ] Production SMTP via **Resend** (`smtp.resend.com`) — Supabase's built-in mailer
       is rate-limited to a few emails/hour and not for production.
-- [ ] **Forgot password end-to-end test**: request → email → `/reset-password` →
+- [x] **Forgot password end-to-end test**: request → email → `/reset-password` →
       `PASSWORD_RECOVERY` event → new password → signed in. Add production URL to redirect allow-list.
-- [ ] Admin/HR "Invite user" (sends invite email, pre-sets role/team, auto-approved).
+- [x] Admin/HR "Invite user" (sends invite email, pre-sets role/team, auto-approved).
 
 App emails (Supabase Edge Function `send-email` + Resend API, templates in
 `supabase/functions/_shared/templates/`):
-- [ ] Task assigned to you / task edited
-- [ ] Your account was approved
-- [ ] Daily reminder at 6 pm if today's log not submitted (pg_cron, Mon–Fri only, skips holidays)
-- [ ] Monday weekly summary to managers/HR (with link to dashboard & PDF)
-- [ ] Per-user email preference toggles (so it doesn't become spam).
+- [x] Task assigned to you / task edited
+- [x] Your account was approved
+- [x] Daily reminder at 6 pm if today's log not submitted (pg_cron, Mon–Fri only, skips holidays)
+- [x] Monday weekly summary to managers/HR (with link to dashboard & PDF)
+- [x] Per-user email preference toggles (so it doesn't become spam).
 
 ## Phase 7 — Mobile UX & PWA
 
-- [ ] Responsive layout: sidebar on ≥1024px; **bottom tab bar** on mobile
+- [x] Responsive layout: sidebar on ≥1024px; **bottom tab bar** on mobile
       (My Day · Calendar · Dashboard · Team · More); FAB "+ Task".
-- [ ] Tables become cards on small screens; 44px tap targets; bottom-sheet modals;
-      safe-area insets (iPhone notch); skeleton loaders; pull-to-refresh.
-- [ ] `vite-plugin-pwa`: manifest (name, theme colour, icons 192/512/maskable from logo),
+- [x] Tables become cards on small screens; 44px tap targets; bottom-sheet modals;
+      safe-area insets (iPhone notch); skeleton loaders; data refreshes when the app regains focus (instead of pull-to-refresh).
+- [x] `vite-plugin-pwa`: manifest (name, theme colour, icons 192/512/maskable from logo),
       service worker with app-shell caching, "Install app" prompt, "New version available — reload" toast.
-- [ ] Offline: My Day draft saved locally and synced when back online.
-- [ ] Lighthouse PWA + accessibility score ≥ 90.
+- [x] Offline: My Day draft saved locally and synced when back online.
+- [ ] Lighthouse PWA + accessibility score ≥ 90 (run against the deployed HTTPS build).
 
 ## Phase 8 — Deploy
 
@@ -192,7 +206,7 @@ App emails (Supabase Edge Function `send-email` + Resend API, templates in
       redirect URIs, email templates, pg_cron, Edge Function secrets.
 - [ ] Deploy frontend to Vercel/Netlify (HTTPS is required for PWA install).
 - [ ] Create first admin; import existing data; smoke-test each role on phone + desktop.
-- [ ] README: setup, roles table, how to add a user, how to run tests.
+- [x] README: setup, roles table, how to add a user, how to run tests.
 
 ---
 

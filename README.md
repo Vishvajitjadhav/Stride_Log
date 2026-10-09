@@ -1,97 +1,165 @@
 # StrideLog
 
-A work-tracking web app for teams. Employees log their daily work, and managers get approvals, people management, and team analytics — all backed by Supabase with row-level security and role-based access.
+A simple daily work tracker for teams. Employees plan and tick off their day on
+phone or desktop; managers and BAs assign work that lands straight in people's
+daily lists; HR and managers see weekly/monthly productivity on dashboards and
+download branded PDF reports.
+
+No time tracking: productivity is measured by outcomes (tasks completed,
+consistency of daily logs, assigned work done on time), not hours.
 
 ## Features
 
-**For employees**
-- Dashboard with an at-a-glance view of logged work
-- Log daily work entries against categories/tasks
-- Browse and filter personal work history
+- **My Day**: today's tasks, unfinished work carried over from earlier days,
+  tasks assigned by others, quick add with category, daily notes (highlights,
+  blockers, plan for tomorrow) and one-tap "Submit day". Notes are kept on the
+  device while offline.
+- **Task assignment**: managers, admins, and anyone an admin grants permission to
+  (e.g. a BA) can assign and edit tasks for anyone. The task appears instantly in
+  the person's My Day (realtime), with an in-app notification and an email.
+- **Calendar**: month view per person showing submitted, missed, extra (weekend or
+  holiday ★) and holiday days, plus due dates. Tap a day for its tasks and notes.
+- **Dashboards**:
+  - **Personal dashboard** (everyone)
+  - **Team / company analytics** (manager, HR, admin, granted BA), with filters for
+    period, team, person, role, category, status and assigned vs self-created.
+    Filters live in the URL, so views can be shared.
+  - **Metrics**: tasks completed, completion rate, log consistency, assigned on
+    time, carried over, blocked, extra days, growth vs the previous period,
+    8-week trends, category mix, team comparison, daily log grid, blockers feed.
+- **PDF reports**: weekly or monthly, for me, a person, a team or the whole
+  company. They include the company logo, dates, KPIs vs the previous period,
+  charts, per-person/team tables, highlights and blockers. CSV export is also
+  available.
+- **Email**:
+  - Branded auth emails: confirm sign-up, reset password, invite, magic link,
+    email change, password changed.
+  - Notification emails: task assigned, task updated, account approved, 6 pm
+    "submit your day" reminder (Mon–Fri, skips holidays), Monday weekly summary.
+  - Each user can turn notification emails on or off in their Profile.
+- **People admin**:
+  - Approve sign-ups, invite by email (role and team pre-set), edit role, team
+    and manager, deactivate.
+  - Admins grant "can assign tasks".
+- **Settings**: categories, teams, holidays, company name and logo, timezone.
+- **Mobile / PWA**: installable app with home-screen icon, bottom tab bar on
+  phones, offline app shell, and an "update available" prompt.
 
-**For managers / admins**
-- People view and per-member detail pages
-- Approve pending work entries
-- Team analytics and charts (powered by Recharts)
-- Import data in bulk from Excel spreadsheets
-- Team settings and category management
+## Roles
 
-**Platform**
-- Authentication via Supabase (email/password, Google sign-in, password reset)
-- Role-based access (employee / manager) with a user-approval flow
-- Postgres schema with Row-Level Security policies
+| Capability | Employee | BA | Manager | HR | Admin |
+|---|:-:|:-:|:-:|:-:|:-:|
+| Own day, dashboard, calendar, history, own PDF | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Assign / edit tasks for anyone | — | if granted | ✅ | — | ✅ |
+| Team dashboards & analytics (everyone) | — | if granted | ✅ | ✅ | ✅ |
+| Company-wide PDF report | — | — | ✅ | ✅ | ✅ |
+| Approve sign-ups, invite, edit people | — | — | — | ✅ | ✅ |
+| Teams & holidays | — | — | — | ✅ | ✅ |
+| Categories | — | — | ✅ | ✅ | ✅ |
+| Grant "can assign tasks", make admins, company logo | — | — | — | — | ✅ |
+
+The database enforces all of this with Row-Level Security and triggers
+(`supabase/migrations`), and `supabase/tests` checks every role. The UI reads the
+same rules from `src/lib/permissions.js`.
 
 ## Tech stack
 
-- **Frontend:** React 19, React Router 7, Vite 8
-- **Styling:** Tailwind CSS 4
-- **State/data:** TanStack Query, Zustand
-- **Backend:** Supabase (Postgres, Auth, RLS)
-- **Charts:** Recharts
-- **Excel import:** SheetJS (`xlsx`)
-- **Dates:** date-fns
-- **Testing:** Vitest, Testing Library
+React 19 · Vite 8 · Tailwind CSS 4 · TanStack Query · Recharts · @react-pdf/renderer ·
+vite-plugin-pwa · Supabase (Postgres, Auth, RLS, Realtime, Storage, Edge Functions, pg_cron, pg_net) · Resend (email)
 
-## Getting started
+## Local development
 
-### Prerequisites
-- Node.js 18+
-- A [Supabase](https://supabase.com) project
-
-### Installation
+Prerequisites: Node 18+, Docker Desktop.
 
 ```bash
-git clone https://github.com/Vishvajitjadhav/Stride_Log.git
-cd Stride_Log
 npm install
+npx supabase start                          # Postgres, Auth, Storage, Mailpit, Edge Functions
+cp supabase/functions/.env.example supabase/functions/.env
 ```
 
-### Environment variables
-
-Create a `.env.local` file in the project root:
+Create `.env.local` with the values printed by `npx supabase status`:
 
 ```bash
-VITE_SUPABASE_URL=your-supabase-project-url
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=<ANON_KEY>
 ```
 
-> `.env.local` is gitignored — never commit your keys.
-
-### Database setup
-
-Apply the migrations in `supabase/migrations/` to your Supabase project (via the [Supabase CLI](https://supabase.com/docs/guides/cli) or the SQL editor). Optionally seed sample data with `supabase/seed_data.sql` or `supabase/seed_demo_team.sql`.
-
-### Run
+Load the demo company (optional). The password for every demo account is `stridelog123`:
 
 ```bash
-npm run dev
+docker exec -i supabase_db_stridelog psql -U postgres < supabase/seed_demo_team.sql
 ```
 
-The app runs at `http://localhost:5173` by default.
+Accounts: `manager@`, `hr@`, `ba@` (can assign), `arjun@`, `sara@`, `liam@` — all `@speedit.test`.
 
-## Scripts
+```bash
+npm run dev          # http://localhost:5173
+```
 
-| Command           | Description                       |
-| ----------------- | --------------------------------- |
-| `npm run dev`     | Start the Vite dev server         |
-| `npm run build`   | Build for production              |
-| `npm run preview` | Preview the production build      |
-| `npm run lint`    | Run ESLint                        |
+All emails sent locally (auth and notifications) appear in Mailpit at
+http://127.0.0.1:54324.
+
+### Scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Vite dev server |
+| `npm run build` / `npm run preview` | Production build / preview (includes service worker) |
+| `npm test` | Unit tests (metrics, permissions, dates, import) |
+| `npm run test:db` | pgTAP permission tests against the local database |
+| `npm run lint` | ESLint |
+| `npm run icons` | Regenerate favicon/PWA icons from `public/logo.svg` |
+
+## Deploying
+
+1. **Supabase project**: create one at supabase.com, then:
+   ```bash
+   npx supabase link --project-ref <ref>
+   npx supabase db push
+   npx supabase functions deploy send-email --no-verify-jwt
+   npx supabase functions deploy invite-user
+   npx supabase secrets set EMAIL_WEBHOOK_SECRET=<random> EMAIL_FROM=notifications@<your-domain> RESEND_API_KEY=<key>
+   ```
+   In the SQL editor, point the database at your functions (same secret as above):
+   ```sql
+   UPDATE private.config SET value = 'https://<ref>.supabase.co/functions/v1' WHERE key = 'functions_url';
+   UPDATE private.config SET value = '<random>' WHERE key = 'email_webhook_secret';
+   UPDATE org_settings SET app_url = 'https://<your-app-domain>', company_name = '<Company>' WHERE id = 1;
+   ```
+2. **Resend**: verify your sending domain (add the DNS records Resend shows).
+   Then, in Supabase → Authentication → Emails → SMTP, set host
+   `smtp.resend.com`, port `465`, user `resend`, and your API key as the password.
+   Without this, Supabase's built-in mailer sends only a few emails per hour.
+3. **Auth settings** (Supabase dashboard → Authentication):
+   - Site URL = your app URL.
+   - Redirect URLs: add `https://<your-app-domain>/**`.
+   - Turn on "Confirm email".
+   - Paste each file from `supabase/templates/` into the matching email template.
+4. **Frontend**: deploy to Vercel or Netlify with the two `VITE_` env vars.
+   `vercel.json` / `public/_redirects` handle SPA routing. HTTPS is required for
+   installing the PWA.
+5. **Schedules**: the reminder (18:00 IST) and weekly summary (Mon 09:00 IST)
+   run on pg_cron in UTC. Adjust them in `cron.job` if your company isn't on IST.
+6. Sign up with your own email. Then, in the SQL editor, run:
+   `UPDATE profiles SET role='admin', is_approved=true WHERE email='you@company.com';`
+   From then on, invite everyone else from **Admin → People**.
 
 ## Project structure
 
 ```
 src/
-  pages/          Employee pages (Dashboard, Log, History) + admin/ pages
-  pages/admin/    PeopleView, MemberDetail, TeamAnalytics, Approvals, Settings
-  components/     Layout, UI primitives, SplashScreen, PendingApproval
-  hooks/          Data hooks (useWorkLog, useTeam, useTasks, useImport, ...)
-  contexts/       Auth context
-  lib/            Supabase client
-  utils/          Helpers
+  pages/            MyDay, Dashboard, Calendar, History, Team, MemberDetail,
+                    Analytics, Assigned, Profile, More, ImportData, auth pages
+  pages/admin/      People (approvals, roles, invites), Settings
+  components/       layout (sidebar, bottom tabs), tasks, charts, reports (PDF), ui
+  hooks/            Data hooks (tasks, work logs, analytics, people, org, notifications)
+  lib/              Supabase client, permissions, install prompt, labels
+  utils/            metrics (pure KPI maths), dates, csv, import mapping
 supabase/
-  migrations/     Schema, RLS policies, role & approval migrations
-  seed_data.sql   Sample data
+  migrations/       Schema, RLS, triggers, notifications, cron
+  tests/            pgTAP role/permission tests
+  functions/        send-email, invite-user (Edge Functions)
+  templates/        Branded auth email templates
 ```
 
 ## License
