@@ -90,7 +90,7 @@ Load the demo company (optional). The password for every demo account is `stride
 docker exec -i supabase_db_stridelog psql -U postgres < supabase/seed_demo_team.sql
 ```
 
-Accounts: `manager@`, `hr@`, `ba@` (can assign), `arjun@`, `sara@`, `liam@` — all `@speedit.test`.
+Accounts: `admin@`, `manager@`, `hr@`, `ba@` (can assign), `arjun@`, `sara@`, `liam@` — all `@speedit.test`.
 
 ```bash
 npm run dev          # http://localhost:5173

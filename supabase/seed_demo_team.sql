@@ -3,6 +3,7 @@
 -- CURRENT_DATE so dashboards, calendars and reports have data.
 --
 -- Login for all demo accounts:  password = stridelog123
+--   admin@speedit.test     (admin)
 --   manager@speedit.test   (manager)
 --   hr@speedit.test        (HR)
 --   ba@speedit.test        (business analyst, granted "can assign tasks")
@@ -17,6 +18,7 @@ INSERT INTO teams (name) VALUES ('Engineering'), ('Product') ON CONFLICT (name) 
 DO $$
 DECLARE
   users jsonb := '[
+    {"email":"admin@speedit.test","name":"Ada Admin","role":"admin","team":null},
     {"email":"manager@speedit.test","name":"Maya Manager","role":"manager","team":"Engineering"},
     {"email":"hr@speedit.test","name":"Hana HR","role":"hr","team":null},
     {"email":"ba@speedit.test","name":"Bilal Analyst","role":"ba","team":"Product","assign":true},
