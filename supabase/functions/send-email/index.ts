@@ -6,7 +6,7 @@ import { renderEmail, sendEmail, type Org } from '../_shared/email.ts'
 
 const fmtDate = (iso?: string | null) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''
-const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '–')
+const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '0%')
 const STATUS: Record<string, string> = { pending: 'To do', in_progress: 'In progress', done: 'Done', blocked: 'Blocked' }
 
 type Notification = {
@@ -43,7 +43,7 @@ function build(n: Notification, name: string, org: Org) {
           heading: `${p.actor} updated your task`,
           paragraphs: [`Hi ${first}, “${n.body}” was changed.`],
           rows: [
-            ['Status', p.old_status && p.old_status !== p.status ? `${STATUS[p.old_status]} → ${STATUS[p.status]}` : STATUS[p.status] ?? ''],
+            ['Status', p.old_status && p.old_status !== p.status ? `${STATUS[p.old_status]} to ${STATUS[p.status]}` : STATUS[p.status] ?? ''],
             ...(p.due_date ? [['Due', fmtDate(p.due_date)] as [string, string]] : []),
           ],
           cta: { label: 'View task', path: n.link ?? '/today' },
@@ -51,7 +51,7 @@ function build(n: Notification, name: string, org: Org) {
       }
     case 'account_approved':
       return {
-        subject: `You're approved — welcome aboard, ${first}!`,
+        subject: `You're approved. Welcome aboard, ${first}`,
         ...renderEmail({
           org, preheader: 'Your account was approved.',
           heading: `Welcome aboard, ${first}!`,
@@ -69,14 +69,14 @@ function build(n: Notification, name: string, org: Org) {
         ...renderEmail({
           org, preheader: 'Take a minute to wrap up your day.',
           heading: `Wrap up your day, ${first}`,
-          paragraphs: ['You haven’t submitted today’s log yet. Update your task statuses and hit Submit — it takes a minute.'],
+          paragraphs: ['You haven’t submitted today’s log yet. Update your task statuses and press Submit. It takes a minute.'],
           cta: { label: 'Open My Day', path: '/today' },
         }),
       }
     case 'weekly_summary': {
       const s = p as Record<string, any>
       return {
-        subject: `Weekly summary · ${fmtDate(s.from)} – ${fmtDate(s.to)}`,
+        subject: `Weekly summary, ${fmtDate(s.from)} to ${fmtDate(s.to)}`,
         ...renderEmail({
           org, preheader: `${s.done} of ${s.planned} tasks completed last week`,
           heading: 'Last week at a glance',

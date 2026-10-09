@@ -111,12 +111,12 @@ function PersonEditor({ person, teams, people, onClose }) {
         <div>
           <label className="label" htmlFor="p-mgr">Reports to</label>
           <select id="p-mgr" className="field" value={form.manager_id} onChange={e => set('manager_id', e.target.value)} disabled={lockedAdmin}>
-            <option value="">—</option>
+            <option value="">Nobody</option>
             {people.filter(p => p.id !== person.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
 
-        <label className={`flex items-start gap-3 rounded-xl border p-3 ${can('grantPermissions') ? 'border-primary-200 bg-primary-50/40' : 'border-gray-100 opacity-60'}`}>
+        <label className={`flex items-start gap-3 rounded-md border p-3 ${can('grantPermissions') ? 'border-primary-200 bg-primary-50/40' : 'border-gray-100 opacity-60'}`}>
           <input type="checkbox" className="mt-1 w-4 h-4 accent-primary-600"
             checked={INHERENT_ASSIGN.includes(form.role) || form.can_assign_tasks}
             disabled={!can('grantPermissions') || INHERENT_ASSIGN.includes(form.role)}
@@ -164,7 +164,6 @@ function InviteSheet({ teams, roles, onClose }) {
       footer={done ? <Button onClick={onClose}>Done</Button> : <><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={send} loading={invite.isPending}>Send invite</Button></>}>
       {done ? (
         <div className="text-center py-6">
-          <p className="text-3xl mb-2">📨</p>
           <p className="text-sm text-gray-700">Invitation sent to <strong>{form.email}</strong>. They'll set a password from the email and can start right away.</p>
         </div>
       ) : (
@@ -221,7 +220,7 @@ export default function People() {
   return (
     <div className="max-w-4xl mx-auto space-y-4">
       <div className="flex items-center gap-2">
-        <div className="flex gap-1 bg-white border border-gray-100 rounded-xl p-1">
+        <div className="flex gap-1 bg-white border border-gray-100 rounded-md p-1">
           <button onClick={() => setTab('pending')} className={`px-4 py-1.5 rounded-lg text-sm font-medium ${tab === 'pending' ? 'bg-primary-600 text-white' : 'text-gray-600'}`}>
             Pending{pending.length > 0 && <span className="ml-1.5 text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5">{pending.length}</span>}
           </button>
@@ -234,7 +233,6 @@ export default function People() {
       {tab === 'pending' ? (
         pending.length === 0 ? (
           <Card className="p-10 text-center">
-            <p className="text-3xl mb-2">✅</p>
             <p className="text-sm text-gray-400">No one is waiting for approval.</p>
           </Card>
         ) : (
@@ -244,7 +242,7 @@ export default function People() {
         )
       ) : (
         <>
-          <input type="search" className="field" placeholder="Search name or email…" value={search} onChange={e => setSearch(e.target.value)} />
+          <input type="search" className="field" placeholder="Search name or email" value={search} onChange={e => setSearch(e.target.value)} />
           <Card className="divide-y divide-gray-50">
             {isLoading && <div className="h-24 animate-pulse" />}
             {filtered.map(p => (

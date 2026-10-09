@@ -8,6 +8,7 @@
 //
 // A task belongs to the period of its `date` (the day it was planned for).
 
+import { format, parseISO } from 'date-fns'
 import { isWorkingDay, workingDays, weekStartISO, addDaysISO, daysBetween } from './dates'
 
 const pct = (num, den) => (den ? Math.round((num / den) * 100) : 0)
@@ -179,7 +180,7 @@ export function weeklyTrend({ tasks, logs, people, range, holidays, today, minWe
     const s = summarize({ tasks, logs, people, range: r, holidays, today })
     out.push({
       week: ws,
-      label: ws.slice(5).replace('-', '/'),
+      label: format(parseISO(ws), 'd MMM'),
       planned: s.planned,
       done: s.done,
       completionRate: s.completionRate,
@@ -232,4 +233,54 @@ export function notLoggedOn(day, people, logs, holidays = new Set()) {
   if (!isWorkingDay(day, holidays)) return []
   const ok = new Set(logs.filter(l => l.date === day && l.submitted).map(l => l.user_id))
   return people.filter(p => !ok.has(p.id))
+}
+
+// ── Plain-English observations ──────────────────────────────────────────────
+
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+
+// A few short sentences a manager can read in seconds.
+// periodName: 'week' | 'month' | 'period' (used as "last week" etc.)
+export function observations({ current, previous, persons = [], categories = [], periodName = 'period' }) {
+  const out = []
+  const prevLabel = `the previous ${periodName}`
+
+  if (current.planned === 0) return ['No tasks were planned in this period.']
+
+  if (previous && previous.done !== current.done) {
+    const dir = current.done > previous.done ? 'rose' : 'fell'
+    out.push(`Tasks completed ${dir} from ${previous.done} to ${current.done} compared with ${prevLabel}.`)
+  } else if (previous) {
+    out.push(`Tasks completed held steady at ${current.done} compared with ${prevLabel}.`)
+  }
+
+  const top = [...persons].filter(p => p.done > 0).sort((a, b) => b.done - a.done)[0]
+  if (top && persons.length > 1) {
+    out.push(`${top.name} completed the most tasks (${top.done}, ${top.completionRate}% of planned).`)
+  }
+
+  if (persons.length) {
+    const missed = persons
+      .map(p => ({ name: p.name, days: Math.max(0, p.expectedDays - p.loggedDays) }))
+      .filter(p => p.days > 0)
+      .sort((a, b) => b.days - a.days)
+    if (missed.length === 0) {
+      out.push('Everyone submitted a daily log on every working day.')
+    } else {
+      const names = missed.slice(0, 3).map(p => `${p.name} (${plural(p.days, 'day')})`).join(', ')
+      const more = missed.length > 3 ? ` and ${missed.length - 3} more` : ''
+      out.push(`Missed daily logs: ${names}${more}.`)
+    }
+  }
+
+  const total = categories.reduce((n, c) => n + c.count, 0)
+  if (categories[0] && total) {
+    out.push(`Most work went to ${categories[0].name} (${Math.round((categories[0].count / total) * 100)}% of tasks).`)
+  }
+
+  if (current.blocked > 0) {
+    out.push(`${plural(current.blocked, 'task is', 'tasks are')} blocked and may need help.`)
+  }
+
+  return out
 }

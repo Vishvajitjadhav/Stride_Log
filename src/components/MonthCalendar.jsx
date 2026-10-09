@@ -36,11 +36,11 @@ function dayState({ date, log, holidays, today, startDate }) {
 }
 
 const STYLES = {
-  submitted: 'bg-primary-600 text-white',
-  extra: 'bg-amber-400 text-white',
-  partial: 'bg-primary-100 text-primary-800',
-  missed: 'bg-red-50 text-red-600 ring-1 ring-inset ring-red-200',
-  holiday: 'bg-sky-50 text-sky-700',
+  submitted: 'bg-emerald-50 text-emerald-900 ring-1 ring-inset ring-emerald-200',
+  extra: 'bg-accent-50 text-accent-700 ring-1 ring-inset ring-accent-100',
+  partial: 'bg-primary-50 text-primary-800 ring-1 ring-inset ring-primary-200',
+  missed: 'bg-red-50 text-red-800 ring-1 ring-inset ring-red-200',
+  holiday: 'bg-gray-100 text-gray-500',
   weekend: 'bg-gray-50 text-gray-400',
   future: 'text-gray-700',
   today: 'text-gray-900',
@@ -48,8 +48,8 @@ const STYLES = {
 }
 
 const LEGEND = [
-  ['submitted', 'Submitted'], ['partial', 'Started, not submitted'], ['missed', 'Missed'],
-  ['extra', 'Extra day ★'], ['holiday', 'Holiday'], ['weekend', 'Weekend'],
+  ['submitted', 'Submitted'], ['partial', 'Started but not submitted'], ['missed', 'Missed'],
+  ['extra', 'Extra day'], ['holiday', 'Holiday'], ['weekend', 'Weekend'],
 ]
 
 export default function MonthCalendar({ userId, month, onMonthChange, selected, onSelect, startDate }) {
@@ -84,8 +84,8 @@ export default function MonthCalendar({ userId, month, onMonthChange, selected, 
       <div className="flex items-center justify-between mb-3">
         <button onClick={() => onMonthChange(subMonths(month, 1))} className="p-2 rounded-lg hover:bg-gray-50 text-gray-500" aria-label="Previous month"><Icon name="left" /></button>
         <div className="text-center">
-          <p className="font-semibold text-gray-900">{format(month, 'MMMM yyyy')}</p>
-          <p className="text-[11px] text-gray-400">{isLoading ? 'Loading…' : `${counts.submitted} submitted · ${counts.missed} missed · ${counts.extra} extra ★`}</p>
+          <p className="section-title">{format(month, 'MMMM yyyy')}</p>
+          <p className="text-[11px] text-gray-400">{isLoading ? 'Loading…' : `${counts.submitted} submitted · ${counts.missed} missed · ${counts.extra} extra`}</p>
         </div>
         <button onClick={() => onMonthChange(addMonths(month, 1))} className="p-2 rounded-lg hover:bg-gray-50 text-gray-500" aria-label="Next month"><Icon name="right" /></button>
       </div>
@@ -109,9 +109,9 @@ export default function MonthCalendar({ userId, month, onMonthChange, selected, 
               onClick={() => onSelect?.(d)}
               title={holidays?.byDate?.[d] ?? ''}
               className={`relative aspect-square sm:aspect-[4/3] rounded-lg flex flex-col items-center justify-center text-xs sm:text-sm font-medium
-                ${STYLES[st]} ${isLoading ? 'animate-pulse' : ''} ${selected === d ? 'ring-2 ring-offset-1 ring-primary-500' : ''} ${d === today ? 'outline outline-2 outline-primary-400' : ''}`}
+                ${STYLES[st]} ${isLoading ? 'animate-pulse' : ''} ${selected === d ? '!ring-2 !ring-primary-700' : ''} ${d === today ? 'outline outline-2 outline-primary-600' : ''}`}
             >
-              <span>{Number(d.slice(8))}{st === 'extra' && '★'}</span>
+              <span>{Number(d.slice(8))}</span>
               {tasks.length > 0 && <span className="hidden sm:block text-[10px] opacity-80">{doneN}/{tasks.length}</span>}
               {dueHere.length > 0 && (
                 <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${overdue ? 'bg-red-500' : 'bg-sky-500'}`} />

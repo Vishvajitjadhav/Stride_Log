@@ -29,23 +29,23 @@ export default function DayDetail({ userId, date }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="font-semibold text-gray-900">{formatShort(date)}</p>
-          <p className="text-xs text-gray-400">{holiday ? `Holiday · ${holiday}` : working ? 'Working day' : 'Weekend'}</p>
+          <p className="section-title">{formatShort(date)}</p>
+          <p className="section-hint">{holiday ? `Holiday: ${holiday}` : working ? 'Working day' : 'Weekend'}</p>
         </div>
         <div className="flex items-center gap-2">
-          {log?.submitted_at ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Submitted' : 'Extra day ★'}</Badge>
+          {log?.submitted_at ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Submitted' : 'Extra day'}</Badge>
             : <Badge variant="draft">Not submitted</Badge>}
           {isMe && date <= todayISO() && (
             <Button size="sm" variant="outline" onClick={() => navigate(date === todayISO() ? '/today' : `/today?date=${date}`)}>Open</Button>
           )}
           {!isMe && can('assignTasks') && (
-            <Button size="sm" variant="outline" onClick={() => setEditing('new')}>+ Task</Button>
+            <Button size="sm" variant="outline" onClick={() => setEditing('new')}>Add task</Button>
           )}
         </div>
       </div>
 
       {isLoading ? <div className="h-16 bg-gray-50 rounded-lg animate-pulse" /> : tasks.length === 0 ? (
-        <p className="text-sm text-gray-400 py-4">No tasks planned for this day.</p>
+        <p className="text-sm text-gray-500 py-4">No tasks planned for this day.</p>
       ) : (
         <div className="divide-y divide-gray-50">
           {tasks.map(t => (
@@ -56,11 +56,11 @@ export default function DayDetail({ userId, date }) {
         </div>
       )}
 
-      {(log?.what_i_did || log?.blockers || log?.tomorrow_plan) && (
+      {(log?.what_i_did || log?.blockers) && (
         <div className="space-y-2 pt-2 border-t border-gray-100">
-          {[['Highlights', log.what_i_did], ['Blockers', log.blockers], ['Plan for tomorrow', log.tomorrow_plan]].filter(([, v]) => v).map(([k, v]) => (
+          {[['Summary', log.what_i_did], ['Blockers', log.blockers]].filter(([, v]) => v).map(([k, v]) => (
             <div key={k}>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{k}</p>
+              <p className="text-xs font-medium text-gray-500">{k}</p>
               <p className={`text-sm whitespace-pre-line ${k === 'Blockers' ? 'text-red-700' : 'text-gray-700'}`}>{v}</p>
             </div>
           ))}

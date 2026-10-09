@@ -1,14 +1,14 @@
+import { LogoMark, Wordmark } from './Logo'
+
 export default function SplashScreen() {
   return (
-    <div className="fixed inset-0 bg-white flex flex-col items-center justify-center z-50">
+    <div className="fixed inset-0 bg-[#f5f6f8] flex flex-col items-center justify-center z-50">
       <div className="flex items-center gap-3 mb-8">
-        <div className="w-12 h-12 bg-primary-600 rounded-2xl flex items-center justify-center shadow-lg">
-          <span className="text-white font-black text-xl">S</span>
-        </div>
-        <span className="text-2xl font-bold text-gray-900">StrideLog</span>
+        <LogoMark size={44} />
+        <Wordmark className="!text-2xl" />
       </div>
-      <div className="w-48 h-1 bg-gray-100 rounded-full overflow-hidden">
-        <div className="h-full bg-primary-600 rounded-full animate-[loading_1.2s_ease-in-out_infinite]" />
+      <div className="w-40 h-0.5 bg-gray-200 rounded-full overflow-hidden">
+        <div className="h-full bg-primary-700 rounded-full animate-[loading_1.2s_ease-in-out_infinite]" />
       </div>
       <style>{`
         @keyframes loading {

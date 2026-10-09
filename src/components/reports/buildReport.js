@@ -1,9 +1,7 @@
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, format, parseISO } from 'date-fns'
 import { supabase } from '../../lib/supabase'
-import { toISO, previousRange, weekStartISO, addDaysISO, todayISO } from '../../utils/dates'
-import {
-  summarize, compare, perPerson, perTeam, weeklyTrend, dailySeries, categoryMix, blockerFeed, inRange,
-} from '../../utils/metrics'
+import { toISO, previousRange, weekStartISO, addDaysISO, todayISO, daysBetween, isWorkingDay } from '../../utils/dates'
+import { summarize, compare, perPerson, weeklyTrend, categoryMix, inRange, observations } from '../../utils/metrics'
 
 // Selectable periods for the dialog: last 8 weeks / last 12 months.
 export function periodOptions(kind, ref = new Date()) {
@@ -12,8 +10,8 @@ export function periodOptions(kind, ref = new Date()) {
       const d = subWeeks(ref, i)
       const from = toISO(startOfWeek(d, { weekStartsOn: 1 }))
       const to = toISO(endOfWeek(d, { weekStartsOn: 1 }))
-      const label = i === 0 ? 'This week' : i === 1 ? 'Last week' : `Week of ${format(parseISO(from), 'd MMM')}`
-      return { from, to, label: `${label} (${format(parseISO(from), 'd MMM')} – ${format(parseISO(to), 'd MMM')})` }
+      const name = i === 0 ? 'This week' : i === 1 ? 'Last week' : `Week of ${format(parseISO(from), 'd MMM')}`
+      return { from, to, label: `${name}, ${format(parseISO(from), 'd MMM')} to ${format(parseISO(to), 'd MMM')}` }
     })
   }
   return Array.from({ length: 12 }, (_, i) => {
@@ -32,9 +30,108 @@ async function all(build) {
   }
 }
 
-// scope: { kind: 'me'|'person'|'team'|'company', userId?, teamId? }
+// Day by day detail for one person (weekly report).
+function dayRows(person, tasks, logs, range, holidays, holidayNames, nameById, today) {
+  return daysBetween(range.from, range.to).map(d => {
+    const log = logs.find(l => l.date === d)
+    const working = isWorkingDay(d, holidays)
+    const dayTasks = tasks.filter(t => t.date === d)
+    let state
+    if (log?.submitted) state = working ? 'Submitted' : 'Extra day'
+    else if (d > today) state = 'Upcoming'
+    else if (!working) state = holidayNames[d] ? `Holiday: ${holidayNames[d]}` : 'Weekend'
+    else if (d === today) state = 'In progress'
+    else state = 'Not submitted'
+    return {
+      date: d,
+      working,
+      state,
+      summary: log?.summary ?? null,
+      blockers: log?.blockers ?? null,
+      tasks: dayTasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        category: t.category ?? 'Uncategorized',
+        status: t.status,
+        completed_on: t.completed_on,
+        assignedBy: t.assigned_by ? (nameById[t.assigned_by] ?? 'Manager') : null,
+      })),
+    }
+  }).filter(r => r.working || r.tasks.length || r.state === 'Extra day' || r.state.startsWith('Holiday'))
+}
+
+// Week by week detail for one person (monthly report).
+function weekRows(person, tasks, logs, range, holidays, today) {
+  const out = []
+  for (let ws = weekStartISO(range.from); ws <= range.to; ws = addDaysISO(ws, 7)) {
+    const r = { from: ws < range.from ? range.from : ws, to: addDaysISO(ws, 6) > range.to ? range.to : addDaysISO(ws, 6) }
+    const s = summarize({ tasks, logs, people: [person], range: r, holidays, today })
+    out.push({ ...r, planned: s.planned, done: s.done, completionRate: s.completionRate, loggedDays: s.loggedDays, expectedDays: s.expectedDays, blocked: s.blocked })
+  }
+  return out
+}
+
+// Pure: turn raw rows into everything the PDF shows. Exported for tests.
+export function shapeReport({ kind, range, scope, org, people, allProfiles, teams, holidayRows, tasks, logs, generatedBy, today = todayISO() }) {
+  const prev = previousRange(range)
+  const holidays = new Set(holidayRows.map(h => h.date))
+  const holidayNames = Object.fromEntries(holidayRows.map(h => [h.date, h.name]))
+  const nameById = Object.fromEntries(allProfiles.map(p => [p.id, p.name]))
+  const teamById = Object.fromEntries(teams.map(t => [t.id, t.name]))
+  const ids = new Set(people.map(p => p.id))
+  const t = tasks.filter(x => ids.has(x.user_id))
+  const l = logs.filter(x => ids.has(x.user_id))
+  const ctx = { tasks: t, logs: l, people, holidays, today }
+
+  const current = summarize({ ...ctx, range })
+  const previous = summarize({ ...ctx, range: prev })
+  const persons = perPerson({ ...ctx, range }).sort((a, b) => a.name.localeCompare(b.name))
+  const categories = categoryMix(inRange(t, range))
+  const periodName = kind === 'weekly' ? 'week' : 'month'
+
+  const scopeName =
+    scope.kind === 'me' || scope.kind === 'person' ? (people[0]?.name ?? 'Unknown')
+    : scope.kind === 'team' ? (teamById[scope.teamId] ?? 'Team')
+    : 'All employees'
+
+  const details = persons.map(row => {
+    const person = people.find(p => p.id === row.id)
+    const pt = t.filter(x => x.user_id === row.id)
+    const pl = l.filter(x => x.user_id === row.id)
+    return {
+      ...row,
+      team: teamById[person.team_id] ?? null,
+      days: kind === 'weekly' ? dayRows(person, inRange(pt, range), inRange(pl, range), range, holidays, holidayNames, nameById, today) : null,
+      weeks: kind === 'monthly' ? weekRows(person, pt, pl, range, holidays, today) : null,
+      open: kind === 'monthly'
+        ? inRange(pt, range).filter(x => x.status !== 'done').map(x => ({ title: x.title, status: x.status, date: x.date }))
+        : null,
+    }
+  })
+
+  return {
+    org,
+    kind,
+    periodName,
+    scope: { ...scope, name: scopeName },
+    range,
+    prev,
+    generatedAt: new Date(),
+    generatedBy,
+    current,
+    previous,
+    growth: compare(current, previous),
+    trend: weeklyTrend({ ...ctx, range }),
+    categories,
+    persons,
+    details,
+    observations: observations({ current, previous, persons, categories, periodName }),
+    holidaysInRange: holidayRows.filter(h => h.date >= range.from && h.date <= range.to),
+  }
+}
+
+// scope: { kind: 'me'|'person'|'team'|'all', userId?, teamId? }
 export async function buildReportData({ kind, range, scope, generatedBy }) {
-  const today = todayISO()
   const prev = previousRange(range)
   const trendFrom = addDaysISO(weekStartISO(range.to), -7 * 7)
   const fetchFrom = [range.from, prev.from, trendFrom].sort()[0]
@@ -49,53 +146,22 @@ export async function buildReportData({ kind, range, scope, generatedBy }) {
   const [org, holidaysRes, peopleRes, teamsRes, tasks, logs] = await Promise.all([
     supabase.from('org_settings').select('*').eq('id', 1).single(),
     supabase.from('holidays').select('date, name'),
-    supabase.from('profiles').select('id, name, role, team_id, created_at, avatar_initials').eq('is_approved', true).eq('is_active', true).order('name'),
+    supabase.from('profiles').select('id, name, role, team_id, created_at, avatar_initials, is_active').eq('is_approved', true).order('name'),
     supabase.from('teams').select('id, name').order('name'),
     all(() => scopeQ(supabase.from('v_task_facts').select('*'))),
     all(() => scopeQ(supabase.from('v_log_facts').select('*'))),
   ])
   for (const r of [org, holidaysRes, peopleRes, teamsRes]) if (r.error) throw r.error
 
-  const holidays = new Set((holidaysRes.data ?? []).map(h => h.date))
-  let people = peopleRes.data ?? []
+  const allProfiles = peopleRes.data ?? []
+  let people = allProfiles.filter(p => p.is_active !== false)
   if (scope.userId) people = people.filter(p => p.id === scope.userId)
   if (scope.teamId) people = people.filter(p => p.team_id === scope.teamId)
-  const ids = new Set(people.map(p => p.id))
-  const t = tasks.filter(x => ids.has(x.user_id))
-  const l = logs.filter(x => ids.has(x.user_id))
-  const peopleById = Object.fromEntries(people.map(p => [p.id, p]))
-  const ctx = { tasks: t, logs: l, people, holidays, today }
 
-  const current = summarize({ ...ctx, range })
-  const previous = summarize({ ...ctx, range: prev })
-  const rangeTasks = inRange(t, range)
-
-  const scopeName =
-    scope.kind === 'me' || scope.kind === 'person' ? (people[0]?.name ?? 'Unknown')
-    : scope.kind === 'team' ? (teamsRes.data.find(x => x.id === scope.teamId)?.name ?? 'Team')
-    : (org.data.company_name || 'Company')
-
-  return {
-    org: org.data,
-    kind,
-    scope: { ...scope, name: scopeName },
-    range,
-    prev,
-    generatedAt: new Date(),
-    generatedBy,
-    current,
-    growth: compare(current, previous),
-    previousOnTimeBase: previous.onTimeBase,
-    daily: kind === 'weekly' ? dailySeries(t, range) : null,
-    trend: weeklyTrend({ ...ctx, range }),
-    categories: categoryMix(rangeTasks),
-    persons: people.length > 1 ? perPerson({ ...ctx, range }) : [],
-    teams: scope.kind === 'company' ? perTeam({ ...ctx, teams: teamsRes.data ?? [], range }) : [],
-    blockers: blockerFeed({ tasks: t, logs: l, range, peopleById }, 12),
-    highlights: rangeTasks.filter(x => x.status === 'done').slice(-12).reverse()
-      .map(x => ({ ...x, name: peopleById[x.user_id]?.name })),
-    holidaysInRange: (holidaysRes.data ?? []).filter(h => h.date >= range.from && h.date <= range.to),
-  }
+  return shapeReport({
+    kind, range, scope, org: org.data, people, allProfiles, teams: teamsRes.data ?? [],
+    holidayRows: holidaysRes.data ?? [], tasks, logs, generatedBy,
+  })
 }
 
 export function reportFileName(data) {

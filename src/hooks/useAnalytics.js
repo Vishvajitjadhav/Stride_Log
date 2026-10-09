@@ -11,7 +11,7 @@ import {
 } from '../utils/metrics'
 
 const TASK_COLS = 'id, user_id, team_id, role, date, title, status, priority, category, category_color, assigned_by, due_date, completed_on'
-const LOG_COLS = 'user_id, team_id, role, date, submitted, blockers'
+const LOG_COLS = 'user_id, team_id, role, date, submitted, blockers, summary'
 
 // Raw facts for a date window. RLS decides whose rows come back: employees
 // only get their own, managers/HR/admins get everyone.
@@ -118,4 +118,22 @@ export function useDashboard(filters, { self } = {}) {
     teams: teamsQ.data ?? [],
     allPeople: peopleQ.data ?? [],
   }
+}
+
+// Everything everyone worked on for one day: tasks planned for that day plus
+// earlier tasks finished that day, and each person's daily log.
+export function useDayFacts(date) {
+  return useQuery({
+    queryKey: ['facts', 'day', date],
+    enabled: Boolean(date),
+    queryFn: async () => {
+      const [t, l] = await Promise.all([
+        supabase.from('v_task_facts').select(TASK_COLS).or(`date.eq.${date},completed_on.eq.${date}`).order('date'),
+        supabase.from('v_log_facts').select(LOG_COLS).eq('date', date),
+      ])
+      if (t.error) throw t.error
+      if (l.error) throw l.error
+      return { tasks: t.data, logs: l.data }
+    },
+  })
 }

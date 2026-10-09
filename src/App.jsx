@@ -9,19 +9,16 @@ import Landing from './pages/Landing'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
 import MyDay from './pages/MyDay'
-import Dashboard from './pages/Dashboard'
-import Calendar from './pages/Calendar'
-import History from './pages/History'
+import Progress from './pages/Progress'
 import Profile from './pages/Profile'
-import More from './pages/More'
+import { homePath } from './components/layout/nav'
 
 // Staff / admin pages and heavy dependencies load on demand.
 const Team = lazy(() => import('./pages/Team'))
 const MemberDetail = lazy(() => import('./pages/MemberDetail'))
-const Analytics = lazy(() => import('./pages/Analytics'))
+const Reports = lazy(() => import('./pages/Reports'))
 const Assigned = lazy(() => import('./pages/Assigned'))
-const People = lazy(() => import('./pages/admin/People'))
-const Settings = lazy(() => import('./pages/admin/Settings'))
+const Admin = lazy(() => import('./pages/admin/Admin'))
 const ImportData = lazy(() => import('./pages/ImportData'))
 
 const queryClient = new QueryClient({
@@ -30,11 +27,11 @@ const queryClient = new QueryClient({
   },
 })
 
-const Loading = () => <div className="space-y-3"><div className="h-24 bg-white rounded-xl animate-pulse" /><div className="h-48 bg-white rounded-xl animate-pulse" /></div>
+const Loading = () => <div className="space-y-3"><div className="h-24 bg-white rounded-md animate-pulse" /><div className="h-48 bg-white rounded-md animate-pulse" /></div>
 
 function Guard({ perm, children }) {
   const { can } = useAuth()
-  return can(perm) ? children : <Navigate to="/today" replace />
+  return can(perm) ? children : <Navigate to={homePath(can)} replace />
 }
 
 function LegacyMember() {
@@ -43,7 +40,7 @@ function LegacyMember() {
 }
 
 function AppRoutes() {
-  const { session, isLoading, isApproved, profileLoaded, recovering } = useAuth()
+  const { session, isLoading, isApproved, profileLoaded, recovering, can } = useAuth()
   const { pathname } = useLocation()
 
   if (isLoading) return <SplashScreen />
@@ -60,36 +57,38 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/" element={authed ? <Navigate to="/today" replace /> : <Landing />} />
-      <Route path="/login" element={authed ? <Navigate to="/today" replace /> : <Login />} />
+      <Route path="/" element={authed ? <Navigate to={homePath(can)} replace /> : <Landing />} />
+      <Route path="/login" element={authed ? <Navigate to={homePath(can)} replace /> : <Login />} />
 
       {authed && (
         <Route element={<AppLayout />}>
           <Route path="/today" element={<MyDay />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/calendar" element={<Calendar />} />
-          <Route path="/history" element={<History />} />
+          <Route path="/progress" element={<Progress />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/more" element={<More />} />
           <Route path="/import" element={<Suspense fallback={<Loading />}><ImportData /></Suspense>} />
 
           <Route path="/team" element={<Guard perm="viewTeam"><Suspense fallback={<Loading />}><Team /></Suspense></Guard>} />
           <Route path="/team/:id" element={<Guard perm="viewTeam"><Suspense fallback={<Loading />}><MemberDetail /></Suspense></Guard>} />
-          <Route path="/analytics" element={<Guard perm="viewTeam"><Suspense fallback={<Loading />}><Analytics /></Suspense></Guard>} />
+          <Route path="/reports" element={<Guard perm="viewTeam"><Suspense fallback={<Loading />}><Reports /></Suspense></Guard>} />
           <Route path="/assigned" element={<Guard perm="assignTasks"><Suspense fallback={<Loading />}><Assigned /></Suspense></Guard>} />
-          <Route path="/admin/people" element={<Guard perm="managePeople"><Suspense fallback={<Loading />}><People /></Suspense></Guard>} />
-          <Route path="/admin/settings" element={<Guard perm="manageCategories"><Suspense fallback={<Loading />}><Settings /></Suspense></Guard>} />
+          <Route path="/admin" element={<Guard perm="manageCategories"><Suspense fallback={<Loading />}><Admin /></Suspense></Guard>} />
 
-          {/* v1 URLs */}
+          {/* Older URLs */}
           <Route path="/log" element={<Navigate to="/today" replace />} />
-          <Route path="/admin" element={<Navigate to="/team" replace />} />
+          <Route path="/dashboard" element={<Navigate to="/progress" replace />} />
+          <Route path="/calendar" element={<Navigate to="/progress?view=month" replace />} />
+          <Route path="/history" element={<Navigate to="/progress" replace />} />
+          <Route path="/more" element={<Navigate to="/profile" replace />} />
+          <Route path="/analytics" element={<Navigate to="/reports" replace />} />
+          <Route path="/admin/people" element={<Navigate to="/admin?tab=people" replace />} />
+          <Route path="/admin/settings" element={<Navigate to="/admin" replace />} />
           <Route path="/admin/member/:id" element={<LegacyMember />} />
-          <Route path="/admin/analytics" element={<Navigate to="/analytics" replace />} />
-          <Route path="/admin/approvals" element={<Navigate to="/admin/people" replace />} />
+          <Route path="/admin/analytics" element={<Navigate to="/reports" replace />} />
+          <Route path="/admin/approvals" element={<Navigate to="/admin?tab=people" replace />} />
         </Route>
       )}
 
-      <Route path="*" element={<Navigate to={authed ? '/today' : '/'} replace />} />
+      <Route path="*" element={<Navigate to={authed ? homePath(can) : '/'} replace />} />
     </Routes>
   )
 }

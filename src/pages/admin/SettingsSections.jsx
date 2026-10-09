@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
 import { useCategories, useCategoryMutations } from '../../hooks/useCategories'
 import { useTeams, useTeamMutations, useHolidays, useHolidayMutations, useOrgSettings, useUpdateOrg, useUploadLogo } from '../../hooks/useOrg'
 import { usePeople } from '../../hooks/usePeople'
@@ -9,7 +8,7 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
 
-const PRESET_COLORS = ['#7c3aed', '#ec4899', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#8b5cf6', '#ef4444', '#64748b']
+const PRESET_COLORS = ['#2f4e7e', '#4a6ca3', '#3b6e8f', '#2c7a7b', '#4f8a83', '#3f7d5c', '#6b8e3d', '#b8902f', '#8a6a1f', '#a84a3f', '#9d4f6e', '#5b5f97', '#64748b']
 
 function ColorPicker({ value, onChange }) {
   return (
@@ -23,7 +22,7 @@ function ColorPicker({ value, onChange }) {
   )
 }
 
-function Categories() {
+export function Categories() {
   const { data: categories = [] } = useCategories({ includeInactive: true })
   const { save } = useCategoryMutations()
   const [form, setForm] = useState({ name: '', color: '#7c3aed' })
@@ -72,7 +71,7 @@ function Categories() {
   )
 }
 
-function Teams() {
+export function Teams() {
   const { data: teams = [] } = useTeams()
   const { data: people = [] } = usePeople()
   const { save, remove } = useTeamMutations()
@@ -114,12 +113,12 @@ function Teams() {
           </div>
         ))}
       </Card>
-      <p className="text-xs text-gray-400">Put people into teams from Admin → People.</p>
+      <p className="text-xs text-gray-400">Put people into teams from the People tab.</p>
     </div>
   )
 }
 
-function Holidays() {
+export function Holidays() {
   const { data } = useHolidays()
   const { add, remove } = useHolidayMutations()
   const [form, setForm] = useState({ date: todayISO(), name: '' })
@@ -152,12 +151,12 @@ function Holidays() {
           </div>
         ))}
       </Card>
-      <p className="text-xs text-gray-400">Holidays aren't counted as missed days. Anyone who logs work on a holiday gets an extra day ★.</p>
+      <p className="text-xs text-gray-400">Holidays aren't counted as missed days. Anyone who logs work on a holiday is credited with an extra day.</p>
     </div>
   )
 }
 
-function Company() {
+export function Company() {
   const { data: org } = useOrgSettings()
   const update = useUpdateOrg()
   const upload = useUploadLogo()
@@ -182,11 +181,11 @@ function Company() {
         <p className="text-sm font-semibold text-gray-900">Branding</p>
         <div className="flex items-center gap-4">
           {org.logo_url
-            ? <img src={org.logo_url} alt="Company logo" className="w-16 h-16 rounded-xl object-contain border border-gray-100 bg-white" />
-            : <div className="w-16 h-16 rounded-xl bg-primary-600 flex items-center justify-center text-white text-2xl font-black">{(org.company_name || 'S')[0]}</div>}
+            ? <img src={org.logo_url} alt="Company logo" className="w-16 h-16 rounded-md object-contain border border-gray-100 bg-white" />
+            : <div className="w-16 h-16 rounded-md bg-primary-800 flex items-center justify-center text-white text-2xl font-semibold">{(org.company_name || 'S')[0]}</div>}
           <div className="space-y-1">
             <label className="inline-flex items-center gap-2 px-3 py-2 bg-primary-50 text-primary-700 rounded-lg text-sm font-medium cursor-pointer hover:bg-primary-100">
-              <Icon name="upload" size={16} /> {upload.isPending ? 'Uploading…' : 'Upload logo'}
+              <Icon name="upload" size={16} /> {upload.isPending ? 'Uploading' : 'Upload logo'}
               <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden"
                 onChange={e => e.target.files?.[0] && upload.mutate(e.target.files[0])} />
             </label>
@@ -220,29 +219,9 @@ function Company() {
         </div>
       </Card>
       <div className="flex items-center gap-3 justify-end">
-        {saved && <span className="text-sm text-green-700">Saved ✓</span>}
+        {saved && <span className="text-sm text-green-700">Saved</span>}
         <Button type="submit" loading={update.isPending}>Save settings</Button>
       </div>
     </form>
-  )
-}
-
-export default function Settings() {
-  const { can } = useAuth()
-  const tabs = [
-    can('manageCategories') && { key: 'categories', label: 'Categories', el: <Categories /> },
-    can('manageTeams') && { key: 'teams', label: 'Teams', el: <Teams /> },
-    can('manageHolidays') && { key: 'holidays', label: 'Holidays', el: <Holidays /> },
-    can('manageCompany') && { key: 'company', label: 'Company', el: <Company /> },
-  ].filter(Boolean)
-  const [tab, setTab] = useState(tabs[0]?.key)
-
-  return (
-    <div className="max-w-2xl mx-auto space-y-4">
-      <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
-        {tabs.map(t => <button key={t.key} onClick={() => setTab(t.key)} className={`chip ${tab === t.key ? 'chip-active' : ''}`}>{t.label}</button>)}
-      </div>
-      {tabs.find(t => t.key === tab)?.el}
-    </div>
   )
 }

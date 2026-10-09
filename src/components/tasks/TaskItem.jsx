@@ -1,13 +1,12 @@
 import Icon from '../ui/Icon'
-import Badge from '../ui/Badge'
 import { STATUS_LABELS } from '../../lib/labels'
 import { formatShort, todayISO } from '../../utils/dates'
 
 const STATUS_ICON = {
   pending: { name: 'circle', cls: 'text-gray-300 hover:text-primary-500' },
-  in_progress: { name: 'progress', cls: 'text-amber-500' },
-  done: { name: 'check', cls: 'text-white bg-green-500 rounded-full p-0.5' },
-  blocked: { name: 'block', cls: 'text-red-500' },
+  in_progress: { name: 'progress', cls: 'text-amber-600' },
+  done: { name: 'check', cls: 'text-white bg-emerald-600 rounded-full p-0.5' },
+  blocked: { name: 'block', cls: 'text-red-600' },
 }
 
 export default function TaskItem({ task, onStatus, onOpen, showOwner = false, contextDate = todayISO(), readOnly = false }) {
@@ -17,40 +16,39 @@ export default function TaskItem({ task, onStatus, onOpen, showOwner = false, co
   const overdue = task.due_date && task.due_date < today && !done
   const icon = STATUS_ICON[task.status] ?? STATUS_ICON.pending
 
+  const meta = [
+    showOwner && task.owner && <span key="o" className="font-medium text-gray-700">{task.owner.name}</span>,
+    task.categories && (
+      <span key="c" className="inline-flex items-center gap-1.5">
+        <span className="w-2 h-2 rounded-full" style={{ background: task.categories.color }} />{task.categories.name}
+      </span>
+    ),
+    (task.status === 'in_progress' || task.status === 'blocked') && (
+      <span key="s" className={task.status === 'blocked' ? 'text-red-700 font-medium' : 'text-amber-700 font-medium'}>{STATUS_LABELS[task.status]}</span>
+    ),
+    task.assigner && !showOwner && <span key="a">Assigned by {task.assigner.name.split(' ')[0]}</span>,
+    carried && <span key="r" className="text-amber-700">From {formatShort(task.date)}</span>,
+    task.due_date && <span key="d" className={overdue ? 'text-red-700 font-medium' : ''}>{overdue ? 'Overdue, was due' : 'Due'} {formatShort(task.due_date)}</span>,
+  ].filter(Boolean)
+
   return (
-    <div className="flex items-start gap-3 py-3 px-1 group">
+    <div className="flex items-start gap-3 py-3">
       <button
         disabled={readOnly}
         onClick={() => onStatus?.(task, done ? 'pending' : 'done')}
-        className={`mt-0.5 w-7 h-7 -m-0.5 flex items-center justify-center rounded-full ${readOnly ? '' : 'active:scale-90'} transition`}
+        className={`mt-px w-6 h-6 flex items-center justify-center rounded-full ${readOnly ? '' : 'active:scale-90'} transition`}
         aria-label={done ? 'Mark as not done' : 'Mark as done'}
       >
-        <Icon name={icon.name} size={22} strokeWidth={done ? 3 : 1.8} className={icon.cls} />
+        <Icon name={icon.name} size={20} strokeWidth={done ? 3 : 1.8} className={icon.cls} />
       </button>
 
       <button onClick={() => onOpen?.(task)} className="flex-1 min-w-0 text-left">
-        <p className={`text-sm leading-snug ${done ? 'line-through text-gray-400' : 'text-gray-900 font-medium'}`}>
+        <p className={`text-sm leading-snug ${done ? 'line-through text-gray-400' : 'text-gray-900'}`}>
           {task.title || <span className="italic text-gray-400">Untitled task</span>}
         </p>
-        <div className="flex flex-wrap items-center gap-1.5 mt-1">
-          {showOwner && task.owner && <span className="text-[11px] font-medium text-gray-600">{task.owner.name}</span>}
-          {task.categories && (
-            <span className="text-[11px] px-2 py-0.5 rounded-full font-medium"
-              style={{ background: task.categories.color + '1f', color: task.categories.color }}>
-              {task.categories.name}
-            </span>
-          )}
-          {task.status === 'in_progress' && <Badge variant="in_progress">{STATUS_LABELS.in_progress}</Badge>}
-          {task.status === 'blocked' && <Badge variant="blocked">Blocked</Badge>}
-          {task.priority === 'high' && <Badge variant="high">High priority</Badge>}
-          {task.assigner && !showOwner && <Badge variant="info">From {task.assigner.name.split(' ')[0]}</Badge>}
-          {carried && <span className="text-[11px] text-amber-600">↻ from {formatShort(task.date)}</span>}
-          {task.due_date && (
-            <span className={`text-[11px] ${overdue ? 'text-red-600 font-semibold' : 'text-gray-400'}`}>
-              Due {formatShort(task.due_date)}
-            </span>
-          )}
-        </div>
+        {meta.length > 0 && (
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">{meta}</p>
+        )}
       </button>
     </div>
   )

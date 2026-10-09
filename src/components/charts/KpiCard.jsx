@@ -1,32 +1,36 @@
 import Card from '../ui/Card'
+import Tooltip from '../ui/Tooltip'
+import { GLOSSARY } from '../../lib/glossary'
 
-// Headline number with growth vs the previous period.
-// lowerIsBetter flips the colour (e.g. carried-over tasks).
-export default function KpiCard({ label, value, suffix = '', growth, lowerIsBetter = false, hint, accent }) {
-  let delta = null
-  if (growth && growth.prev !== undefined) {
+// One headline number: what it is (with tooltip), the value, what it means,
+// and how it changed versus the previous period in plain words.
+//   metric: key in GLOSSARY       value / suffix: what to show
+//   context: e.g. "of 68 planned" growth: { value, prev, delta } from compare()
+//   periodName: 'week' | 'month' | 'period'
+export default function KpiCard({ metric, label, value, suffix = '', context, growth, periodName = 'period', lowerIsBetter = false, tone }) {
+  const g = GLOSSARY[metric] ?? {}
+  let change = null
+  if (growth) {
     const d = growth.delta
     const good = lowerIsBetter ? d < 0 : d > 0
-    const color = d === 0 ? 'text-gray-400' : good ? 'text-green-600' : 'text-red-500'
-    const arrow = d > 0 ? '▲' : '▼'
-    const amount = suffix === '%' ? `${Math.abs(d)} pts` : Math.abs(d)
-    delta = (
-      <span className={`text-xs font-medium whitespace-nowrap ${color}`} title={`Previous period: ${growth.prev}${suffix}`}>
-        {d === 0 ? 'no change' : `${arrow} ${amount}`}
-      </span>
-    )
+    const unit = suffix === '%' ? ' points' : ''
+    const text = d === 0 ? `Same as last ${periodName}` : `${d > 0 ? 'Up' : 'Down'} ${Math.abs(d)}${unit} from last ${periodName}`
+    const color = d === 0 ? 'text-gray-500' : good ? 'text-emerald-700' : 'text-red-700'
+    change = <p className={`text-xs font-medium ${color}`}>{text}</p>
   }
 
   return (
-    <Card className="p-4 flex flex-col">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className={`text-2xl sm:text-3xl font-extrabold tabular-nums mt-1 ${accent ?? 'text-gray-900'}`}>
-        {value}{suffix && <span className="text-lg font-bold text-gray-400">{suffix}</span>}
+    <Card className="p-4 sm:p-5 flex flex-col gap-1">
+      <p className="text-[13px] font-medium text-gray-600 flex items-center gap-1.5">
+        {label ?? g.label}
+        {g.tip && <Tooltip text={g.tip} />}
       </p>
-      <div className="mt-auto pt-1 flex flex-wrap items-center gap-x-2 min-h-[1.25rem]">
-        {delta}
-        {hint && <span className="text-[11px] text-gray-400 truncate">{hint}</span>}
-      </div>
+      <p className={`text-[28px] leading-9 font-semibold tracking-tight tabular-nums ${tone ?? 'text-gray-900'}`}>
+        {value}{suffix && <span className="text-lg font-medium text-gray-400 ml-0.5">{suffix}</span>}
+        {context && <span className="text-sm font-normal text-gray-500 ml-2">{context}</span>}
+      </p>
+      {change}
+      {!change && g.short && <p className="text-xs text-gray-500">{g.short}</p>}
     </Card>
   )
 }

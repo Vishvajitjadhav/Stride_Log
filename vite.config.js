@@ -11,11 +11,11 @@ export default defineConfig({
       registerType: 'prompt',          // show "new version available" instead of silently reloading
       includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon-180x180.png'],
       manifest: {
-        name: 'StrideLog — Daily Work Tracker',
+        name: 'StrideLog Daily Work Tracker',
         short_name: 'StrideLog',
         description: 'Log your daily tasks and see your team’s weekly progress.',
-        theme_color: '#7c3aed',
-        background_color: '#faf8ff',
+        theme_color: '#1d3254',
+        background_color: '#f5f6f8',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/today',
@@ -28,7 +28,7 @@ export default defineConfig({
         ],
         shortcuts: [
           { name: 'My Day', url: '/today', icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }] },
-          { name: 'Dashboard', url: '/dashboard', icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }] },
+          { name: 'Team', url: '/team', icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }] },
         ],
       },
       workbox: {

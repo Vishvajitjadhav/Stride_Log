@@ -5,7 +5,7 @@ const SIZES = { xs: 'w-6 h-6 text-[9px]', sm: 'w-8 h-8 text-xs', md: 'w-10 h-10 
 export default function Avatar({ person, size = 'sm', className = '' }) {
   const initials = person?.avatar_initials || getInitials(person?.name ?? '?')
   return (
-    <div className={`${SIZES[size]} rounded-full bg-primary-600 text-white font-bold flex items-center justify-center shrink-0 ${className}`}>
+    <div className={`${SIZES[size]} rounded-full bg-primary-100 text-primary-800 font-semibold flex items-center justify-center shrink-0 ${className}`}>
       {initials}
     </div>
   )

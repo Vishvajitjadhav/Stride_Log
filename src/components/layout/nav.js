@@ -1,30 +1,37 @@
-// One navigation definition shared by the desktop sidebar, the mobile bottom
-// tab bar and the mobile "More" page. `perm` is a permission from
-// lib/permissions.js (omit = everyone). `tab` = shown in the phone tab bar.
+// One navigation definition for the desktop sidebar and the phone tab bar.
+//   perm:    permission needed to see the item (lib/permissions.js)
+//   notPerm: hide the item from people who have this permission
+// Managers / HR / admins: Team · Reports · Today · Admin
+// Everyone else:          Today · My Progress
 
 export const NAV = [
-  { group: 'Me', to: '/today',     label: 'My Day',    icon: 'today',     tab: true },
-  { group: 'Me', to: '/dashboard', label: 'Dashboard', icon: 'dashboard', tab: true },
-  { group: 'Me', to: '/calendar',  label: 'Calendar',  icon: 'calendar',  tab: true },
-  { group: 'Me', to: '/history',   label: 'History',   icon: 'history' },
-
-  { group: 'Team', to: '/team',      label: 'Team',          icon: 'team',      perm: 'viewTeam', tab: true },
-  { group: 'Team', to: '/analytics', label: 'Analytics',     icon: 'analytics', perm: 'viewTeam' },
-  { group: 'Team', to: '/assigned',  label: 'Assigned by me', icon: 'assign',   perm: 'assignTasks' },
-
-  { group: 'Admin', to: '/admin/people',   label: 'People',   icon: 'people',   perm: 'managePeople', badge: 'pending' },
-  { group: 'Admin', to: '/admin/settings', label: 'Settings', icon: 'settings', perm: 'manageCategories' },
-
-  { group: 'Other', to: '/import',  label: 'Import',  icon: 'upload' },
-  { group: 'Other', to: '/profile', label: 'Profile', icon: 'user' },
+  { to: '/team',     label: 'Team',        icon: 'team',      perm: 'viewTeam' },
+  { to: '/reports',  label: 'Reports',     icon: 'analytics', perm: 'viewTeam' },
+  { to: '/today',    label: 'Today',       icon: 'today' },
+  { to: '/progress', label: 'My Progress', icon: 'dashboard', notPerm: 'viewTeam' },
+  { to: '/admin',    label: 'Admin',       icon: 'settings',  perm: 'manageCategories', badge: 'pending' },
 ]
 
 export function visibleNav(can) {
-  return NAV.filter(n => !n.perm || can(n.perm))
+  return NAV
+    .filter(n => (!n.perm || can(n.perm)) && (!n.notPerm || !can(n.notPerm)))
+    // Managers only manage categories, so call it Settings for them.
+    .map(n => (n.to === '/admin' && !can('managePeople') ? { ...n, label: 'Settings' } : n))
 }
 
-export function pageTitle(pathname) {
-  if (pathname.startsWith('/team/')) return 'Team member'
-  if (pathname === '/more') return 'More'
-  return NAV.find(n => n.to === pathname)?.label ?? 'StrideLog'
+export function homePath(can) {
+  return can('viewTeam') ? '/team' : '/today'
+}
+
+const TITLES = {
+  '/profile': 'Profile',
+  '/assigned': 'Assigned by me',
+  '/import': 'Import from Excel',
+  '/progress': 'My Progress',
+}
+
+export function pageTitle(pathname, can) {
+  if (pathname.startsWith('/team/')) return 'Employee'
+  if (TITLES[pathname]) return TITLES[pathname]
+  return visibleNav(can).find(n => n.to === pathname)?.label ?? 'StrideLog'
 }

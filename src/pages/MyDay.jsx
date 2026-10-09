@@ -5,19 +5,37 @@ import { useDayTasks, useTaskMutations, useTasksRealtime } from '../hooks/useTas
 import { useWorkLog } from '../hooks/useWorkLog'
 import { useCategories } from '../hooks/useCategories'
 import { useHolidays } from '../hooks/useOrg'
-import { todayISO, addDaysISO, formatShort, isWorkingDay } from '../utils/dates'
+import { todayISO, addDaysISO, formatShort, formatLong, isWorkingDay } from '../utils/dates'
 import TaskItem from '../components/tasks/TaskItem'
 import TaskEditor from '../components/tasks/TaskEditor'
-import Card from '../components/ui/Card'
+import Card, { Section } from '../components/ui/Card'
+import Tooltip from '../components/ui/Tooltip'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Icon from '../components/ui/Icon'
 
 const NOTE_FIELDS = [
-  { key: 'what_i_did',    label: 'Highlights',        placeholder: 'What went well / what you shipped today', rows: 2 },
-  { key: 'blockers',      label: 'Blockers',          placeholder: 'Anything slowing you down? (leave blank if none)', rows: 2 },
-  { key: 'tomorrow_plan', label: 'Plan for tomorrow', placeholder: 'What will you pick up next?', rows: 2 },
+  { key: 'what_i_did', label: 'Summary',  placeholder: 'What you achieved today', rows: 2 },
+  { key: 'blockers',   label: 'Blockers', placeholder: 'Anything slowing you down. Leave blank if none.', rows: 2 },
 ]
+
+function TaskGroup({ title, tip, collapsible, open = true, onToggle, children }) {
+  return (
+    <div className="mt-3 first:mt-0">
+      {title && (
+        <div className="flex items-center gap-1.5 pt-2 pb-1">
+          {collapsible ? (
+            <button onClick={onToggle} className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1">
+              {title}<Icon name="down" size={14} className={open ? 'rotate-180' : ''} />
+            </button>
+          ) : <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{title}</p>}
+          {tip && <Tooltip text={tip} />}
+        </div>
+      )}
+      {open && <div className="divide-y divide-gray-100">{children}</div>}
+    </div>
+  )
+}
 
 const draftKey = (uid, date) => `stridelog:notes:${uid}:${date}`
 function readDraft(uid, date) {
@@ -48,7 +66,7 @@ export default function MyDay() {
   const [editing, setEditing] = useState(null)   // task | 'new' | null
   const [quick, setQuick] = useState('')
   const [quickCat, setQuickCat] = useState('')
-  const [notes, setNotes] = useState({ what_i_did: '', blockers: '', tomorrow_plan: '' })
+  const [notes, setNotes] = useState({ what_i_did: '', blockers: '' })
   const [showDone, setShowDone] = useState(true)
   const [msg, setMsg] = useState('')
   const loadedFor = useRef(null)
@@ -61,7 +79,6 @@ export default function MyDay() {
     setNotes(draft ?? {
       what_i_did: log?.what_i_did ?? '',
       blockers: log?.blockers ?? '',
-      tomorrow_plan: log?.tomorrow_plan ?? '',
     })
   }, [log, date, userId])
 
@@ -105,7 +122,7 @@ export default function MyDay() {
   async function submit() {
     await save.mutateAsync({ ...notes, submitted_at: new Date().toISOString() })
     clearDraft(userId, date)
-    flash(working ? 'Day submitted — nice work!' : 'Extra day logged ★ thanks!')
+    flash(working ? 'Day submitted. Well done.' : 'Extra day logged. Thank you.')
   }
 
   async function reopen() {
@@ -118,129 +135,93 @@ export default function MyDay() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
-      {/* Day switcher */}
-      <div className="flex items-center gap-2">
-        <button onClick={() => setDate(addDaysISO(date, -1))} className="p-2 rounded-lg hover:bg-white text-gray-500" aria-label="Previous day">
-          <Icon name="left" />
-        </button>
-        <div className="flex-1 text-center">
-          <p className="text-lg font-bold text-gray-900">{isToday ? 'Today' : formatShort(date)}</p>
-          <p className="text-xs text-gray-400">{isToday ? formatShort(date) : <button onClick={() => setDate(today)} className="text-primary-600">Back to today</button>}</p>
+    <div className="max-w-3xl mx-auto space-y-5">
+      {/* Header + day switcher */}
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="page-title">{isToday ? 'Today' : formatShort(date)}</h2>
+          <p className="page-subtitle">{formatLong(date)}</p>
         </div>
-        <button onClick={() => setDate(addDaysISO(date, 1))} disabled={date >= today} className="p-2 rounded-lg hover:bg-white text-gray-500 disabled:opacity-30" aria-label="Next day">
-          <Icon name="right" />
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {!isToday && <Button variant="outline" size="sm" onClick={() => setDate(today)}>Today</Button>}
+          <div className="flex items-center bg-white border border-gray-200 rounded-md">
+            <button onClick={() => setDate(addDaysISO(date, -1))} className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Previous day"><Icon name="left" size={16} /></button>
+            <button onClick={() => setDate(addDaysISO(date, 1))} disabled={date >= today} className="h-8 w-8 flex items-center justify-center text-gray-500 hover:text-gray-900 disabled:opacity-30" aria-label="Next day"><Icon name="right" size={16} /></button>
+          </div>
+        </div>
       </div>
 
       {!working && (
-        <div className="flex items-center gap-2 text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-2.5">
-          <Icon name="star" size={16} />
-          <span>{holidayName ? `${holidayName} — holiday.` : 'Weekend.'} Logging is optional and counts as an extra day.</span>
-        </div>
+        <p className="text-sm text-accent-700 bg-accent-50 border border-accent-100 rounded-lg px-4 py-2.5">
+          {holidayName ? `${holidayName} is a company holiday.` : 'It is the weekend.'} Logging is optional and counts as an extra day.
+        </p>
       )}
 
       {/* Progress */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-semibold text-gray-900">{done.length} of {total} done</span>
-          {submitted ? <Badge variant="submitted">Submitted</Badge> : <Badge variant="draft">Not submitted</Badge>}
+      <Card className="px-5 py-4">
+        <div className="flex items-center justify-between mb-2.5">
+          <p className="text-sm text-gray-600"><span className="text-base font-semibold text-gray-900 tabular-nums">{done.length} of {total}</span> tasks done</p>
+          {submitted ? <Badge variant="submitted">Day submitted</Badge> : <Badge variant="draft">Not submitted yet</Badge>}
         </div>
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
           <div className="h-full bg-primary-600 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
         </div>
       </Card>
 
       {/* Tasks */}
-      <Card className="p-4">
+      <Section title="Tasks" hint="Tap the circle to mark a task done. Tap a task to edit it." bodyClassName="px-5 pb-4 pt-3">
         <form onSubmit={quickAdd} className="flex gap-2">
-          <input
-            value={quick}
-            onChange={e => setQuick(e.target.value)}
-            placeholder="Add a task…"
-            className="field flex-1"
-            aria-label="New task"
-            enterKeyHint="done"
-          />
-          <Button type="submit" className="!px-3" aria-label="Add task" disabled={!quick.trim()}>
-            <Icon name="plus" size={18} />
-          </Button>
+          <input value={quick} onChange={e => setQuick(e.target.value)} placeholder="Add a task" className="field flex-1" aria-label="New task" enterKeyHint="done" />
+          <select value={quickCat} onChange={e => setQuickCat(e.target.value)} className="field !w-[6.5rem] sm:!w-40" aria-label="Category">
+            <option value="">Category</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <Button type="submit" disabled={!quick.trim()} aria-label="Add task"><Icon name="plus" size={16} /><span className="hidden sm:inline">Add</span></Button>
         </form>
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-none mt-2 -mx-4 px-4" role="radiogroup" aria-label="Category for new task">
-          {categories.map(c => {
-            const active = quickCat === c.id
-            return (
-              <button key={c.id} type="button" role="radio" aria-checked={active} onClick={() => setQuickCat(active ? '' : c.id)}
-                className="px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap transition-colors"
-                style={active
-                  ? { background: c.color, borderColor: c.color, color: '#fff' }
-                  : { borderColor: c.color + '55', color: c.color, background: c.color + '10' }}>
-                {c.name}
-              </button>
-            )
-          })}
-        </div>
-        <button onClick={() => setEditing('new')} className="text-xs text-primary-600 font-medium mt-2">
-          + More options (due date, priority, notes…)
+        <button onClick={() => setEditing('new')} className="text-xs font-medium text-primary-700 hover:text-primary-900 mt-2">
+          Add with due date or notes
         </button>
 
         {isLoading ? (
-          <div className="space-y-2 mt-4">{[0, 1, 2].map(i => <div key={i} className="h-10 bg-gray-50 rounded-lg animate-pulse" />)}</div>
+          <div className="space-y-2 mt-4">{[0, 1, 2].map(i => <div key={i} className="h-10 bg-gray-50 rounded-md animate-pulse" />)}</div>
         ) : total === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-3xl mb-1">📝</p>
-            <p className="text-sm text-gray-400">No tasks yet. Add what you're working on today.</p>
-          </div>
+          <p className="text-sm text-gray-500 text-center py-8">No tasks yet. Add what you are working on today.</p>
         ) : (
-          <div className="mt-2">
+          <div className="mt-3">
             {carried.length > 0 && (
-              <>
-                <p className="section-title !text-amber-600 mt-3">Carried over · {carried.length}</p>
-                <div className="divide-y divide-gray-50">
-                  {carried.map(t => <TaskItem key={t.id} task={t} contextDate={date} onStatus={setStatus} onOpen={setEditing} />)}
-                </div>
-              </>
+              <TaskGroup title={`Carried over (${carried.length})`} tip="Unfinished tasks from earlier days. Finish them or move them to another day.">
+                {carried.map(t => <TaskItem key={t.id} task={t} contextDate={date} onStatus={setStatus} onOpen={setEditing} />)}
+              </TaskGroup>
             )}
             {open.length > 0 && (
-              <>
-                {carried.length > 0 && <p className="section-title mt-4">{isToday ? 'Today' : 'This day'} · {open.length}</p>}
-                <div className="divide-y divide-gray-50">
-                  {open.map(t => <TaskItem key={t.id} task={t} contextDate={date} onStatus={setStatus} onOpen={setEditing} />)}
-                </div>
-              </>
+              <TaskGroup title={carried.length ? `${isToday ? 'Today' : 'This day'} (${open.length})` : null}>
+                {open.map(t => <TaskItem key={t.id} task={t} contextDate={date} onStatus={setStatus} onOpen={setEditing} />)}
+              </TaskGroup>
             )}
             {done.length > 0 && (
-              <>
-                <button onClick={() => setShowDone(s => !s)} className="section-title !text-green-600 mt-4 flex items-center gap-1">
-                  Done · {done.length} <Icon name="down" size={14} className={showDone ? 'rotate-180' : ''} />
-                </button>
-                {showDone && (
-                  <div className="divide-y divide-gray-50">
-                    {done.map(t => <TaskItem key={t.id} task={t} contextDate={date} onStatus={setStatus} onOpen={setEditing} />)}
-                  </div>
-                )}
-              </>
+              <TaskGroup title={`Done (${done.length})`} collapsible open={showDone} onToggle={() => setShowDone(v => !v)}>
+                {done.map(t => <TaskItem key={t.id} task={t} contextDate={date} onStatus={setStatus} onOpen={setEditing} />)}
+              </TaskGroup>
             )}
           </div>
         )}
-      </Card>
+      </Section>
 
       {/* Notes */}
-      <Card className="p-4 space-y-3">
-        <p className="section-title">Daily notes</p>
+      <Section title="Daily notes" hint="Optional. Your manager sees these with your tasks." bodyClassName="px-5 pb-5 pt-3 space-y-4">
         {NOTE_FIELDS.map(f => (
           <div key={f.key}>
-            <label className="text-sm font-medium text-gray-700 block mb-1" htmlFor={`n-${f.key}`}>{f.label}</label>
+            <label className="label" htmlFor={`n-${f.key}`}>{f.label}</label>
             <textarea id={`n-${f.key}`} rows={f.rows} className="field resize-none" placeholder={f.placeholder}
               value={notes[f.key]} onChange={e => changeNote(f.key, e.target.value)} />
           </div>
         ))}
-      </Card>
+      </Section>
 
-      {/* Actions — sticky above the tab bar on phones */}
-      <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] lg:bottom-4 z-20">
-        <div className="bg-white/95 backdrop-blur rounded-2xl border border-gray-100 shadow-lg p-3 flex items-center gap-2">
-          <p className="flex-1 text-sm text-green-700 font-medium truncate">{msg}</p>
+      {/* Actions, sticky above the tab bar on phones */}
+      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] lg:bottom-4 z-20">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-[0_4px_16px_rgba(15,23,42,0.08)] px-4 py-3 flex items-center gap-2">
+          <p className="flex-1 text-sm text-emerald-700 font-medium truncate">{msg}</p>
           {submitted ? (
             <Button variant="outline" onClick={reopen} loading={save.isPending}>Edit submission</Button>
           ) : (

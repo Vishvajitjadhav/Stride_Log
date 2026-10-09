@@ -7,18 +7,18 @@ import {
 // with rounded data-ends, hairline solid grid, legend for ≥2 series, text in
 // gray ink (never series colour), hover tooltip on every chart.
 const C = {
-  done: '#7c3aed',
-  open: '#c4b5fd',
-  line: '#7c3aed',
-  grid: '#eeecf3',
-  axis: '#9ca3af',
+  done: '#2f4e7e',
+  open: '#c8d4e6',
+  line: '#2f4e7e',
+  grid: '#eef1f5',
+  axis: '#94a3b8',
 }
 
 const tooltipStyle = {
-  contentStyle: { fontSize: 12, borderRadius: 10, border: '1px solid #eee', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' },
-  labelStyle: { color: '#374151', fontWeight: 600 },
-  itemStyle: { color: '#374151' },
-  cursor: { fill: 'rgba(124,58,237,0.06)' },
+  contentStyle: { fontSize: 12, borderRadius: 6, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(15,23,42,0.08)' },
+  labelStyle: { color: '#0f172a', fontWeight: 600 },
+  itemStyle: { color: '#334155' },
+  cursor: { fill: 'rgba(47,78,126,0.06)' },
 }
 const axisProps = { tick: { fontSize: 11, fill: C.axis }, axisLine: false, tickLine: false }
 
@@ -34,7 +34,7 @@ function Legendish({ items }) {
   )
 }
 
-// Stacked done / not-done columns — per week or per day.
+// Stacked done / not done columns, per week or per day.
 export function DoneColumns({ data, xKey = 'label', height = 200, xFormatter }) {
   const rows = data.map(d => ({ ...d, open: Math.max(0, d.planned - d.done) }))
   return (
@@ -99,7 +99,7 @@ export function HBars({ data, valueKey, labelKey = 'name', color = C.done, suffi
         <div key={d[labelKey]} className="grid grid-cols-[minmax(0,7rem)_1fr] items-center gap-3" title={`${d[labelKey]}: ${d[valueKey]}${suffix}`}>
           <span className="text-xs text-gray-600 truncate">{d[labelKey]}</span>
           <div className="flex items-center gap-2">
-            <div className="h-3 rounded-r-[4px]" style={{ width: `${(d[valueKey] / max) * 100}%`, minWidth: 2, background: color }} />
+            <div className="h-2.5 rounded-r-[3px]" style={{ width: `${(d[valueKey] / max) * 100}%`, minWidth: 2, background: color }} />
             <span className="text-xs font-semibold text-gray-700 tabular-nums">{d[valueKey]}{suffix}</span>
           </div>
         </div>

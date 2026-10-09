@@ -10,40 +10,28 @@ consistency of daily logs, assigned work done on time), not hours.
 
 ## Features
 
-- **My Day**: today's tasks, unfinished work carried over from earlier days,
-  tasks assigned by others, quick add with category, daily notes (highlights,
-  blockers, plan for tomorrow) and one-tap "Submit day". Notes are kept on the
-  device while offline.
-- **Task assignment**: managers, admins, and anyone an admin grants permission to
-  (e.g. a BA) can assign and edit tasks for anyone. The task appears instantly in
-  the person's My Day (realtime), with an in-app notification and an email.
-- **Calendar**: month view per person showing submitted, missed, extra (weekend or
-  holiday ★) and holiday days, plus due dates. Tap a day for its tasks and notes.
-- **Dashboards**:
-  - **Personal dashboard** (everyone)
-  - **Team / company analytics** (manager, HR, admin, granted BA), with filters for
-    period, team, person, role, category, status and assigned vs self-created.
-    Filters live in the URL, so views can be shared.
-  - **Metrics**: tasks completed, completion rate, log consistency, assigned on
-    time, carried over, blocked, extra days, growth vs the previous period,
-    8-week trends, category mix, team comparison, daily log grid, blockers feed.
-- **PDF reports**: weekly or monthly, for me, a person, a team or the whole
-  company. They include the company logo, dates, KPIs vs the previous period,
-  charts, per-person/team tables, highlights and blockers. CSV export is also
-  available.
-- **Email**:
-  - Branded auth emails: confirm sign-up, reset password, invite, magic link,
-    email change, password changed.
-  - Notification emails: task assigned, task updated, account approved, 6 pm
-    "submit your day" reminder (Mon–Fri, skips holidays), Monday weekly summary.
-  - Each user can turn notification emails on or off in their Profile.
-- **People admin**:
-  - Approve sign-ups, invite by email (role and team pre-set), edit role, team
-    and manager, deactivate.
-  - Admins grant "can assign tasks".
-- **Settings**: categories, teams, holidays, company name and logo, timezone.
-- **Mobile / PWA**: installable app with home-screen icon, bottom tab bar on
-  phones, offline app shell, and an "update available" prompt.
+- **Today**: the employee's task list for the day, with unfinished work carried
+  over and tasks assigned by a manager. Quick add, a two field daily note
+  (summary and blockers) and one tap "Submit day". Works on phone and desktop.
+- **Team** (managers, HR, admins): pick a date and see what every employee is
+  working on that day, or switch to **Week** for an employees by day grid showing
+  tasks done and whether each day was submitted. Assign tasks from here.
+- **Reports**: four meaningful numbers (tasks completed, completion rate, daily
+  logs submitted, blocked tasks), each explained with a tooltip. Also plain
+  English key observations, an 8 week trend, where the work went, and an
+  employee table.
+- **PDF reports**: weekly or monthly, for one employee, a team or **all
+  employees**. A professional summary page is followed by a page per employee.
+  Weekly reports list every task day by day with its status and the day's notes.
+- **My Progress**: the employee's own week (day by day), month calendar and trend.
+- **Email**: branded sign up, password reset and invite emails, plus
+  notifications for assignments, approvals, a 6 pm reminder and a Monday summary.
+- **Admin**: approve and invite people, set roles and teams, grant "can assign
+  tasks", and manage categories, holidays and company branding.
+- **Installable app (PWA)** with a phone tab bar and an offline app shell.
+
+The interface follows a calm corporate style: navy and slate colours, plain
+language, tooltips for every metric and no dash characters in the text.
 
 ## Roles
 

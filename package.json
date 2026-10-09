@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "icons": "pwa-assets-generator",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=2",
     "test:db": "supabase test db"
   },
   "dependencies": {

@@ -11,7 +11,7 @@ function GoogleButton({ onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-xl py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+      className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-md py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
     >
       <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
         <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z"/>
@@ -61,14 +61,14 @@ export default function Login() {
 
     const { error } = await signIn(email, password)
     setLoading(false)
-    if (error) setError(/confirm/i.test(error.message) ? 'Please confirm your email first — check your inbox.' : 'Invalid email or password.')
+    if (error) setError(/confirm/i.test(error.message) ? 'Please confirm your email first. Check your inbox.' : 'Invalid email or password.')
     else navigate('/today')
   }
 
   async function handleGoogle() {
     setError('')
     const { error } = await signInWithGoogle()
-    if (error) setError(error.message || 'Google sign-in failed.')
+    if (error) setError(error.message || 'Google sign in failed.')
   }
 
   function go(next) {
@@ -81,13 +81,13 @@ export default function Login() {
     : isSignup ? 'An admin will approve your access' : 'Sign in to your workspace'
 
   return (
-    <div className="min-h-dvh bg-gradient-to-br from-primary-900 via-primary-600 to-primary-400 flex items-center justify-center px-4">
+    <div className="min-h-dvh bg-primary-900 auth-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-8">
           <BrandMark inverted />
         </div>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="bg-white rounded-lg shadow-xl p-8">
           <h2 className="text-xl font-bold text-gray-900 mb-1">{heading}</h2>
           <p className="text-sm text-gray-400 mb-6">{sub}</p>
 
@@ -116,8 +116,8 @@ export default function Login() {
             {notice && <p className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">{notice}</p>}
 
             <button type="submit" disabled={loading}
-              className="w-full bg-primary-600 text-white font-semibold py-2.5 rounded-xl hover:bg-primary-700 transition-colors disabled:opacity-50">
-              {loading ? 'Please wait…' : isForgot ? 'Send reset link' : isSignup ? 'Create account' : 'Sign in'}
+              className="w-full bg-primary-700 text-white font-medium py-2.5 rounded-md hover:bg-primary-800 transition-colors disabled:opacity-50">
+              {loading ? 'Please wait' : isForgot ? 'Send reset link' : isSignup ? 'Create account' : 'Sign in'}
             </button>
           </form>
 
@@ -133,10 +133,10 @@ export default function Login() {
           )}
         </div>
 
-        <p className="text-center text-purple-200 text-xs mt-6">
+        <p className="text-center text-primary-200 text-xs mt-6">
           {isForgot ? (
             <button onClick={() => go('signin')} className="text-white font-semibold underline hover:no-underline">
-              ← Back to sign in
+              Back to sign in
             </button>
           ) : (
             <>

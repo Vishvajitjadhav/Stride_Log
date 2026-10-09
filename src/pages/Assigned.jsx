@@ -45,7 +45,6 @@ export default function Assigned() {
       <Card className="p-4">
         {isLoading ? <div className="h-24 bg-gray-50 rounded-lg animate-pulse" /> : groups.length === 0 ? (
           <div className="text-center py-10">
-            <p className="text-3xl mb-1">📬</p>
             <p className="text-sm text-gray-400">No tasks here. Assign one from the Team page or with the button above.</p>
           </div>
         ) : groups.map(g => (

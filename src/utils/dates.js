@@ -45,7 +45,6 @@ export const PRESETS = [
   { key: 'last_week',    label: 'Last week' },
   { key: 'this_month',   label: 'This month' },
   { key: 'last_month',   label: 'Last month' },
-  { key: 'this_quarter', label: 'This quarter' },
   { key: 'custom',       label: 'Custom' },
 ]
 
@@ -96,7 +95,7 @@ export function weekStartISO(iso) {
 }
 
 export function formatDisplay(dateStr) {
-  return format(new Date(dateStr + 'T00:00:00'), 'dd MMM yyyy')
+  return format(new Date(dateStr + 'T00:00:00'), 'd MMM yyyy')
 }
 
 export function formatShort(dateStr) {
@@ -104,5 +103,19 @@ export function formatShort(dateStr) {
 }
 
 export function formatRange(from, to) {
-  return from === to ? formatDisplay(from) : `${formatDisplay(from)} – ${formatDisplay(to)}`
+  if (from === to) return formatDisplay(from)
+  const sameYear = from.slice(0, 4) === to.slice(0, 4)
+  const start = format(new Date(from + 'T00:00:00'), sameYear ? 'd MMM' : 'd MMM yyyy')
+  return `${start} to ${format(new Date(to + 'T00:00:00'), 'd MMM yyyy')}`
+}
+
+export function formatLong(dateStr) {
+  return format(new Date(dateStr + 'T00:00:00'), 'EEEE, d MMMM yyyy')
+}
+
+// 'week' | 'month' | 'period' — used in sentences like "compared with last week".
+export function periodNoun(preset) {
+  if (preset?.includes('week')) return 'week'
+  if (preset?.includes('month')) return 'month'
+  return 'period'
 }
