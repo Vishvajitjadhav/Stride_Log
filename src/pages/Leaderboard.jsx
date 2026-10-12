@@ -8,7 +8,7 @@ import Icon from '../components/ui/Icon'
 import Tooltip from '../components/ui/Tooltip'
 import SharingSwitch from '../components/SharingSwitch'
 
-const PERIODS = [['this_week', 'This week'], ['this_month', 'This month'], ['last_month', 'Last month'], ['last_3_months', '3 months']]
+const PERIODS = [['this_week', 'This week'], ['last_week', 'Last week'], ['this_month', 'This month'], ['last_month', 'Last month'], ['last_3_months', '3 months']]
 const PERIOD_KEY = 'stridelog:leaderboard_period'
 
 const fmt = v => (v == null ? <span className="text-gray-300">n/a</span> : v)
