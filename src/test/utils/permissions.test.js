@@ -47,3 +47,25 @@ describe('assignableRoles', () => {
     expect(assignableRoles(p('manager'))).toEqual([])
   })
 })
+
+describe('team sharing', () => {
+  const employee = { role: 'employee', is_approved: true, is_active: true }
+  const manager = { role: 'manager', is_approved: true, is_active: true }
+  const hr = { role: 'hr', is_approved: true, is_active: true }
+
+  it('employees see team tasks and the leaderboard only when shared', () => {
+    expect(can(employee, 'seeTeamTasks', { team_tasks_visible: false })).toBe(false)
+    expect(can(employee, 'seeTeamTasks', { team_tasks_visible: true })).toBe(true)
+    expect(can(employee, 'seeLeaderboard', { leaderboard_visible: false })).toBe(false)
+    expect(can(employee, 'seeLeaderboard', { leaderboard_visible: true })).toBe(true)
+    expect(can(employee, 'seeLeaderboard')).toBe(false)
+  })
+
+  it('managers always see both and control the switches; HR sees but does not control', () => {
+    expect(can(manager, 'seeLeaderboard', { leaderboard_visible: false })).toBe(true)
+    expect(can(manager, 'manageSharing')).toBe(true)
+    expect(can(hr, 'seeTeamTasks', {})).toBe(true)
+    expect(can(hr, 'manageSharing')).toBe(false)
+    expect(can(employee, 'manageSharing')).toBe(false)
+  })
+})

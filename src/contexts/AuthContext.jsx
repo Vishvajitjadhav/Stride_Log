@@ -7,16 +7,28 @@ const AuthContext = createContext(null)
 const PROFILE_KEY = 'stridelog:profile'
 const cachedProfile = () => { try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) } catch { return null } }
 const cacheProfile = p => { try { p ? localStorage.setItem(PROFILE_KEY, JSON.stringify(p)) : localStorage.removeItem(PROFILE_KEY) } catch { /* storage unavailable */ } }
+const SHARING_KEY = 'stridelog:sharing'
+const cachedSharing = () => { try { return JSON.parse(localStorage.getItem(SHARING_KEY)) } catch { return null } }
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined) // undefined = initialising
   const [profile, setProfile] = useState(null)
   const [recovering, setRecovering] = useState(false)
+  // What managers chose to share with employees (team tasks, leaderboard).
+  const [sharing, setSharing] = useState(cachedSharing)
+
+  const fetchSharing = useCallback(async () => {
+    const { data } = await supabase.from('org_settings').select('team_tasks_visible, leaderboard_visible').eq('id', 1).single()
+    if (data) { setSharing(data); try { localStorage.setItem(SHARING_KEY, JSON.stringify(data)) } catch { /* storage unavailable */ } }
+  }, [])
 
   const fetchProfile = useCallback(async (userId) => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    const [{ data }] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', userId).single(),
+      fetchSharing(),
+    ])
     if (data) { setProfile(data); cacheProfile(data) }
-  }, [])
+  }, [fetchSharing])
 
   useEffect(() => {
     // INITIAL_SESSION fires once on subscribe, so no separate getSession call.
@@ -82,7 +94,7 @@ export function AuthProvider({ children }) {
   }
 
   const role = profile?.role
-  const can = useCallback(action => canDo(profile, action), [profile])
+  const can = useCallback(action => canDo(profile, action, sharing), [profile, sharing])
 
   return (
     <AuthContext.Provider value={{
@@ -105,6 +117,8 @@ export function AuthProvider({ children }) {
       updatePassword,
       updateProfile,
       refreshProfile: () => session && fetchProfile(session.user.id),
+      sharing,
+      refreshSharing: fetchSharing,
       signOut,
     }}>
       {children}

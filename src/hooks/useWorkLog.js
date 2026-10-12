@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { todayISO } from '../utils/dates'
 
 // One person's daily notes (what I did / blockers / tomorrow) + submission.
-export function useWorkLog(date = todayISO(), userId) {
+export function useWorkLog(date = todayISO(), userId, { enabled = true } = {}) {
   const { userId: me } = useAuth()
   const uid = userId ?? me
   const qc = useQueryClient()
@@ -12,7 +12,7 @@ export function useWorkLog(date = todayISO(), userId) {
 
   const query = useQuery({
     queryKey: key,
-    enabled: Boolean(uid),
+    enabled: Boolean(uid && enabled),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('work_logs')

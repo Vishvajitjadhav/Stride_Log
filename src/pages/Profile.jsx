@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useProjects, projectsOf } from '../hooks/useProjects'
-import { ROLE_LABELS } from '../lib/permissions'
+import { ROLE_LABELS, isTracked } from '../lib/permissions'
 import { getInitials } from '../utils/initials'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -15,11 +15,13 @@ import AvatarEditor from '../components/AvatarEditor'
 import Switch from '../components/ui/Switch'
 import ConnectedApps from '../components/integrations/ConnectedApps'
 
-const PREFS = [
-  { key: 'assigned', label: 'A task is assigned to me' },
-  { key: 'updated', label: 'Someone updates one of my tasks' },
-  { key: 'reminder', label: 'A 6 pm reminder if I have not submitted my day' },
-  { key: 'weekly', label: 'The Monday weekly summary (managers, HR and admins)' },
+// Everything shows in the bell. Only the main events can also be emailed;
+// task updates stay in the app so inboxes are not flooded.
+const NOTIFICATIONS = [
+  { key: 'assigned', label: 'A task is assigned to me', email: true },
+  { key: 'reminder', label: 'Evening reminder at 6 pm if my day is not submitted', email: true, tracked: true },
+  { key: 'weekly', label: 'Monday weekly team summary', email: true, reviewers: true },
+  { key: 'updated', label: 'Someone updates one of my tasks', email: false },
 ]
 
 export default function Profile() {
@@ -89,6 +91,7 @@ export default function Profile() {
           can('viewTeam') && { to: '/today', icon: 'today', title: 'My day', hint: 'Optional: log your own tasks for the day' },
           can('viewTeam') && { to: '/progress', icon: 'dashboard', title: 'My progress', hint: 'Your own week, month and calendar' },
           can('assignTasks') && { to: '/assigned', icon: 'assign', title: 'Tasks I assigned', hint: 'Follow up on work you handed out' },
+          can('viewTeam') && { to: '/projects', icon: 'flag', title: 'Projects', hint: 'Create projects and choose their members' },
           { to: '/import', icon: 'upload', title: 'Import from Excel', hint: 'Bring in past work from a spreadsheet' },
         ].filter(Boolean).map(l => (
           <Link key={l.to} to={l.to} className="group flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-gray-50">
@@ -112,15 +115,28 @@ export default function Profile() {
         </form>
       </Card>
 
-      <Card className="p-5 space-y-3">
-        <p className="text-sm font-semibold text-gray-900">Email me when</p>
-        {PREFS.map(p => (
-          <div key={p.key} className="flex items-center justify-between gap-3">
-            <span className="text-sm text-gray-700">{p.label}</span>
-            <Switch checked={prefs[p.key] ?? true} onChange={() => togglePref(p.key)} label={p.label} />
-          </div>
-        ))}
-        <p className="text-xs text-gray-400">Notifications in the app (the bell) are always on.</p>
+      <Card>
+        <div className="px-5 pt-4 pb-2">
+          <p className="text-sm font-semibold text-gray-900">Notifications</p>
+          <p className="text-xs text-gray-500">Everything appears under the bell in the app. Only the important ones are also emailed.</p>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {NOTIFICATIONS
+            .filter(n => (!n.tracked || isTracked(profile)) && (!n.reviewers || can('viewCompany')))
+            .map(n => (
+              <div key={n.key} className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-gray-50/60">
+                <span className="text-sm text-gray-700">{n.label}</span>
+                {n.email ? (
+                  <span className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-gray-500">Email</span>
+                    <Switch checked={prefs[n.key] ?? true} onChange={() => togglePref(n.key)} label={`Email: ${n.label}`} />
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 shrink-0"><Icon name="bell" size={13} /> In app only</span>
+                )}
+              </div>
+            ))}
+        </div>
       </Card>
 
       <Card className="p-5">

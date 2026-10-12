@@ -19,6 +19,7 @@ import Avatar from '../components/ui/Avatar'
 import Button from '../components/ui/Button'
 import Icon from '../components/ui/Icon'
 import Tooltip from '../components/ui/Tooltip'
+import SharingSwitch from '../components/SharingSwitch'
 
 const STATUS_DOT = {
   done: 'bg-emerald-600',
@@ -49,9 +50,9 @@ function Summary({ items }) {
 }
 
 // ── Day view: who is doing what ─────────────────────────────────────────────
-function PersonDay({ person, tasks, log, kind, projectNames, onAssign, onOpen }) {
+function PersonDay({ person, tasks, log, kind, projectNames, onAssign, onOpen, tasksOnly, isMe }) {
   const done = tasks.filter(t => t.status === 'done').length
-  const status = log?.submitted
+  const status = tasksOnly ? null : log?.submitted
     ? (kind === 'work' ? <Badge variant="submitted">Submitted</Badge> : <Badge variant="extra">Extra day</Badge>)
     : kind === 'work' ? <Badge variant="missing">Not submitted</Badge> : <Badge variant="off">{kind === 'holiday' ? 'Holiday' : 'Weekend'}</Badge>
 
@@ -61,7 +62,7 @@ function PersonDay({ person, tasks, log, kind, projectNames, onAssign, onOpen })
         <button onClick={onOpen} className="group flex items-center gap-3 flex-1 min-w-0 text-left" title="See this day in detail">
           <Avatar person={person} />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-primary-700 transition-colors">{person.name}</p>
+            <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-primary-700 transition-colors">{person.name}{isMe && <span className="font-normal text-gray-500"> (you)</span>}</p>
             <p className="text-xs text-gray-500 truncate">{projectNames || ROLE_LABELS[person.role]}</p>
           </div>
         </button>
@@ -89,7 +90,7 @@ function PersonDay({ person, tasks, log, kind, projectNames, onAssign, onOpen })
             ))}
           </ul>
         )}
-        {(log?.summary || log?.blockers) && (
+        {!tasksOnly && (log?.summary || log?.blockers) && (
           <div className="mt-3 pt-3 border-t border-gray-100 space-y-1 text-sm">
             {log.summary && <p className="text-gray-700"><span className="font-medium text-gray-900">Summary: </span>{log.summary}</p>}
             {log.blockers && <p className="text-red-800"><span className="font-medium">Blocker: </span>{log.blockers}</p>}
@@ -105,7 +106,7 @@ function PersonDay({ person, tasks, log, kind, projectNames, onAssign, onOpen })
   )
 }
 
-function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen }) {
+function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen, tasksOnly, me }) {
   const { data, isLoading } = useDayFacts(date)
   const kind = dayKind(date, holidays)
 
@@ -113,10 +114,12 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
     person: p,
     tasks: (data?.tasks ?? []).filter(t => t.user_id === p.id),
     log: (data?.logs ?? []).find(l => l.user_id === p.id),
-  })).sort((a, b) =>
-    // Not submitted first (needs attention), then by name.
-    Number(Boolean(a.log?.submitted)) - Number(Boolean(b.log?.submitted)) || a.person.name.localeCompare(b.person.name)
-  ), [people, data])
+  })).sort((a, b) => tasksOnly
+    // Employees: themselves first, then by name.
+    ? Number(b.person.id === me) - Number(a.person.id === me) || a.person.name.localeCompare(b.person.name)
+    // Managers: not submitted first (needs attention), then by name.
+    : Number(Boolean(a.log?.submitted)) - Number(Boolean(b.log?.submitted)) || a.person.name.localeCompare(b.person.name)
+  ), [people, data, tasksOnly, me])
 
   const submitted = rows.filter(r => r.log?.submitted).length
   const all = rows.flatMap(r => r.tasks)
@@ -128,18 +131,20 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
   return (
     <div className="space-y-4">
       <Summary items={[
-        { label: 'Submitted', value: submitted, of: `of ${rows.length}`, tip: 'People who submitted their daily log for this day.' },
+        tasksOnly
+          ? { label: 'Working on it', value: rows.filter(r => r.tasks.length).length, of: `of ${rows.length}`, tip: 'Teammates with at least one task for this day.' }
+          : { label: 'Submitted', value: submitted, of: `of ${rows.length}`, tip: 'People who submitted their daily log for this day.' },
         { label: 'Tasks done', value: done, of: `of ${all.length}`, tip: 'Tasks marked done out of all tasks planned for, or finished on, this day.' },
         { label: 'Blocked', value: blocked, of: blocked === 1 ? 'task' : 'tasks', tip: 'Tasks waiting on someone or something. Open the person to help.' },
       ]} />
-      {kind !== 'work' && (
+      {kind !== 'work' && !tasksOnly && (
         <p className="text-sm text-gray-600 bg-surface border border-gray-200 rounded-lg px-4 py-2.5">
           {kind === 'holiday' ? `${holidays.byDate[date]} is a company holiday.` : 'This is a weekend.'} Logging is optional and counts as an extra day.
         </p>
       )}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         {rows.map(r => (
-          <PersonDay key={r.person.id} {...r} kind={kind}
+          <PersonDay key={r.person.id} {...r} kind={kind} tasksOnly={tasksOnly} isMe={r.person.id === me}
             projectNames={projectsOf(projects, r.person.id).map(pr => pr.name).join(', ')}
             onOpen={() => onOpen(r.person, date)}
             onAssign={canAssign ? () => onAssign(r.person.id) : undefined} />
@@ -247,10 +252,12 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
 
 // ── Page ────────────────────────────────────────────────────────────────────
 export default function Team() {
-  const { can } = useAuth()
+  const { can, userId } = useAuth()
+  // Employees get a read only view of tasks (no daily notes, no week grid).
+  const full = can('viewTeam')
   const today = todayISO()
   const [params, setParams] = useSearchParams()
-  const view = params.get('view') === 'week' ? 'week' : 'day'
+  const view = full && params.get('view') === 'week' ? 'week' : 'day'
   const date = params.get('date') || today
   const set = patch => {
     const next = new URLSearchParams(params)
@@ -285,11 +292,15 @@ export default function Team() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="page-title">{view === 'week' ? 'Team week' : isCurrent ? 'Team today' : 'Team on this day'}</h2>
-          <p className="page-subtitle">{view === 'week' ? 'What everyone planned and finished each day.' : 'What everyone is working on and how far they have got.'}</p>
+          <p className="page-subtitle">
+            {!full ? 'What your teammates are working on. Read only.'
+              : view === 'week' ? 'What everyone planned and finished each day.' : 'What everyone is working on and how far they have got.'}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <SharingSwitch what="tasks" tip="When on, employees get a read only Team page with everyone's tasks. Daily notes and blockers stay private to managers." />
           {canAssign && <Link to="/assigned" className="hidden sm:inline text-sm font-medium text-primary-700 hover:text-primary-900 mr-1">Assigned by me</Link>}
-          <ReportButton defaultScope="all" label="Download report" />
+          {full && <ReportButton defaultScope="all" label="Download report" />}
           {canAssign && <Button onClick={() => setAssignTo('')}><Icon name="plus" size={16} /><span className="hidden sm:inline">Assign task</span></Button>}
         </div>
       </div>
@@ -302,10 +313,12 @@ export default function Team() {
           <button onClick={() => set({ date: addDaysISO(date, step) })} className="h-9 w-9 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Next"><Icon name="right" size={18} /></button>
         </div>
         {!isCurrent && <Button variant="outline" size="sm" className="h-9" onClick={() => set({ date: '' })}>{view === 'week' ? 'This week' : 'Today'}</Button>}
-        <div className="segmented" role="group" aria-label="View">
-          <button aria-pressed={view === 'day'} onClick={() => set({ view: 'day' })}>Day</button>
-          <button aria-pressed={view === 'week'} onClick={() => set({ view: 'week' })}>Week</button>
-        </div>
+        {full && (
+          <div className="segmented" role="group" aria-label="View">
+            <button aria-pressed={view === 'day'} onClick={() => set({ view: 'day' })}>Day</button>
+            <button aria-pressed={view === 'week'} onClick={() => set({ view: 'week' })}>Week</button>
+          </div>
+        )}
         <div className="flex-1" />
         <input type="search" placeholder="Search employee" value={search} onChange={e => setSearch(e.target.value)} className="field !h-9 !py-0 sm:!w-52" />
         {projects.length > 0 && (
@@ -320,6 +333,7 @@ export default function Team() {
         <Card className="p-10 text-center text-sm text-gray-500">No employees match your search.</Card>
       ) : view === 'day' ? (
         <DayView date={date} people={visible} projects={projects} holidays={holidays} canAssign={canAssign} onAssign={setAssignTo}
+          tasksOnly={!full} me={userId}
           onOpen={(person, d) => setDrawer({ person, date: d })} />
       ) : (
         <WeekView weekStart={weekStart} people={visible} holidays={holidays} onPickDay={d => set({ view: 'day', date: d })}
@@ -327,7 +341,7 @@ export default function Team() {
       )}
 
       {drawer && (
-        <DayDrawer person={drawer.person} date={drawer.date}
+        <DayDrawer person={drawer.person} date={drawer.date} tasksOnly={!full}
           onDate={d => setDrawer(x => ({ ...x, date: d }))} onClose={() => setDrawer(null)} />
       )}
 

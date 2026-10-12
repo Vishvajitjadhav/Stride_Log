@@ -9,7 +9,7 @@ import Icon from './ui/Icon'
 
 // Right-hand panel (like Jira's issue panel) with one person's day:
 // status, every task, notes. Arrow buttons move day by day.
-export default function DayDrawer({ person, date, onDate, onClose }) {
+export default function DayDrawer({ person, date, onDate, onClose, tasksOnly = false }) {
   useEffect(() => {
     const onKey = e => {
       if (e.key === 'Escape') onClose()
@@ -49,14 +49,14 @@ export default function DayDrawer({ person, date, onDate, onClose }) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          <DayDetail key={`${person.id}-${date}`} userId={person.id} date={date} compact />
+          <DayDetail key={`${person.id}-${date}`} userId={person.id} date={date} compact tasksOnly={tasksOnly} />
         </div>
 
-        <footer className="px-5 py-3 border-t border-gray-200 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        {!tasksOnly && <footer className="px-5 py-3 border-t border-gray-200 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <Link to={`/team/${person.id}`} className="text-sm font-medium text-primary-600 hover:text-primary-700 inline-flex items-center gap-1">
             Open {person.name.split(' ')[0]}'s full report <Icon name="right" size={14} />
           </Link>
-        </footer>
+        </footer>}
       </aside>
     </div>,
     document.body
