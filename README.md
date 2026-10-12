@@ -31,6 +31,15 @@ consistency of daily logs, assigned work done on time), not hours.
   automatically (finished ones Done, upcoming ones To do, category picked from
   the title). Runs every 30 minutes on working days and when someone opens their
   day; anyone can opt out under Account.
+- **Jira sync**: issues assigned to a person become tasks in their day and follow
+  the Jira status (To do, In progress, In review, Done), instantly through a
+  webhook and every 15 minutes. Each task links back to the issue.
+- **Company sign in**: Continue with Microsoft, and sign ups on the company
+  email domain are approved automatically (Admin, Company). The same email
+  links each person's Teams calendar and Jira issues.
+- **Connected apps** (Account): each person turns Teams and Jira on or off for
+  themselves, syncs on demand, and can remove unfinished synced tasks when
+  disconnecting.
 - **Admin**: approve and invite people, set roles, grant "can assign tasks",
   manage categories, holidays and company branding.
 - **Look and feel**: calm navy theme, **dark mode** (Light, Dark or System),
@@ -155,6 +164,34 @@ registration cost nothing; your existing Microsoft 365 licences are enough.
 Locally, `TEAMS_SYNC_MOCK=true` in `supabase/functions/.env` creates sample
 meetings so the whole flow can be tried without Microsoft 365.
 
+## Jira sync (one time setup, free)
+
+Uses your existing Jira Cloud plan; the REST API and webhooks cost nothing.
+
+1. Signed in as a Jira admin, create an API token at
+   https://id.atlassian.com/manage-profile/security/api-tokens.
+2. Run once:
+   ```bash
+   npx supabase secrets set JIRA_SITE=https://<company>.atlassian.net JIRA_EMAIL=<admin email> JIRA_API_TOKEN=<token>
+   npx supabase functions deploy jira-sync --no-verify-jwt
+   ```
+3. For instant updates, in Jira open Settings, System, WebHooks and add
+   `https://<ref>.supabase.co/functions/v1/jira-sync?secret=<EMAIL_WEBHOOK_SECRET>`
+   for Issue created, updated and deleted.
+4. In StrideLog: Admin, Integrations, Jira, turn on **Turn on for the company**.
+
+People are matched by email, so their StrideLog email must be the one they use
+in Jira. Locally, `JIRA_SYNC_MOCK=true` creates sample issues.
+
+## Sign in with Microsoft (optional)
+
+In the Entra app registration used for Teams, add the redirect URI
+`https://<ref>.supabase.co/auth/v1/callback`. In Supabase, Authentication,
+Providers, Azure, paste the Client ID, secret and
+`https://login.microsoftonline.com/<tenant id>/v2.0` as the URL. Set
+`VITE_MICROSOFT_AUTH=true` for the frontend. Then set the company email domain
+in Admin, Company so new people are approved automatically.
+
 ## Project structure
 
 ```
@@ -169,7 +206,7 @@ src/
 supabase/
   migrations/       Schema, RLS, triggers, notifications, cron
   tests/            pgTAP role/permission tests
-  functions/        send-email, invite-user (Edge Functions)
+  functions/        send-email, invite-user, teams-sync, jira-sync (Edge Functions)
   templates/        Branded auth email templates
 ```
 

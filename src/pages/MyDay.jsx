@@ -6,7 +6,8 @@ import { useWorkLog } from '../hooks/useWorkLog'
 import { useCategories } from '../hooks/useCategories'
 import { useHolidays } from '../hooks/useOrg'
 import { useProjects, projectsOf } from '../hooks/useProjects'
-import { useAutoTeamsSync } from '../hooks/useTeamsSync'
+import { useAutoSync } from '../hooks/useIntegrations'
+import AppLogo from '../components/integrations/AppLogo'
 import { toast } from '../lib/toast'
 import { todayISO, addDaysISO, formatShort, formatLong, isWorkingDay } from '../utils/dates'
 import TaskItem from '../components/tasks/TaskItem'
@@ -52,7 +53,7 @@ function clearDraft(uid, date) {
 }
 
 export default function MyDay() {
-  const { userId, profile } = useAuth()
+  const { userId } = useAuth()
   const today = todayISO()
   const [params, setParams] = useSearchParams()
   const date = params.get('date') || today
@@ -67,7 +68,17 @@ export default function MyDay() {
   const { data: projects = [] } = useProjects()
   const myProjects = projectsOf(projects, userId)
   const { add, update } = useTaskMutations()
-  const teams = useAutoTeamsSync()
+  const teams = useAutoSync('teams')
+  const jira = useAutoSync('jira')
+  async function syncAll() {
+    const runs = [teams.active && teams.sync.mutateAsync('me'), jira.active && jira.sync.mutateAsync('me')].filter(Boolean)
+    try {
+      const results = await Promise.all(runs)
+      const created = results.reduce((n, r) => n + (r.created ?? 0), 0)
+      const updated = results.reduce((n, r) => n + (r.updated ?? 0), 0)
+      toast(created ? `${created} new ${created === 1 ? 'task' : 'tasks'} added` : updated ? `${updated} ${updated === 1 ? 'task' : 'tasks'} updated` : 'Everything is up to date')
+    } catch (e) { toast.error(e.message) }
+  }
 
   const [editing, setEditing] = useState(null)   // task | 'new' | null
   const [quick, setQuick] = useState('')
@@ -173,13 +184,17 @@ export default function MyDay() {
         </div>
       </Card>
 
-      {isToday && teams.status?.configured && teams.status.enabled && profile?.calendar_sync && (
-        <div className="flex items-center gap-2 text-xs text-gray-500 -mt-2 px-1">
-          <Icon name="calendar" size={14} className="text-[#4b53bc]" />
-          {teams.syncing ? 'Adding your Teams meetings' : 'Teams meetings are added automatically.'}
-          {!teams.syncing && (
-            <button onClick={() => teams.sync.mutate('me', { onSuccess: r => toast(r.created ? `${r.created} new ${r.created === 1 ? 'meeting' : 'meetings'} added` : 'Your meetings are up to date') })}
-              className="font-medium text-primary-600 hover:text-primary-700 hover:underline underline-offset-2">Sync now</button>
+      {isToday && (teams.active || jira.active) && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 -mt-2 px-1">
+          {teams.active && <AppLogo app="teams" size={16} />}
+          {jira.active && <AppLogo app="jira" size={16} />}
+          <span>
+            {teams.syncing || jira.syncing
+              ? `Syncing ${[teams.syncing && 'Teams', jira.syncing && 'Jira'].filter(Boolean).join(' and ')}`
+              : `${[teams.active && 'Teams meetings', jira.active && 'Jira issues'].filter(Boolean).join(' and ')} update automatically.`}
+          </span>
+          {!teams.syncing && !jira.syncing && (
+            <button onClick={syncAll} className="font-medium text-primary-600 hover:text-primary-700 hover:underline underline-offset-2">Sync now</button>
           )}
         </div>
       )}

@@ -13,9 +13,7 @@ import Icon from '../components/ui/Icon'
 import { useTheme } from '../lib/theme'
 import AvatarEditor from '../components/AvatarEditor'
 import Switch from '../components/ui/Switch'
-import { useTeamsStatus, useTeamsSync } from '../hooks/useTeamsSync'
-import { toast } from '../lib/toast'
-import { formatDistanceToNow } from 'date-fns'
+import ConnectedApps from '../components/integrations/ConnectedApps'
 
 const PREFS = [
   { key: 'assigned', label: 'A task is assigned to me' },
@@ -32,8 +30,6 @@ export default function Profile() {
   const [msg, setMsg] = useState({})
   const { pref, setTheme } = useTheme()
   const [photo, setPhoto] = useState(false)
-  const { data: teams } = useTeamsStatus()
-  const teamsSync = useTeamsSync()
   const projectNames = projectsOf(projects, profile.id).map(p => p.name).join(', ')
   const prefs = profile.email_prefs ?? {}
 
@@ -74,30 +70,7 @@ export default function Profile() {
 
       <InstallCard />
 
-      {teams?.configured && teams.enabled && (
-        <Card className="p-5 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-gray-900">Add my Teams meetings to my day</p>
-              <p className="text-xs text-gray-500">
-                {profile.calendar_synced_at ? `Last synced ${formatDistanceToNow(new Date(profile.calendar_synced_at), { addSuffix: true })}.` : 'Not synced yet.'}
-                {' '}Meetings appear automatically; finished ones are marked done.
-              </p>
-            </div>
-            <Switch checked={profile.calendar_sync} label="Sync my Teams meetings"
-              onChange={async v => { await updateProfile({ calendar_sync: v }); toast(v ? 'Teams meetings will be added to your day' : 'Teams sync turned off for you') }} />
-          </div>
-          {profile.calendar_sync && (
-            <Button size="sm" variant="outline" loading={teamsSync.isPending}
-              onClick={async () => {
-                try { const r = await teamsSync.mutateAsync('me'); toast(r.created ? `${r.created} new ${r.created === 1 ? 'meeting' : 'meetings'} added` : 'Your meetings are up to date') }
-                catch (e) { toast.error(e.message) }
-              }}>
-              <Icon name="refresh" size={14} /> Sync now
-            </Button>
-          )}
-        </Card>
-      )}
+      <ConnectedApps />
 
       <Card className="p-5 flex flex-wrap items-center justify-between gap-3">
         <div>

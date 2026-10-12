@@ -5,27 +5,43 @@ import { useAuth } from '../contexts/AuthContext'
 import Input from '../components/ui/Input'
 
 const GOOGLE_ENABLED = import.meta.env.VITE_GOOGLE_AUTH === 'true'
+const MICROSOFT_ENABLED = import.meta.env.VITE_MICROSOFT_AUTH === 'true'
 
-function GoogleButton({ onClick }) {
+function ProviderButton({ onClick, children }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-md py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+      className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-md py-2.5 text-sm font-medium text-gray-700
+        hover:bg-gray-50 hover:border-gray-300 active:scale-[.99] transition-all"
     >
+      {children}
+    </button>
+  )
+}
+
+function MicrosoftLogo() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true">
+      <path fill="#F25022" d="M0 0h10v10H0z" /><path fill="#7FBA00" d="M11 0h10v10H11z" />
+      <path fill="#00A4EF" d="M0 11h10v10H0z" /><path fill="#FFB900" d="M11 11h10v10H11z" />
+    </svg>
+  )
+}
+
+function GoogleLogo() {
+  return (
       <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
         <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z"/>
         <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18Z"/>
         <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33Z"/>
         <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58C13.47.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58Z"/>
       </svg>
-      Continue with Google
-    </button>
   )
 }
 
 export default function Login() {
-  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth()
+  const { signIn, signUp, signInWithProvider, resetPassword } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState('signin') // 'signin' | 'signup' | 'forgot'
   const [name, setName] = useState('')
@@ -65,10 +81,10 @@ export default function Login() {
     else navigate('/')
   }
 
-  async function handleGoogle() {
+  async function handleProvider(provider) {
     setError('')
-    const { error } = await signInWithGoogle()
-    if (error) setError(error.message || 'Google sign in failed.')
+    const { error } = await signInWithProvider(provider)
+    if (error) setError(error.message || 'Sign in failed. Please try again.')
   }
 
   function go(next) {
@@ -121,14 +137,24 @@ export default function Login() {
             </button>
           </form>
 
-          {GOOGLE_ENABLED && !isForgot && (
+          {(MICROSOFT_ENABLED || GOOGLE_ENABLED) && !isForgot && (
             <>
               <div className="flex items-center gap-3 my-4">
                 <div className="h-px bg-gray-100 flex-1" />
                 <span className="text-xs text-gray-300">or</span>
                 <div className="h-px bg-gray-100 flex-1" />
               </div>
-              <GoogleButton onClick={handleGoogle} />
+              <div className="space-y-2">
+                {MICROSOFT_ENABLED && (
+                  <ProviderButton onClick={() => handleProvider('azure')}><MicrosoftLogo /> Continue with Microsoft</ProviderButton>
+                )}
+                {GOOGLE_ENABLED && (
+                  <ProviderButton onClick={() => handleProvider('google')}><GoogleLogo /> Continue with Google</ProviderButton>
+                )}
+              </div>
+              {MICROSOFT_ENABLED && (
+                <p className="text-[11px] text-gray-400 text-center mt-3">Use your company account. Teams and Jira sync use the same email.</p>
+              )}
             </>
           )}
         </div>

@@ -1,3 +1,4 @@
+import Icon from '../ui/Icon'
 import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCategories } from '../../hooks/useCategories'
@@ -166,6 +167,16 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
               </button>
             ))}
           </div>
+          {task?.source === 'jira' && (
+            <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1.5">
+              Status follows Jira and updates on the next sync.
+              {task.external_url && (
+                <a href={task.external_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary-600 hover:underline">
+                  Open {task.external_id} <Icon name="external" size={12} />
+                </a>
+              )}
+            </p>
+          )}
         </div>
 
         {details ? (

@@ -49,10 +49,11 @@ export function AuthProvider({ children }) {
     })
   }
 
-  async function signInWithGoogle() {
+  // 'google' or 'azure' (Microsoft work account, same email as Teams and Jira).
+  async function signInWithProvider(provider) {
     return supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/` },
+      provider,
+      options: { redirectTo: `${window.location.origin}/`, ...(provider === 'azure' && { scopes: 'email openid profile' }) },
     })
   }
 
@@ -99,7 +100,7 @@ export function AuthProvider({ children }) {
       recovering,
       signIn,
       signUp,
-      signInWithGoogle,
+      signInWithProvider,
       resetPassword,
       updatePassword,
       updateProfile,

@@ -1,7 +1,7 @@
 -- Role & permission tests. Run with:  npx supabase test db
 -- Each block switches to a user via request.jwt.claims, exactly like PostgREST.
 BEGIN;
-SELECT plan(38);
+SELECT plan(43);
 
 -- ── Fixtures ──────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION pg_temp.mk_user(p_id uuid, p_email text, p_role text, p_approved bool DEFAULT true)
@@ -9,7 +9,7 @@ RETURNS void AS $$
 BEGIN
   INSERT INTO auth.users (id, email, raw_user_meta_data, aud, role)
   VALUES (p_id, p_email, jsonb_build_object('name', split_part(p_email, '@', 1)), 'authenticated', 'authenticated');
-  UPDATE public.profiles SET role = p_role, is_approved = p_approved WHERE id = p_id;
+  UPDATE public.profiles SET role = p_role, is_approved = coalesce(p_approved, is_approved) WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -176,6 +176,26 @@ SELECT lives_ok(
 SELECT throws_ok(
   $$ INSERT INTO storage.objects (bucket_id, name, owner_id) VALUES ('avatars', '00000000-0000-0000-0000-0000000000e2/fake.jpg', '00000000-0000-0000-0000-0000000000e1') $$,
   '42501', NULL, 'nobody can upload into someone else''s photo folder');
+
+-- ── Connected apps and company sign in ────────────────────────────────────────
+SELECT lives_ok(
+  $$ UPDATE profiles SET jira_sync = false, calendar_sync = false WHERE id = '00000000-0000-0000-0000-0000000000e1' $$,
+  'people can switch Teams and Jira sync off for themselves');
+SELECT throws_ok(
+  $$ UPDATE profiles SET jira_account_id = 'someone-else' WHERE id = '00000000-0000-0000-0000-0000000000e1' $$,
+  '42501', NULL, 'people cannot point their Jira link at another account');
+SELECT throws_ok(
+  $$ INSERT INTO tasks (user_id, title, status, date, source) VALUES ('00000000-0000-0000-0000-0000000000e1', 'x', 'pending', CURRENT_DATE, 'github') $$,
+  '23514', NULL, 'task source is limited to manual, teams and jira');
+
+SELECT pg_temp.as_postgres();
+UPDATE org_settings SET auto_approve_domain = 'company.dev' WHERE id = 1;
+SELECT pg_temp.mk_user('00000000-0000-0000-0000-0000000000f2', 'joiner@Company.dev', 'employee', NULL);
+SELECT pg_temp.mk_user('00000000-0000-0000-0000-0000000000f3', 'outsider@gmail.com', 'employee', NULL);
+SELECT is((SELECT is_approved FROM profiles WHERE id = '00000000-0000-0000-0000-0000000000f2'), true,
+  'sign ups on the company domain are approved automatically');
+SELECT is((SELECT is_approved FROM profiles WHERE id = '00000000-0000-0000-0000-0000000000f3'), false,
+  'sign ups from other domains still wait for approval');
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -122,6 +122,7 @@ export function Company() {
     e.preventDefault()
     await update.mutateAsync({
       company_name: f.company_name, timezone: f.timezone, report_footer: f.report_footer, app_url: f.app_url,
+      auto_approve_domain: (f.auto_approve_domain ?? '').trim().replace(/^.*@/, '').toLowerCase() || null,
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -167,6 +168,23 @@ export function Company() {
           <div>
             <label className="label" htmlFor="c-url">App URL (used in emails)</label>
             <input id="c-url" className="field" value={f.app_url} onChange={e => set('app_url', e.target.value)} placeholder="https://stridelog.yourcompany.com" />
+          </div>
+        </div>
+      </Card>
+      <Card className="p-4 space-y-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-900">Sign in with company email</p>
+          <p className="text-xs text-gray-500">
+            People who sign up with an email on this domain (for example with Continue with Microsoft) are approved as employees right away.
+            The same email links their Teams calendar and Jira issues. Leave empty to approve everyone by hand.
+          </p>
+        </div>
+        <div className="max-w-sm">
+          <label className="label" htmlFor="c-domain">Company email domain</label>
+          <div className="flex items-center rounded-md border border-gray-300 bg-surface focus-within:ring-2 focus-within:ring-primary-300 focus-within:border-primary-400 transition">
+            <span className="pl-3 text-sm text-gray-400">@</span>
+            <input id="c-domain" className="flex-1 min-w-0 bg-transparent px-1.5 py-2 text-sm text-gray-900 outline-none" value={f.auto_approve_domain ?? ''}
+              onChange={e => set('auto_approve_domain', e.target.value)} placeholder="yourcompany.com" autoComplete="off" spellCheck={false} />
           </div>
         </div>
       </Card>

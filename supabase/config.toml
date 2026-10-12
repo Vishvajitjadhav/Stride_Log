@@ -367,6 +367,19 @@ redirect_uri = ""
 # Required for local Sign in with Google.
 skip_nonce_check = true
 
+# Sign in with Microsoft (company work accounts, same email as Teams and Jira). To enable:
+#   1. In the same Entra app registration used for Teams sync, add a Web redirect URI:
+#      http://127.0.0.1:54321/auth/v1/callback (local) or https://<project>.supabase.co/auth/v1/callback.
+#   2. Put the client secret in SUPABASE_AUTH_EXTERNAL_AZURE_SECRET (do NOT commit it), set client_id
+#      and url = "https://login.microsoftonline.com/<tenant id>/v2.0" below.
+#   3. Flip enabled = true, set VITE_MICROSOFT_AUTH=true in .env.local, restart Supabase.
+[auth.external.azure]
+enabled = false
+client_id = ""
+secret = "env(SUPABASE_AUTH_EXTERNAL_AZURE_SECRET)"
+redirect_uri = ""
+url = ""
+
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
 # You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.
 [auth.web3.solana]
@@ -454,4 +467,8 @@ verify_jwt = true
 
 [functions.teams-sync]
 # Called by people (JWT) and by the scheduler (shared secret), so verify in code.
+verify_jwt = false
+
+[functions.jira-sync]
+# Called by people (JWT), the scheduler (shared secret) and Jira webhooks (secret in the URL).
 verify_jwt = false
