@@ -67,7 +67,7 @@ export default function PersonProgress({ person, actions }) {
               <KpiCard metric="completionRate" value={data.current.completionRate} suffix="%" growth={data.growth.completionRate} against="last week" />
               <KpiCard metric="consistency" value={data.current.loggedDays} context={`of ${data.current.expectedDays} days`} against="last week" />
             </div>
-          ) : <div className="grid grid-cols-3 gap-4">{[0, 1, 2].map(i => <Card key={i} className="h-28 animate-pulse" />)}</div>}
+          ) : <div className="grid grid-cols-3 gap-4">{[0, 1, 2].map(i => <Card key={i} className="h-28 skeleton" />)}</div>}
 
           <Section title="Day by day" hint="Every task planned for each day of the week and how it ended." bodyClassName="pt-3">
             <WeekTable weekStart={weekStart} tasks={tasks} logs={logs} holidays={holidays}

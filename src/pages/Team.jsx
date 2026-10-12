@@ -58,10 +58,10 @@ function PersonDay({ person, tasks, log, kind, projectNames, onAssign, onOpen })
   return (
     <Card>
       <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100">
-        <button onClick={onOpen} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+        <button onClick={onOpen} className="group flex items-center gap-3 flex-1 min-w-0 text-left" title="See this day in detail">
           <Avatar person={person} />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">{person.name}</p>
+            <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-primary-700 transition-colors">{person.name}</p>
             <p className="text-xs text-gray-500 truncate">{projectNames || ROLE_LABELS[person.role]}</p>
           </div>
         </button>
@@ -123,7 +123,7 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
   const done = all.filter(t => t.status === 'done').length
   const blocked = all.filter(t => t.status === 'blocked').length
 
-  if (isLoading) return <div className="space-y-3">{[0, 1, 2].map(i => <Card key={i} className="h-32 animate-pulse" />)}</div>
+  if (isLoading) return <div className="space-y-3">{[0, 1, 2].map(i => <Card key={i} className="h-32 skeleton" />)}</div>
 
   return (
     <div className="space-y-4">
@@ -179,7 +179,7 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
   }
   const LABEL = { submitted: 'Submitted', extra: 'Extra day', missed: 'Not submitted', off: 'Day off', future: 'Upcoming', open: 'In progress' }
 
-  if (isLoading) return <Card className="h-64 animate-pulse" />
+  if (isLoading) return <Card className="h-64 skeleton" />
 
   return (
     <Card className="overflow-hidden">
@@ -218,7 +218,7 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
                   {cells.map(c => (
                     <td key={c.d} className="!px-1.5 !py-1.5">
                       <button onClick={() => onOpen(p, c.d)} title={`${LABEL[c.state]}: ${c.done} of ${c.total} tasks done. Click to see the tasks.`}
-                        className={`w-full h-11 rounded-md flex flex-col items-center justify-center text-xs tabular-nums ${STYLE[c.state]}`}>
+                        className={`w-full h-11 rounded-md flex flex-col items-center justify-center text-xs tabular-nums transition-all duration-150 hover:ring-2 hover:ring-primary-300 hover:-translate-y-px hover:shadow-sm ${STYLE[c.state]}`}>
                         {c.total > 0 ? <span className="font-semibold">{c.done}/{c.total}</span> : <span>{c.state === 'off' || c.state === 'future' ? '' : '0'}</span>}
                         {c.state === 'missed' && <span className="text-[10px]">missed</span>}
                         {c.state === 'extra' && <span className="text-[10px]">extra</span>}
@@ -316,7 +316,7 @@ export default function Team() {
         )}
       </div>
 
-      {isLoading ? <Card className="h-48 animate-pulse" /> : visible.length === 0 ? (
+      {isLoading ? <Card className="h-48 skeleton" /> : visible.length === 0 ? (
         <Card className="p-10 text-center text-sm text-gray-500">No employees match your search.</Card>
       ) : view === 'day' ? (
         <DayView date={date} people={visible} projects={projects} holidays={holidays} canAssign={canAssign} onAssign={setAssignTo}

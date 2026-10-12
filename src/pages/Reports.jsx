@@ -126,7 +126,7 @@ function PeriodTable({ rows, size }) {
 
 function ProjectCard({ p, onOpen }) {
   return (
-    <button onClick={onOpen} className="text-left bg-surface border border-gray-200 rounded-lg p-4 hover:border-primary-300 transition-colors">
+    <button onClick={onOpen} className="text-left bg-surface border border-gray-200 rounded-lg p-4 card-hover">
       <div className="flex items-center gap-2">
         <span className="w-2.5 h-2.5 rounded-sm" style={{ background: p.color }} />
         <p className="text-sm font-semibold text-gray-900 truncate">{p.name}</p>
@@ -185,7 +185,7 @@ export default function Reports() {
       <ReportFilters filters={filters} setFilter={setFilter} people={allPeople} projects={projects} />
 
       {isLoading || !data ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{[0, 1, 2, 3].map(i => <Card key={i} className="h-32 animate-pulse" />)}</div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{[0, 1, 2, 3].map(i => <Card key={i} className="h-32 skeleton" />)}</div>
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

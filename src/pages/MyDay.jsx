@@ -6,6 +6,8 @@ import { useWorkLog } from '../hooks/useWorkLog'
 import { useCategories } from '../hooks/useCategories'
 import { useHolidays } from '../hooks/useOrg'
 import { useProjects, projectsOf } from '../hooks/useProjects'
+import { useAutoTeamsSync } from '../hooks/useTeamsSync'
+import { toast } from '../lib/toast'
 import { todayISO, addDaysISO, formatShort, formatLong, isWorkingDay } from '../utils/dates'
 import TaskItem from '../components/tasks/TaskItem'
 import TaskEditor from '../components/tasks/TaskEditor'
@@ -50,7 +52,7 @@ function clearDraft(uid, date) {
 }
 
 export default function MyDay() {
-  const { userId } = useAuth()
+  const { userId, profile } = useAuth()
   const today = todayISO()
   const [params, setParams] = useSearchParams()
   const date = params.get('date') || today
@@ -65,6 +67,7 @@ export default function MyDay() {
   const { data: projects = [] } = useProjects()
   const myProjects = projectsOf(projects, userId)
   const { add, update } = useTaskMutations()
+  const teams = useAutoTeamsSync()
 
   const [editing, setEditing] = useState(null)   // task | 'new' | null
   const [quick, setQuick] = useState('')
@@ -72,7 +75,6 @@ export default function MyDay() {
   const [quickProject, setQuickProject] = useState(() => { try { return localStorage.getItem('stridelog:project') ?? '' } catch { return '' } })
   const [notes, setNotes] = useState({ what_i_did: '', blockers: '' })
   const [showDone, setShowDone] = useState(true)
-  const [msg, setMsg] = useState('')
   const loadedFor = useRef(null)
 
   // Load notes: local draft wins (it may hold offline edits), else server.
@@ -123,23 +125,19 @@ export default function MyDay() {
   async function saveNotes() {
     await save.mutateAsync(notes)
     clearDraft(userId, date)
-    flash('Notes saved')
+    toast('Notes saved')
   }
 
   async function submit() {
     await save.mutateAsync({ ...notes, submitted_at: new Date().toISOString() })
     clearDraft(userId, date)
-    flash(working ? 'Day submitted. Well done.' : 'Extra day logged. Thank you.')
+    toast(working ? 'Day submitted. Well done.' : 'Extra day logged. Thank you.')
   }
 
   async function reopen() {
     await save.mutateAsync({ submitted_at: null })
   }
 
-  function flash(text) {
-    setMsg(text)
-    setTimeout(() => setMsg(''), 2500)
-  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
@@ -175,6 +173,17 @@ export default function MyDay() {
         </div>
       </Card>
 
+      {isToday && teams.status?.configured && teams.status.enabled && profile?.calendar_sync && (
+        <div className="flex items-center gap-2 text-xs text-gray-500 -mt-2 px-1">
+          <Icon name="calendar" size={14} className="text-[#4b53bc]" />
+          {teams.syncing ? 'Adding your Teams meetings' : 'Teams meetings are added automatically.'}
+          {!teams.syncing && (
+            <button onClick={() => teams.sync.mutate('me', { onSuccess: r => toast(r.created ? `${r.created} new ${r.created === 1 ? 'meeting' : 'meetings'} added` : 'Your meetings are up to date') })}
+              className="font-medium text-primary-600 hover:text-primary-700 hover:underline underline-offset-2">Sync now</button>
+          )}
+        </div>
+      )}
+
       {/* Tasks */}
       <Section title="Tasks" hint="Tap the circle to mark a task done. Tap a task to edit it." bodyClassName="px-5 pb-4 pt-3">
         <form onSubmit={quickAdd} className="flex gap-2">
@@ -197,7 +206,7 @@ export default function MyDay() {
         </button>
 
         {isLoading ? (
-          <div className="space-y-2 mt-4">{[0, 1, 2].map(i => <div key={i} className="h-10 bg-gray-50 rounded-md animate-pulse" />)}</div>
+          <div className="space-y-2 mt-4">{[0, 1, 2].map(i => <div key={i} className="h-10 rounded-md skeleton" />)}</div>
         ) : total === 0 ? (
           <p className="text-sm text-gray-500 text-center py-8">No tasks yet. Add what you are working on today.</p>
         ) : (
@@ -235,7 +244,8 @@ export default function MyDay() {
       {/* Actions, sticky above the tab bar on phones */}
       <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] lg:bottom-4 z-20">
         <div className="bg-surface border border-gray-200 rounded-lg shadow-[0_4px_16px_rgba(15,23,42,0.08)] px-4 py-3 flex items-center gap-2">
-          <p className="flex-1 text-sm text-emerald-700 font-medium truncate">{msg}</p>
+          <p className="flex-1 text-xs text-gray-500 truncate hidden sm:block">{submitted ? 'Submitted. You can still edit today.' : 'Submit when you finish for the day.'}</p>
+          <div className="flex-1 sm:hidden" />
           {submitted ? (
             <Button variant="outline" onClick={reopen} loading={save.isPending}>Edit submission</Button>
           ) : (

@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { usePeople, usePendingApprovals, useUpdatePerson, useInviteUser } from '../../hooks/usePeople'
 import { useProjects, projectsOf } from '../../hooks/useProjects'
 import { supabase } from '../../lib/supabase'
+import { toast } from '../../lib/toast'
 import { ROLE_LABELS, assignableRoles } from '../../lib/permissions'
 import { formatDisplay } from '../../utils/dates'
 import Card from '../../components/ui/Card'
@@ -44,6 +45,7 @@ function PendingRow({ person, projects, roles }) {
           onClick={async () => {
             await update.mutateAsync({ id: person.id, is_approved: true, role })
             if (project) await supabase.from('project_members').insert({ project_id: project, user_id: person.id })
+            toast(`${person.name} approved`)
           }}>Approve</Button>
         <Button size="sm" variant="outline" className="text-red-600"
           onClick={() => confirm(`Reject ${person.name}?`) && update.mutate({ id: person.id, is_active: false })}>Reject</Button>
@@ -245,7 +247,7 @@ export default function People() {
         <>
           <input type="search" className="field" placeholder="Search name or email" value={search} onChange={e => setSearch(e.target.value)} />
           <Card className="divide-y divide-gray-50">
-            {isLoading && <div className="h-24 animate-pulse" />}
+            {isLoading && <div className="h-24 skeleton" />}
             {filtered.map(p => (
               <button key={p.id} onClick={() => setEditing(p)} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50">
                 <Avatar person={p} />

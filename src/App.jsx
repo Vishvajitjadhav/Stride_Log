@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import SplashScreen from './components/SplashScreen'
 import PendingApproval from './components/PendingApproval'
 import AppLayout from './components/layout/AppLayout'
+import Toaster from './components/Toaster'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
@@ -33,7 +34,7 @@ const queryClient = new QueryClient({
   },
 })
 
-const Loading = () => <div className="space-y-3"><div className="h-24 bg-surface rounded-md animate-pulse" /><div className="h-48 bg-surface rounded-md animate-pulse" /></div>
+const Loading = () => <div className="space-y-3"><div className="h-24 bg-surface rounded-md skeleton" /><div className="h-48 bg-surface rounded-md skeleton" /></div>
 
 function Guard({ perm, children }) {
   const { can } = useAuth()
@@ -113,6 +114,7 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <AppRoutes />
+          <Toaster />
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>

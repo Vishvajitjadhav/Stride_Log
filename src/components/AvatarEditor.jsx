@@ -6,6 +6,7 @@ import Sheet from './ui/Sheet'
 import Button from './ui/Button'
 import Avatar from './ui/Avatar'
 import Icon from './ui/Icon'
+import { toast } from '../lib/toast'
 
 const SIZE = 320   // stored photo is SIZE x SIZE pixels, JPEG
 
@@ -61,6 +62,7 @@ export default function AvatarEditor({ onClose }) {
       const res = await updateProfile({ avatar_url: url })
       if (res.error) throw res.error
       if (old) await supabase.storage.from('avatars').remove([old])
+      toast('Profile photo updated')
       onClose()
     } catch (err) {
       setError(err.message || 'Could not save the photo.')

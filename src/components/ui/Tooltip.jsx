@@ -31,7 +31,7 @@ export default function Tooltip({ text, className = '', align = 'center' }) {
       </button>
       {open && (
         <span id={id} role="tooltip"
-          className={`absolute z-50 top-6 ${pos} w-60 rounded-md bg-[#0f172a] ring-1 ring-white/10 px-3 py-2 text-xs font-normal leading-relaxed text-white shadow-lg normal-case tracking-normal text-left`}>
+          className={`menu-in absolute z-50 top-6 ${pos} w-60 rounded-md bg-[#0f172a] ring-1 ring-white/10 px-3 py-2 text-xs font-normal leading-relaxed text-white shadow-lg normal-case tracking-normal text-left`}>
           {text}
         </span>
       )}

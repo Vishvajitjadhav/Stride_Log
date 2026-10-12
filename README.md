@@ -27,6 +27,10 @@ consistency of daily logs, assigned work done on time), not hours.
   admins (it sits under Account) and they are left out of team numbers.
 - **Email**: branded sign up, password reset and invite emails, plus
   notifications for assignments, approvals, a 6 pm reminder and a Monday summary.
+- **Microsoft Teams sync**: meetings from Outlook calendars become tasks
+  automatically (finished ones Done, upcoming ones To do, category picked from
+  the title). Runs every 30 minutes on working days and when someone opens their
+  day; anyone can opt out under Account.
 - **Admin**: approve and invite people, set roles, grant "can assign tasks",
   manage categories, holidays and company branding.
 - **Look and feel**: calm navy theme, **dark mode** (Light, Dark or System),
@@ -130,6 +134,26 @@ http://127.0.0.1:54324.
 6. Sign up with your own email. Then, in the SQL editor, run:
    `UPDATE profiles SET role='admin', is_approved=true WHERE email='you@company.com';`
    From then on, invite everyone else from **Admin → People**.
+
+## Teams sync (one time setup, free)
+
+Needs a Microsoft 365 admin, about 10 minutes. Microsoft Graph and the app
+registration cost nothing; your existing Microsoft 365 licences are enough.
+
+1. Microsoft Entra admin center, App registrations, New registration
+   (name StrideLog, single tenant).
+2. API permissions, Add, Microsoft Graph, **Application** permissions,
+   `Calendars.Read`, then **Grant admin consent**.
+3. Certificates and secrets, New client secret; copy the value.
+4. Run once (Tenant ID and Client ID are on the app's Overview page):
+   ```bash
+   npx supabase secrets set MS_TENANT_ID=<tenant id> MS_CLIENT_ID=<client id> MS_CLIENT_SECRET=<secret value>
+   npx supabase functions deploy teams-sync --no-verify-jwt
+   ```
+5. In StrideLog: Admin, Integrations, turn on **Turn on for the company**.
+
+Locally, `TEAMS_SYNC_MOCK=true` in `supabase/functions/.env` creates sample
+meetings so the whole flow can be tried without Microsoft 365.
 
 ## Project structure
 

@@ -109,7 +109,7 @@ export default function MonthCalendar({ userId, month, onMonthChange, selected, 
               onClick={() => onSelect?.(d)}
               title={holidays?.byDate?.[d] ?? ''}
               className={`relative aspect-square sm:aspect-[4/3] rounded-lg flex flex-col items-center justify-center text-xs sm:text-sm font-medium
-                ${STYLES[st]} ${isLoading ? 'animate-pulse' : ''} ${selected === d ? '!ring-2 !ring-primary-700' : ''} ${d === today ? 'outline outline-2 outline-primary-600' : ''}`}
+                ${STYLES[st]} ${isLoading ? 'skeleton' : ''} ${selected === d ? '!ring-2 !ring-primary-700' : ''} ${d === today ? 'outline outline-2 outline-primary-600' : ''}`}
             >
               <span>{Number(d.slice(8))}</span>
               {tasks.length > 0 && <span className="hidden sm:block text-[10px] opacity-80">{doneN}/{tasks.length}</span>}

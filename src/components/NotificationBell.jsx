@@ -43,7 +43,7 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-11 sm:w-96 bg-surface rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden">
+        <div className="menu-in fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-11 sm:w-96 bg-surface rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <p className="text-sm font-semibold text-gray-900">Notifications</p>
           </div>
@@ -53,7 +53,7 @@ export default function NotificationBell() {
               <button
                 key={n.id}
                 onClick={() => { setOpen(false); if (n.link) navigate(n.link) }}
-                className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-gray-50 ${n.read_at ? '' : 'bg-primary-50/50'}`}
+                className={`w-full text-left px-4 py-3 flex gap-3 transition-colors hover:bg-gray-50 ${n.read_at ? '' : 'bg-primary-50/50'}`}
               >
                 <span className="mt-0.5 w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center shrink-0">
                   <Icon name={TYPE_ICON[n.type] ?? 'bell'} size={16} />

@@ -48,7 +48,7 @@ export default function DayDetail({ userId, date, compact = false }) {
         </div>
       </div>
 
-      {isLoading ? <div className="h-16 bg-gray-50 rounded-lg animate-pulse" /> : tasks.length === 0 ? (
+      {isLoading ? <div className="h-16 rounded-lg skeleton" /> : tasks.length === 0 ? (
         <p className="text-sm text-gray-500 py-4">No tasks planned for this day.</p>
       ) : (
         <div className="divide-y divide-gray-100">

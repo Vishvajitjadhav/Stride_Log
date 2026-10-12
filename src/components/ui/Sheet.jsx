@@ -26,7 +26,7 @@ export default function Sheet({ open, onClose, title, children, footer, wide = f
         aria-modal="true"
         aria-label={title}
         className={`relative bg-surface w-full ${wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'} rounded-t-2xl sm:rounded-lg shadow-xl
-          max-h-[92dvh] flex flex-col animate-[sheet_.2s_ease-out] pb-[env(safe-area-inset-bottom)]`}
+          max-h-[92dvh] flex flex-col animate-[sheet_.22s_cubic-bezier(.2,.9,.3,1)] pb-[env(safe-area-inset-bottom)]`}
       >
         <div className="sm:hidden mx-auto mt-2 h-1.5 w-10 rounded-full bg-gray-200" />
         <div className="flex items-center justify-between px-5 pt-3 pb-2 sm:pt-5">

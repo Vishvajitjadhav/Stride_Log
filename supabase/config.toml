@@ -451,3 +451,7 @@ verify_jwt = false
 
 [functions.invite-user]
 verify_jwt = true
+
+[functions.teams-sync]
+# Called by people (JWT) and by the scheduler (shared secret), so verify in code.
+verify_jwt = false

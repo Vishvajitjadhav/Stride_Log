@@ -8,6 +8,7 @@ import { todayISO, formatDisplay } from '../../utils/dates'
 import { STATUS_LABELS } from '../../lib/labels'
 import Sheet from '../ui/Sheet'
 import Button from '../ui/Button'
+import { toast } from '../../lib/toast'
 
 const STATUSES = ['pending', 'in_progress', 'done', 'blocked']
 
@@ -69,6 +70,8 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
     try {
       if (isNew) await add.mutateAsync(fields)
       else await update.mutateAsync({ id: task.id, ...fields })
+      const who = people.find(p => p.id === fields.user_id)?.name
+      toast(isNew ? (fields.user_id !== userId && who ? `Task assigned to ${who}` : 'Task added') : 'Task saved')
       onClose()
     } catch (err) {
       setError(err.message)
@@ -79,6 +82,7 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
     if (!confirm('Delete this task?')) return
     try {
       await remove.mutateAsync(task.id)
+      toast('Task deleted')
       onClose()
     } catch (err) {
       setError(err.message)

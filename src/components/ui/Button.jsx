@@ -1,5 +1,5 @@
 const variants = {
-  primary:   'bg-brand text-white hover:bg-brand-hover shadow-sm',
+  primary:   'bg-brand text-white hover:bg-brand-hover shadow-sm hover:shadow-md hover:shadow-primary-900/15',
   secondary: 'border border-primary-300 text-primary-700 bg-surface hover:bg-primary-50',
   outline:   'border border-gray-300 text-gray-700 bg-surface hover:bg-gray-50',
   ghost:     'text-primary-700 hover:bg-primary-50',
@@ -15,7 +15,7 @@ const sizes = {
 export default function Button({ children, variant = 'primary', size = 'md', className = '', disabled = false, loading = false, ...props }) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 font-medium rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1 disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 font-medium rounded-md transition-all duration-150 active:scale-[0.98] disabled:active:scale-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1 disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={disabled || loading}
       {...props}
     >

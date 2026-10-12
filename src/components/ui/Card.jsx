@@ -1,6 +1,7 @@
-export default function Card({ children, className = '', ...props }) {
+// interactive: lifts slightly on hover (for cards that open something).
+export default function Card({ children, className = '', interactive = false, ...props }) {
   return (
-    <div className={`bg-surface rounded-lg border border-gray-200 ${className}`} {...props}>
+    <div className={`bg-surface rounded-lg border border-gray-200 ${interactive ? 'card-hover cursor-pointer' : ''} ${className}`} {...props}>
       {children}
     </div>
   )

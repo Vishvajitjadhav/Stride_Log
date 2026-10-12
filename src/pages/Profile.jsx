@@ -12,6 +12,10 @@ import InstallCard from '../components/InstallCard'
 import Icon from '../components/ui/Icon'
 import { useTheme } from '../lib/theme'
 import AvatarEditor from '../components/AvatarEditor'
+import Switch from '../components/ui/Switch'
+import { useTeamsStatus, useTeamsSync } from '../hooks/useTeamsSync'
+import { toast } from '../lib/toast'
+import { formatDistanceToNow } from 'date-fns'
 
 const PREFS = [
   { key: 'assigned', label: 'A task is assigned to me' },
@@ -28,6 +32,8 @@ export default function Profile() {
   const [msg, setMsg] = useState({})
   const { pref, setTheme } = useTheme()
   const [photo, setPhoto] = useState(false)
+  const { data: teams } = useTeamsStatus()
+  const teamsSync = useTeamsSync()
   const projectNames = projectsOf(projects, profile.id).map(p => p.name).join(', ')
   const prefs = profile.email_prefs ?? {}
 
@@ -68,6 +74,31 @@ export default function Profile() {
 
       <InstallCard />
 
+      {teams?.configured && teams.enabled && (
+        <Card className="p-5 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Add my Teams meetings to my day</p>
+              <p className="text-xs text-gray-500">
+                {profile.calendar_synced_at ? `Last synced ${formatDistanceToNow(new Date(profile.calendar_synced_at), { addSuffix: true })}.` : 'Not synced yet.'}
+                {' '}Meetings appear automatically; finished ones are marked done.
+              </p>
+            </div>
+            <Switch checked={profile.calendar_sync} label="Sync my Teams meetings"
+              onChange={async v => { await updateProfile({ calendar_sync: v }); toast(v ? 'Teams meetings will be added to your day' : 'Teams sync turned off for you') }} />
+          </div>
+          {profile.calendar_sync && (
+            <Button size="sm" variant="outline" loading={teamsSync.isPending}
+              onClick={async () => {
+                try { const r = await teamsSync.mutateAsync('me'); toast(r.created ? `${r.created} new ${r.created === 1 ? 'meeting' : 'meetings'} added` : 'Your meetings are up to date') }
+                catch (e) { toast.error(e.message) }
+              }}>
+              <Icon name="refresh" size={14} /> Sync now
+            </Button>
+          )}
+        </Card>
+      )}
+
       <Card className="p-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-gray-900">Appearance</p>
@@ -87,13 +118,13 @@ export default function Profile() {
           can('assignTasks') && { to: '/assigned', icon: 'assign', title: 'Tasks I assigned', hint: 'Follow up on work you handed out' },
           { to: '/import', icon: 'upload', title: 'Import from Excel', hint: 'Bring in past work from a spreadsheet' },
         ].filter(Boolean).map(l => (
-          <Link key={l.to} to={l.to} className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50">
+          <Link key={l.to} to={l.to} className="group flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-gray-50">
             <Icon name={l.icon} size={18} className="text-primary-700" />
             <span className="flex-1 min-w-0">
               <span className="block text-sm font-medium text-gray-900">{l.title}</span>
               <span className="block text-xs text-gray-500">{l.hint}</span>
             </span>
-            <Icon name="right" size={16} className="text-gray-300" />
+            <Icon name="right" size={16} className="text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-gray-500" />
           </Link>
         ))}
       </Card>
@@ -111,10 +142,10 @@ export default function Profile() {
       <Card className="p-5 space-y-3">
         <p className="text-sm font-semibold text-gray-900">Email me when</p>
         {PREFS.map(p => (
-          <label key={p.key} className="flex items-center justify-between gap-3">
+          <div key={p.key} className="flex items-center justify-between gap-3">
             <span className="text-sm text-gray-700">{p.label}</span>
-            <input type="checkbox" className="w-5 h-5 accent-primary-600" checked={prefs[p.key] ?? true} onChange={() => togglePref(p.key)} />
-          </label>
+            <Switch checked={prefs[p.key] ?? true} onChange={() => togglePref(p.key)} label={p.label} />
+          </div>
         ))}
         <p className="text-xs text-gray-400">Notifications in the app (the bell) are always on.</p>
       </Card>

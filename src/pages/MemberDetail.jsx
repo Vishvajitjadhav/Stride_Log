@@ -20,7 +20,7 @@ export default function MemberDetail() {
   const { data: projects = [] } = useProjects()
   const [assigning, setAssigning] = useState(false)
 
-  if (!person) return <Card className="h-40 animate-pulse max-w-6xl mx-auto" />
+  if (!person) return <Card className="h-40 skeleton max-w-6xl mx-auto" />
   const projectNames = projectsOf(projects, person.id).map(p => p.name).join(', ')
 
   return (

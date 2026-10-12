@@ -17,8 +17,10 @@ export default function Sidebar() {
   const items = visibleNav(can)
 
   const link = ({ isActive }) =>
-    `relative flex items-center gap-3 h-9 rounded-md text-sm transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${
-      isActive ? 'bg-white/10 text-white font-medium' : 'text-[#c8d4e6]/80 hover:bg-white/5 hover:text-white'
+    `group relative flex items-center gap-3 h-9 rounded-md text-sm transition-colors duration-150 ${collapsed ? 'justify-center px-0' : 'px-3'} ${
+      isActive
+        ? 'bg-white/10 text-white font-medium before:absolute before:-left-3 before:top-2 before:bottom-2 before:w-[3px] before:rounded-r before:bg-[#c9a43f]'
+        : 'text-[#c8d4e6]/80 hover:bg-white/[0.06] hover:text-white'
     }`
 
   return (
@@ -30,7 +32,7 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
         {items.map(i => (
           <NavLink key={i.to} to={i.to} className={link} title={collapsed ? i.label : undefined}>
-            <Icon name={i.icon} size={18} />
+            <Icon name={i.icon} size={18} className="transition-transform duration-150 group-hover:scale-110" />
             {!collapsed && <span className="flex-1">{i.label}</span>}
             {i.badge === 'pending' && pending.length > 0 && (
               collapsed

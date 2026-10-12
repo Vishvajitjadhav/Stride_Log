@@ -10,6 +10,7 @@ import Avatar from '../components/ui/Avatar'
 import Button from '../components/ui/Button'
 import Sheet from '../components/ui/Sheet'
 import Icon from '../components/ui/Icon'
+import { toast } from '../lib/toast'
 
 const COLORS = ['#2f4e7e', '#3b6e8f', '#2c7a7b', '#3f7d5c', '#6b8e3d', '#b8902f', '#a84a3f', '#9d4f6e', '#5b5f97', '#64748b']
 
@@ -44,6 +45,7 @@ function ProjectEditor({ project, people, onClose }) {
         id: project?.id, name: form.name, description: form.description, color: form.color,
         members: Object.entries(form.members).map(([user_id, role]) => ({ user_id, role })),
       })
+      toast(project ? 'Project saved' : `Project ${form.name.trim()} created`)
       onClose()
     } catch (err) {
       setError(err.message)
@@ -135,7 +137,7 @@ export default function Projects() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{[0, 1, 2].map(i => <Card key={i} className="h-40 animate-pulse" />)}</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{[0, 1, 2].map(i => <Card key={i} className="h-40 skeleton" />)}</div>
       ) : visible.length === 0 ? (
         <Card className="p-10 text-center">
           <p className="text-sm text-gray-600">{archived ? 'No archived projects.' : 'No projects yet.'}</p>
@@ -147,7 +149,7 @@ export default function Projects() {
             const managers = p.members.filter(m => m.role === 'manager').map(m => byId[m.user_id]?.name).filter(Boolean)
             const members = p.members.map(m => byId[m.user_id]).filter(Boolean)
             return (
-              <Card key={p.id} className="p-5 flex flex-col">
+              <Card key={p.id} className="p-5 flex flex-col transition-[box-shadow,border-color] duration-200 hover:border-gray-300 hover:shadow-[0_10px_28px_-14px_rgb(15_23_42/.28)]">
                 <div className="flex items-start gap-2.5">
                   <span className="mt-1 w-3 h-3 rounded-sm shrink-0" style={{ background: p.color }} />
                   <div className="min-w-0 flex-1">
@@ -171,7 +173,7 @@ export default function Projects() {
                   <div className="flex-1" />
                   {canManage && (
                     <>
-                      <button onClick={() => setActive.mutate({ id: p.id, is_active: !p.is_active })} className="text-gray-500 hover:text-gray-900">
+                      <button onClick={() => setActive.mutate({ id: p.id, is_active: !p.is_active }, { onSuccess: () => toast(p.is_active ? `${p.name} archived` : `${p.name} restored`) })} className="text-gray-500 hover:text-gray-900">
                         {p.is_active ? 'Archive' : 'Restore'}
                       </button>
                       <button onClick={() => setEditing(p)} className="font-medium text-gray-700 hover:text-gray-900">Edit</button>

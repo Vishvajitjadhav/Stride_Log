@@ -19,8 +19,8 @@ export default function BottomNav() {
               isActive ? 'text-primary-800' : 'text-gray-400'}`}>
             {({ isActive }) => (
               <>
-                <span className="relative">
-                  <Icon name={t.icon} size={22} strokeWidth={isActive ? 2.1 : 1.7} />
+                <span className={`relative flex items-center justify-center h-7 w-12 rounded-full transition-colors duration-200 ${isActive ? 'bg-primary-50' : ''}`}>
+                  <Icon name={t.icon} size={21} strokeWidth={isActive ? 2.1 : 1.7} />
                   {t.badge === 'pending' && pending.length > 0 && <span className="absolute -top-0.5 -right-1 w-2 h-2 bg-accent-500 rounded-full" />}
                 </span>
                 {t.label}

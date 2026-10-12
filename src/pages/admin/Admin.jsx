@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { usePendingApprovals } from '../../hooks/usePeople'
 import People from './People'
 import { Categories, Holidays, Company } from './SettingsSections'
+import Integrations from './Integrations'
 
 // One place for administration; tabs depend on the role.
 export default function Admin() {
@@ -15,6 +16,7 @@ export default function Admin() {
     can('manageCategories') && { key: 'categories', label: 'Categories', el: <Categories /> },
     can('manageHolidays') && { key: 'holidays', label: 'Holidays', el: <Holidays /> },
     can('manageCompany') && { key: 'company', label: 'Company', el: <Company /> },
+    can('manageCompany') && { key: 'integrations', label: 'Integrations', el: <Integrations /> },
   ].filter(Boolean)
   const current = tabs.find(t => t.key === params.get('tab')) ?? tabs[0]
 
