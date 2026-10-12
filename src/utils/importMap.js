@@ -34,18 +34,13 @@ export function normalizeStatus(value) {
   if (s.includes('progress') || s.includes('wip') || s.includes('ongoing') || s.includes('doing')) {
     return 'in_progress'
   }
+  if (s.includes('block') || s.includes('stuck')) return 'blocked'
   return 'pending'
 }
 
-function parseHours(value) {
-  if (value == null || value === '') return null
-  const num = parseFloat(String(value).replace(/[^0-9.]/g, ''))
-  return Number.isFinite(num) ? num : null
-}
-
 // rawRows: array of objects keyed by sheet header
-// map: { date, title, status, category, hours, notes } -> header names ('' / undefined = unmapped)
-// returns { days: [{ date, what_i_did, tasks: [{title,status,hours,category}] }], taskCount, warnings }
+// map: { date, title, status, category, notes } -> header names ('' / undefined = unmapped)
+// returns { days: [{ date, what_i_did, tasks: [{title,status,category}] }], taskCount, warnings }
 export function mapRows(rawRows, map) {
   const warnings = []
   const byDate = new Map()
@@ -77,7 +72,6 @@ export function mapRows(rawRows, map) {
       day.tasks.push({
         title,
         status: normalizeStatus(map.status ? row[map.status] : ''),
-        hours: parseHours(map.hours ? row[map.hours] : null),
         category: map.category ? String(row[map.category] ?? '').trim() || null : null,
       })
     }

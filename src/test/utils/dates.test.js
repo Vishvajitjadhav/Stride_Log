@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { todayISO, getDateRange, getGreeting } from '../../utils/dates'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { todayISO, getGreeting, presetRange, compareLabel } from '../../utils/dates'
 
 describe('getGreeting', () => {
   afterEach(() => vi.useRealTimers())
@@ -18,22 +18,20 @@ describe('getGreeting', () => {
   })
 })
 
-describe('getDateRange', () => {
-  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-06-04T10:00:00')) })
-  afterEach(() => vi.useRealTimers())
-
-  it('daily returns today ISO', () => {
-    expect(getDateRange('daily')).toEqual({ from: '2026-06-04', to: '2026-06-04' })
+describe('long periods', () => {
+  const ref = new Date('2026-10-08T10:00:00')
+  it('rolling month windows end with the current month', () => {
+    expect(presetRange('last_3_months', ref)).toEqual({ from: '2026-08-01', to: '2026-10-31' })
+    expect(presetRange('last_6_months', ref)).toEqual({ from: '2026-05-01', to: '2026-10-31' })
   })
-  it('weekly returns Mon–Sun of current week', () => {
-    const r = getDateRange('weekly')
-    expect(r.from).toBe('2026-06-01')
-    expect(r.to).toBe('2026-06-07')
+  it('calendar years', () => {
+    expect(presetRange('this_year', ref)).toEqual({ from: '2026-01-01', to: '2026-12-31' })
+    expect(presetRange('last_year', ref)).toEqual({ from: '2025-01-01', to: '2025-12-31' })
   })
-  it('monthly returns first and last day of month', () => {
-    const r = getDateRange('monthly')
-    expect(r.from).toBe('2026-06-01')
-    expect(r.to).toBe('2026-06-30')
+  it('describes the comparison period in words', () => {
+    expect(compareLabel('this_week')).toBe('last week')
+    expect(compareLabel('last_6_months')).toBe('the 6 months before')
+    expect(compareLabel('custom')).toBe('the previous period')
   })
 })
 

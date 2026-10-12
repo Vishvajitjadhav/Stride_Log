@@ -1,29 +1,34 @@
+import { useEffect } from 'react'
+import BrandMark from './BrandMark'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function PendingApproval() {
-  const { profile, signOut } = useAuth()
+  const { profile, signOut, refreshProfile } = useAuth()
+  const inactive = profile?.is_active === false
+
+  // Re-check every 20s so the app opens as soon as HR/admin approves.
+  useEffect(() => {
+    if (inactive) return
+    const t = setInterval(refreshProfile, 20_000)
+    return () => clearInterval(t)
+  }, [inactive, refreshProfile])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-600 to-primary-400 flex items-center justify-center px-4">
+    <div className="min-h-dvh bg-[#132238] auth-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm text-center">
-        <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-            <span className="text-white font-black text-lg">S</span>
-          </div>
-          <span className="text-white font-bold text-xl">StrideLog</span>
+        <div className="flex justify-center mb-8">
+          <BrandMark inverted />
         </div>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-3">
-          <p className="text-4xl">⏳</p>
-          <h2 className="text-xl font-bold text-gray-900">Waiting for approval</h2>
+        <div className="bg-surface rounded-lg shadow-xl p-8 space-y-3">
+          <h2 className="text-lg font-semibold text-gray-900">{inactive ? 'Account deactivated' : 'Waiting for approval'}</h2>
           <p className="text-sm text-gray-500">
-            Thanks for signing up{profile?.name ? `, ${profile.name.split(' ')[0]}` : ''}! Your account is pending
-            approval from an admin. You'll be able to log your work as soon as you're approved.
+            {inactive
+              ? 'Your access has been turned off. Contact HR or your admin if you think this is a mistake.'
+              : <>Thanks for signing up{profile?.name ? `, ${profile.name.split(' ')[0]}` : ''}! HR or an admin will approve your
+                account shortly. You will get an email, and this page opens automatically.</>}
           </p>
-          <button
-            onClick={signOut}
-            className="mt-2 text-sm text-primary-600 font-medium hover:underline"
-          >
+          <button onClick={signOut} className="mt-2 text-sm text-primary-600 font-medium hover:underline">
             Sign out
           </button>
         </div>

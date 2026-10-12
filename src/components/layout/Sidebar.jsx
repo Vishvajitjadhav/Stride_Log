@@ -1,93 +1,61 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { usePendingApprovals } from '../../hooks/useTeam'
+import { usePendingApprovals } from '../../hooks/usePeople'
+import { ROLE_LABELS } from '../../lib/permissions'
+import { visibleNav } from './nav'
+import Icon from '../ui/Icon'
+import Avatar from '../ui/Avatar'
+import BrandMark from '../BrandMark'
+import { useSidebar } from '../../lib/sidebar'
 
-const employeeLinks = [
-  { to: '/dashboard', label: 'Dashboard', icon: '▦' },
-  { to: '/log',       label: 'Log Today',  icon: '✎' },
-  { to: '/history',   label: 'History',    icon: '◷' },
-  { to: '/import',    label: 'Import',     icon: '↥' },
-]
-
-const staffLinks = [
-  { to: '/admin',           label: 'Team',      icon: '◉' },
-  { to: '/admin/analytics', label: 'Analytics', icon: '◓' },
-]
-
-const linkClass = ({ isActive }) =>
-  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-    isActive ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-  }`
-
+// Desktop sidebar. Fixed navy in both themes; collapses to icons from the
+// button at the top left of the header (or the [ key).
 export default function Sidebar() {
-  const { profile, isStaff, isAdmin, signOut } = useAuth()
-  const navigate = useNavigate()
-  const { data: pending = [] } = usePendingApprovals({ enabled: isAdmin })
+  const { profile, can } = useAuth()
+  const { data: pending = [] } = usePendingApprovals({ enabled: can('managePeople') })
+  const { collapsed } = useSidebar()
+  const items = visibleNav(can)
 
-  async function handleSignOut() {
-    await signOut()
-    navigate('/')
-  }
+  const link = ({ isActive }) =>
+    `group relative flex items-center gap-3 h-9 rounded-md text-sm transition-colors duration-150 ${collapsed ? 'justify-center px-0' : 'px-3'} ${
+      isActive
+        ? 'bg-white/10 text-white font-medium before:absolute before:-left-3 before:top-2 before:bottom-2 before:w-[3px] before:rounded-r before:bg-[#c9a43f]'
+        : 'text-[#c8d4e6]/80 hover:bg-white/[0.06] hover:text-white'
+    }`
 
   return (
-    <aside className="w-60 min-h-screen bg-white border-r border-gray-100 flex flex-col">
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-gray-100">
-        <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-          <span className="text-white font-black text-sm">S</span>
-        </div>
-        <span className="font-bold text-gray-900">StrideLog</span>
+    <aside className={`hidden lg:flex shrink-0 h-dvh sticky top-0 bg-[#132238] flex-col transition-[width] duration-200 ${collapsed ? 'w-16' : 'w-60'}`}>
+      <div className={`h-14 flex items-center border-b border-white/10 ${collapsed ? 'justify-center' : 'px-5'}`}>
+        <BrandMark inverted compact={collapsed} />
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
-        {employeeLinks.map(({ to, label, icon }) => (
-          <NavLink key={to} to={to} className={linkClass}>
-            <span>{icon}</span>
-            {label}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        {items.map(i => (
+          <NavLink key={i.to} to={i.to} className={link} title={collapsed ? i.label : undefined}>
+            <Icon name={i.icon} size={18} className="transition-transform duration-150 group-hover:scale-110" />
+            {!collapsed && <span className="flex-1">{i.label}</span>}
+            {i.badge === 'pending' && pending.length > 0 && (
+              collapsed
+                ? <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-[#c9a43f]" />
+                : <span className="text-[10px] font-semibold bg-[#c9a43f] text-[#132238] rounded px-1.5 py-0.5 min-w-[18px] text-center" title="Sign ups waiting for approval">{pending.length}</span>
+            )}
           </NavLink>
         ))}
-
-        {isStaff && (
-          <>
-            <div className="pt-4 pb-1 px-3">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Team</span>
-            </div>
-            {staffLinks.map(({ to, label, icon }) => (
-              <NavLink key={to} to={to} className={linkClass}>
-                <span>{icon}</span>
-                {label}
-              </NavLink>
-            ))}
-            {isAdmin && (
-              <NavLink to="/admin/approvals" className={linkClass}>
-                <span>⧉</span>
-                <span className="flex-1">Approvals</span>
-                {pending.length > 0 && (
-                  <span className="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
-                    {pending.length}
-                  </span>
-                )}
-              </NavLink>
-            )}
-            <NavLink to="/admin/settings" className={linkClass}>
-              <span>⚙</span>
-              Settings
-            </NavLink>
-          </>
-        )}
       </nav>
 
-      <div className="px-3 py-4 border-t border-gray-100">
-        <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
-          <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
-            <span className="text-white text-xs font-bold">{profile?.avatar_initials ?? '?'}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{profile?.name}</p>
-            <p className="text-xs text-gray-400 capitalize">{profile?.role}</p>
-          </div>
-          <button onClick={handleSignOut} className="text-gray-400 hover:text-gray-600 text-sm" title="Sign out">⏏</button>
-        </div>
-      </div>
+      <NavLink to="/profile" title={collapsed ? profile?.name : undefined}
+        className={({ isActive }) => `mx-3 mb-3 flex items-center gap-3 p-2 rounded-md transition-colors ${collapsed ? 'justify-center' : ''} ${isActive ? 'bg-white/10' : 'hover:bg-white/5'}`}>
+        <Avatar person={profile} className="!bg-white/15 !text-white" />
+        {!collapsed && (
+          <>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">{profile?.name}</p>
+              <p className="text-xs text-[#c8d4e6]/70">{ROLE_LABELS[profile?.role] ?? profile?.role}</p>
+            </div>
+            <Icon name="right" size={16} className="text-[#c8d4e6]/50" />
+          </>
+        )}
+      </NavLink>
     </aside>
   )
 }
