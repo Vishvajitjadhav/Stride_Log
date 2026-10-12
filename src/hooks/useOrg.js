@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 
 // Company settings — public read (login page + reports), admin write.
 export function useOrgSettings() {
@@ -74,4 +75,21 @@ export function useHolidayMutations() {
       onSuccess,
     }),
   }
+}
+
+// Managers and admins: what employees can see (team tasks, leaderboard).
+//   mutate({ tasks: true }) or mutate({ leaderboard: false })
+export function useTeamSharing() {
+  const qc = useQueryClient()
+  const { refreshSharing } = useAuth()
+  return useMutation({
+    mutationFn: async ({ tasks = null, leaderboard = null }) => {
+      const { error } = await supabase.rpc('set_team_sharing', { p_tasks: tasks, p_leaderboard: leaderboard })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['org_settings'] })
+      refreshSharing()
+    },
+  })
 }

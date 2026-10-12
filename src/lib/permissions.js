@@ -17,7 +17,8 @@ export const ROLE_LABELS = {
   admin: 'Admin',
 }
 
-// action -> (profile) => boolean
+// action -> (profile, sharing) => boolean
+// sharing: the company switches managers control ({ team_tasks_visible, leaderboard_visible }).
 const RULES = {
   // Assign / edit tasks for other people
   assignTasks: p => ['manager', 'admin'].includes(p.role) || p.can_assign_tasks === true,
@@ -35,13 +36,19 @@ const RULES = {
   manageCompany: p => p.role === 'admin',
   // Import a spreadsheet on behalf of someone else
   importForOthers: p => p.role === 'admin',
+  // See what the rest of the team is working on (read only for employees)
+  seeTeamTasks: (p, s) => RULES.viewTeam(p) || s?.team_tasks_visible === true,
+  // See the recognition leaderboard
+  seeLeaderboard: (p, s) => RULES.viewTeam(p) || s?.leaderboard_visible === true,
+  // Turn the two sharing switches on or off
+  manageSharing: p => ['manager', 'admin'].includes(p.role),
 }
 
-export function can(profile, action) {
+export function can(profile, action, sharing) {
   if (!profile || !profile.is_approved || profile.is_active === false) return false
   const rule = RULES[action]
   if (!rule) throw new Error(`Unknown permission: ${action}`)
-  return rule(profile)
+  return rule(profile, sharing)
 }
 
 // Roles a given user may hand out when editing someone else.

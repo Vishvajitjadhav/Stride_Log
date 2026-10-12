@@ -12,13 +12,14 @@ import Button from './ui/Button'
 
 // Tasks + notes of one person on one day (calendar side panel, team drawer).
 // compact: the date is already shown by the container.
-export default function DayDetail({ userId, date, compact = false }) {
+// tasksOnly: an employee looking at a teammate (read only, no daily notes).
+export default function DayDetail({ userId, date, compact = false, tasksOnly = false }) {
   const navigate = useNavigate()
   const { userId: me, can } = useAuth()
   const isMe = userId === me
   const editable = isMe || can('assignTasks')
   const { data: tasks = [], isLoading } = useDayTasks(userId, date, { carryOver: false })
-  const { data: log } = useWorkLog(date, userId)
+  const { data: log } = useWorkLog(date, userId, { enabled: !tasksOnly })
   const { data: holidays } = useHolidays()
   const { update } = useTaskMutations()
   const [editing, setEditing] = useState(null)
@@ -37,7 +38,7 @@ export default function DayDetail({ userId, date, compact = false }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {log?.submitted_at ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Submitted' : 'Extra day'}</Badge>
+          {tasksOnly ? null : log?.submitted_at ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Submitted' : 'Extra day'}</Badge>
             : <Badge variant="draft">Not submitted</Badge>}
           {isMe && date <= todayISO() && (
             <Button size="sm" variant="outline" onClick={() => navigate(date === todayISO() ? '/today' : `/today?date=${date}`)}>Open</Button>
@@ -60,7 +61,7 @@ export default function DayDetail({ userId, date, compact = false }) {
         </div>
       )}
 
-      {(log?.what_i_did || log?.blockers) && (
+      {!tasksOnly && (log?.what_i_did || log?.blockers) && (
         <div className="space-y-2 pt-2 border-t border-gray-100">
           {[['Summary', log.what_i_did], ['Blockers', log.blockers]].filter(([, v]) => v).map(([k, v]) => (
             <div key={k}>

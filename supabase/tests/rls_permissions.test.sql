@@ -1,7 +1,7 @@
 -- Role & permission tests. Run with:  npx supabase test db
 -- Each block switches to a user via request.jwt.claims, exactly like PostgREST.
 BEGIN;
-SELECT plan(43);
+SELECT plan(50);
 
 -- ── Fixtures ──────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION pg_temp.mk_user(p_id uuid, p_email text, p_role text, p_approved bool DEFAULT true)
@@ -38,6 +38,9 @@ SELECT pg_temp.mk_user('00000000-0000-0000-0000-0000000000f1', 'new@test.dev', '
 INSERT INTO tasks (id, user_id, title, status, date)
 VALUES ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000e2', 'emp2 secret task', 'pending', CURRENT_DATE);
 
+-- Team sharing off: employees only see their own work.
+UPDATE org_settings SET team_tasks_visible = false, leaderboard_visible = false WHERE id = 1;
+
 -- ── Employee ──────────────────────────────────────────────────────────────────
 SELECT pg_temp.act_as('00000000-0000-0000-0000-0000000000e1');
 
@@ -51,7 +54,7 @@ SELECT lives_ok(
   $$ UPDATE profiles SET name = 'Emp One' WHERE id = '00000000-0000-0000-0000-0000000000e1' $$,
   'employee can rename themselves');
 SELECT is((SELECT count(*)::int FROM tasks WHERE user_id = '00000000-0000-0000-0000-0000000000e2'), 0,
-  'employee cannot see a colleague''s tasks');
+  'employee cannot see a colleague''s tasks while team sharing is off');
 SELECT is((SELECT count(*)::int FROM v_task_facts WHERE user_id = '00000000-0000-0000-0000-0000000000e2'), 0,
   'analytics view respects RLS');
 SELECT throws_ok(
@@ -196,6 +199,25 @@ SELECT is((SELECT is_approved FROM profiles WHERE id = '00000000-0000-0000-0000-
   'sign ups on the company domain are approved automatically');
 SELECT is((SELECT is_approved FROM profiles WHERE id = '00000000-0000-0000-0000-0000000000f3'), false,
   'sign ups from other domains still wait for approval');
+
+-- ── Team sharing and leaderboard ──────────────────────────────────────────────
+SELECT pg_temp.act_as('00000000-0000-0000-0000-0000000000e1');
+SELECT throws_ok($$ SELECT set_team_sharing(true, true) $$, '42501', NULL, 'employees cannot change team sharing');
+SELECT throws_ok($$ SELECT * FROM leaderboard(CURRENT_DATE - 30, CURRENT_DATE) $$, '42501', NULL,
+  'employees cannot open the leaderboard until a manager shares it');
+
+SELECT pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+SELECT lives_ok($$ SELECT set_team_sharing(true, true) $$, 'managers can share team tasks and the leaderboard');
+SELECT lives_ok($$ SELECT * FROM leaderboard(CURRENT_DATE - 30, CURRENT_DATE) $$, 'managers always see the leaderboard');
+
+SELECT pg_temp.act_as('00000000-0000-0000-0000-0000000000e1');
+SELECT is((SELECT count(*)::int FROM tasks WHERE id = '10000000-0000-0000-0000-000000000002'), 1,
+  'with sharing on, employees can read a colleague''s tasks');
+SELECT is_empty(
+  $$ UPDATE tasks SET title = 'changed' WHERE id = '10000000-0000-0000-0000-000000000002' RETURNING 1 $$,
+  'shared tasks stay read only for employees');
+SELECT is((SELECT count(*)::int FROM work_logs WHERE user_id = '00000000-0000-0000-0000-0000000000e2'), 0,
+  'daily notes stay private even with sharing on');
 
 SELECT * FROM finish();
 ROLLBACK;

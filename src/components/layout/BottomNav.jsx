@@ -8,7 +8,7 @@ import Icon from '../ui/Icon'
 export default function BottomNav() {
   const { can } = useAuth()
   const { data: pending = [] } = usePendingApprovals({ enabled: can('managePeople') })
-  const tabs = [...visibleNav(can), { to: '/profile', label: 'Account', icon: 'user' }]
+  const tabs = [...visibleNav(can).filter(n => n.phone !== false), { to: '/profile', label: 'Account', icon: 'user' }]
 
   return (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">

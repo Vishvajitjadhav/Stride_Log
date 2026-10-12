@@ -25,6 +25,7 @@ const MemberDetail = lazy(() => import('./pages/MemberDetail'))
 const Reports = lazy(load.reports)
 const Assigned = lazy(() => import('./pages/Assigned'))
 const Projects = lazy(() => import('./pages/Projects'))
+const Leaderboard = lazy(() => import('./pages/Leaderboard'))
 const Admin = lazy(() => import('./pages/admin/Admin'))
 const ImportData = lazy(() => import('./pages/ImportData'))
 
@@ -81,7 +82,8 @@ function AppRoutes() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/import" element={<Suspense fallback={<Loading />}><ImportData /></Suspense>} />
 
-          <Route path="/team" element={<Guard perm="viewTeam"><Suspense fallback={<Loading />}><Team /></Suspense></Guard>} />
+          <Route path="/team" element={<Guard perm="seeTeamTasks"><Suspense fallback={<Loading />}><Team /></Suspense></Guard>} />
+          <Route path="/leaderboard" element={<Guard perm="seeLeaderboard"><Suspense fallback={<Loading />}><Leaderboard /></Suspense></Guard>} />
           <Route path="/team/:id" element={<Guard perm="viewTeam"><Suspense fallback={<Loading />}><MemberDetail /></Suspense></Guard>} />
           <Route path="/reports" element={<Guard perm="viewTeam"><Suspense fallback={<Loading />}><Reports /></Suspense></Guard>} />
           <Route path="/projects" element={<Guard perm="viewTeam"><Suspense fallback={<Loading />}><Projects /></Suspense></Guard>} />
