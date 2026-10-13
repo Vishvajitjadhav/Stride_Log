@@ -5,7 +5,34 @@
 //   2. MAILPIT_URL set      → local Mailpit (view at http://127.0.0.1:54324)
 //   3. otherwise            → logged only
 
+import { DEFAULT_LOGO_PNG } from './logo.ts'
+
 export type Org = { company_name: string; logo_url: string | null; app_url: string }
+
+// A company logo can be linked only if mail servers can download it.
+const isPublicImage = (url: string | null): url is string =>
+  Boolean(url) && /^https:\/\//i.test(url!) && !/localhost|127\.0\.0\.1|kong:/i.test(url!) && !/\.svg($|\?)/i.test(url!)
+
+// Inline logo for emails: the company logo when it can be fetched from here
+// (e.g. uploaded to local storage), otherwise the StrideLog mark.
+export async function inlineLogo(org: Org): Promise<string> {
+  if (org.logo_url && !isPublicImage(org.logo_url) && !/\.svg($|\?)/i.test(org.logo_url)) {
+    try {
+      // Local storage URLs point at the host; reach them through the API gateway instead.
+      const internal = org.logo_url.replace(/^https?:\/\/[^/]+(?=\/storage\/v1\/)/, Deno.env.get('SUPABASE_URL') ?? '')
+      const res = await fetch(internal)
+      if (res.ok && (res.headers.get('content-type') ?? '').startsWith('image/')) {
+        const bytes = new Uint8Array(await res.arrayBuffer())
+        if (bytes.length < 400_000) {
+          let bin = ''
+          for (const b of bytes) bin += String.fromCharCode(b)
+          return btoa(bin)
+        }
+      }
+    } catch { /* fall back to the StrideLog mark */ }
+  }
+  return DEFAULT_LOGO_PNG
+}
 
 const esc = (s: unknown) =>
   String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
@@ -22,7 +49,8 @@ export function renderEmail(opts: {
 }) {
   const { org } = opts
   const appUrl = org.app_url.replace(/\/$/, '')
-  const logo = org.logo_url && !/\.svg($|\?)/i.test(org.logo_url) ? org.logo_url : `${appUrl}/pwa-192x192.png`
+  // Public company logo: link it. Anything else: inline image (see inlineLogo).
+  const logo = isPublicImage(org.logo_url) ? org.logo_url : 'cid:logo'
   const ctaUrl = opts.cta ? `${appUrl}${opts.cta.path}` : ''
 
   const rows = opts.rows?.length
@@ -66,10 +94,13 @@ export function renderEmail(opts: {
     ...(opts.cta ? ['', `${opts.cta.label}: ${ctaUrl}`] : []),
   ].join('\n')
 
-  return { html, text }
+  return { html, text, inlineLogo: logo === 'cid:logo' }
 }
 
-export async function sendEmail(msg: { to: string; toName?: string; subject: string; html: string; text: string; fromName: string }) {
+export async function sendEmail(msg: {
+  to: string; toName?: string; subject: string; html: string; text: string; fromName: string
+  logo?: string | null   // base64 PNG shown where the html says cid:logo
+}) {
   const from = Deno.env.get('EMAIL_FROM') ?? 'notifications@example.com'
   const resendKey = Deno.env.get('RESEND_API_KEY')
   const mailpit = Deno.env.get('MAILPIT_URL')
@@ -79,7 +110,10 @@ export async function sendEmail(msg: { to: string; toName?: string; subject: str
       method: 'POST',
       headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
       // EMAIL_FROM may be a plain address or already "Name <address>".
-      body: JSON.stringify({ from: from.includes('<') ? from : `${msg.fromName} <${from}>`, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text }),
+      body: JSON.stringify({
+        from: from.includes('<') ? from : `${msg.fromName} <${from}>`, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text,
+        ...(msg.logo && { attachments: [{ filename: 'logo.png', content: msg.logo, content_type: 'image/png', content_id: 'logo' }] }),
+      }),
     })
     if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`)
     return 'resend'
@@ -93,6 +127,7 @@ export async function sendEmail(msg: { to: string; toName?: string; subject: str
         From: { Email: from.match(/<([^>]+)>/)?.[1] ?? from, Name: msg.fromName },
         To: [{ Email: msg.to, Name: msg.toName ?? '' }],
         Subject: msg.subject, HTML: msg.html, Text: msg.text,
+        ...(msg.logo && { Attachments: [{ Content: msg.logo, Filename: 'logo.png', ContentType: 'image/png', ContentID: 'logo' }] }),
       }),
     })
     if (!res.ok) throw new Error(`Mailpit ${res.status}: ${await res.text()}`)

@@ -2,7 +2,7 @@
 // Renders the matching email template and sends it. Auth: shared secret
 // header (EMAIL_WEBHOOK_SECRET), not a user JWT.
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { renderEmail, sendEmail, type Org } from '../_shared/email.ts'
+import { renderEmail, sendEmail, inlineLogo, type Org } from '../_shared/email.ts'
 
 const fmtDate = (iso?: string | null) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''
@@ -125,7 +125,9 @@ Deno.serve(async req => {
 
   const email = build(n as Notification, person.name, org as Org)
   try {
-    const via = await sendEmail({ to: person.email, toName: person.name, fromName: org!.company_name, ...email })
+    const { inlineLogo: needsLogo, ...content } = email
+    const logo = needsLogo ? await inlineLogo(org as Org) : null
+    const via = await sendEmail({ to: person.email, toName: person.name, fromName: org!.company_name, ...content, logo })
     await db.from('notifications').update({ emailed_at: new Date().toISOString() }).eq('id', n.id)
     return Response.json({ sent: true, via })
   } catch (err) {
