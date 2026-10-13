@@ -78,7 +78,8 @@ export async function sendEmail(msg: { to: string; toName?: string; subject: str
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: `${msg.fromName} <${from}>`, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text }),
+      // EMAIL_FROM may be a plain address or already "Name <address>".
+      body: JSON.stringify({ from: from.includes('<') ? from : `${msg.fromName} <${from}>`, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text }),
     })
     if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`)
     return 'resend'
@@ -89,7 +90,7 @@ export async function sendEmail(msg: { to: string; toName?: string; subject: str
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        From: { Email: from, Name: msg.fromName },
+        From: { Email: from.match(/<([^>]+)>/)?.[1] ?? from, Name: msg.fromName },
         To: [{ Email: msg.to, Name: msg.toName ?? '' }],
         Subject: msg.subject, HTML: msg.html, Text: msg.text,
       }),
