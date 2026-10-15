@@ -1,18 +1,13 @@
-// Microsoft Teams / Outlook calendar → StrideLog tasks.
-//
-// Setup (once, by an admin): register an app in Microsoft Entra ID with the
-// Microsoft Graph *application* permission Calendars.Read, grant admin consent,
-// create a client secret, then:
-//   supabase secrets set MS_TENANT_ID=... MS_CLIENT_ID=... MS_CLIENT_SECRET=...
-// Local testing without Microsoft 365: set TEAMS_SYNC_MOCK=true.
+// Microsoft Teams / Outlook calendar → StrideLog tasks, for everyone who
+// connected their own Microsoft account (Account, Connected apps).
 //
 // Requests (POST JSON):
-//   { action: 'status' }                    → is it configured?
-//   { scope: 'me' }                         → sync the caller (any signed in person)
-//   { scope: 'all' }                        → sync everyone (HR / admin, or the scheduler)
+//   { scope: 'me' }   → sync the caller
+//   { scope: 'all' }  → sync everyone connected (HR / admin, or the scheduler)
 // Auth: a user JWT, or the x-webhook-secret header used by the scheduler.
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { meetingsFrom, planSync, mockEvents, localDate, type GraphEvent } from '../_shared/meetings.ts'
+import { accessToken, isConfigured, isMock, type Connection } from '../_shared/oauth.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -23,35 +18,16 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
 
 const env = (k: string) => Deno.env.get(k) ?? ''
-const MOCK = env('TEAMS_SYNC_MOCK') === 'true'
-const configured = () => MOCK || Boolean(env('MS_TENANT_ID') && env('MS_CLIENT_ID') && env('MS_CLIENT_SECRET'))
+const MOCK = isMock('teams')
 
-async function graphToken() {
-  const res = await fetch(`https://login.microsoftonline.com/${env('MS_TENANT_ID')}/oauth2/v2.0/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: env('MS_CLIENT_ID'),
-      client_secret: env('MS_CLIENT_SECRET'),
-      scope: 'https://graph.microsoft.com/.default',
-      grant_type: 'client_credentials',
-    }),
-  })
-  const body = await res.json()
-  if (!res.ok) throw new Error(`Microsoft sign in failed: ${body.error_description ?? body.error ?? res.status}`)
-  return body.access_token as string
-}
-
-// All calendar entries for one mailbox in [from, to) (UTC), following pages.
-async function calendarView(token: string, email: string, from: string, to: string): Promise<GraphEvent[] | null> {
+// The person's own calendar entries in [from, to) (UTC), following pages.
+async function calendarView(token: string, from: string, to: string): Promise<GraphEvent[]> {
   const select = 'id,subject,start,end,isAllDay,isCancelled,isOnlineMeeting,onlineMeetingProvider,showAs,sensitivity,responseStatus'
-  let url: string | null = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(email)}/calendarView` +
-    `?startDateTime=${from}&endDateTime=${to}&$select=${select}&$top=100`
+  let url: string | null = `https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${from}&endDateTime=${to}&$select=${select}&$top=100`
   const out: GraphEvent[] = []
   while (url) {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Prefer: 'outlook.timezone="UTC"' } })
-    if (res.status === 404) return null      // no mailbox for this email in the tenant
-    if (!res.ok) throw new Error(`Calendar read failed for ${email}: ${res.status} ${await res.text()}`)
+    if (!res.ok) throw new Error(`Calendar read failed: ${res.status} ${(await res.text()).slice(0, 200)}`)
     const body = await res.json()
     out.push(...body.value)
     url = body['@odata.nextLink'] ?? null
@@ -59,11 +35,13 @@ async function calendarView(token: string, email: string, from: string, to: stri
   return out
 }
 
-async function syncPerson(db: SupabaseClient, person: { id: string; email: string }, ctx: {
-  token: string | null; tz: string; dates: string[]; onlyOnline: boolean; categoryIds: Map<string, string>; from: string; to: string
-}) {
-  const events = MOCK ? mockEvents(person.email, ctx.dates) : await calendarView(ctx.token!, person.email, ctx.from, ctx.to)
-  if (events === null) return { created: 0, updated: 0, removed: 0, skipped: true }
+type Person = { id: string; email: string; connection: Connection }
+type Ctx = { tz: string; dates: string[]; onlyOnline: boolean; categoryIds: Map<string, string>; from: string; to: string }
+
+async function syncPerson(db: SupabaseClient, person: Person, ctx: Ctx) {
+  const token = await accessToken(db, person.connection)
+  if (!token) return { created: 0, updated: 0, removed: 0, skipped: true }   // access was revoked
+  const events = MOCK ? mockEvents(person.email, ctx.dates) : await calendarView(token, ctx.from, ctx.to)
 
   const meetings = meetingsFrom(events, { tz: ctx.tz, dates: ctx.dates, onlyOnline: ctx.onlyOnline })
   const { data: existing, error } = await db.from('tasks')
@@ -111,10 +89,7 @@ Deno.serve(async req => {
   }
 
   const { data: org } = await db.from('org_settings').select('timezone, teams_sync_enabled, teams_only_online').eq('id', 1).single()
-  if (body.action === 'status') {
-    return json({ configured: configured(), enabled: Boolean(org?.teams_sync_enabled), mock: MOCK })
-  }
-  if (!configured()) return json({ error: 'Microsoft 365 is not connected yet. Ask an admin to finish the Teams setup.' }, 400)
+  if (!isConfigured('teams')) return json({ error: 'Microsoft Teams is not set up yet. Ask an admin.' }, 400)
   if (!org?.teams_sync_enabled) return json({ error: 'Teams sync is turned off for the company.' }, 400)
 
   const scope = body.scope === 'all' ? 'all' : 'me'
@@ -132,42 +107,44 @@ Deno.serve(async req => {
   const from = new Date(Date.parse(`${yesterday}T00:00:00Z`) - 86400000).toISOString()
   const to = new Date(Date.parse(`${today}T00:00:00Z`) + 2 * 86400000).toISOString()
 
-  let q = db.from('profiles').select('id, email').eq('is_approved', true).eq('is_active', true).eq('calendar_sync', true).not('email', 'is', null)
-  if (scope === 'me') q = q.eq('id', caller!.id)
-  const { data: people, error: pErr } = await q
+  // Connected people who have not paused it.
+  let q = db.from('oauth_connections').select('*, profile:profiles!inner(id, email, is_approved, is_active, calendar_sync)')
+    .eq('provider', 'teams').eq('profile.is_approved', true).eq('profile.is_active', true).eq('profile.calendar_sync', true)
+  if (scope === 'me') q = q.eq('user_id', caller!.id)
+  const { data: rows, error: pErr } = await q
   if (pErr) return json({ error: pErr.message }, 500)
+  if (scope === 'me' && !rows?.length) return json({ error: 'Connect your Microsoft account first (Account, Connected apps).' }, 400)
 
   const { data: run } = await db.from('sync_runs').insert({
+    source: 'teams',
     trigger: fromScheduler ? 'schedule' : scope === 'all' ? 'admin' : 'person',
     triggered_by: caller?.id ?? null,
   }).select('id').single()
 
   const totals = { people: 0, created: 0, updated: 0, removed: 0, notFound: 0 }
-  let error: string | null = null
-  try {
-    const { data: cats } = await db.from('categories').select('id, name')
-    const ctx = {
-      token: MOCK ? null : await graphToken(), tz, dates, from, to,
-      onlyOnline: org.teams_only_online, categoryIds: new Map((cats ?? []).map(c => [c.name, c.id])),
-    }
-    // A few mailboxes at a time keeps Microsoft's rate limits happy.
-    const list = people ?? []
-    for (let i = 0; i < list.length; i += 4) {
-      const results = await Promise.all(list.slice(i, i + 4).map(p => syncPerson(db, p, ctx)))
-      for (const r of results) {
-        if (r.skipped) { totals.notFound++; continue }
-        totals.people++; totals.created += r.created; totals.updated += r.updated; totals.removed += r.removed
-      }
-    }
-  } catch (e) {
-    error = e instanceof Error ? e.message : String(e)
+  const errors: string[] = []
+  const { data: cats } = await db.from('categories').select('id, name')
+  const ctx: Ctx = { tz, dates, from, to, onlyOnline: org.teams_only_online, categoryIds: new Map((cats ?? []).map(c => [c.name, c.id])) }
+  const people: Person[] = (rows ?? []).map(({ profile, ...c }) => ({ id: profile.id, email: profile.email, connection: c as Connection }))
+
+  // A few people at a time keeps Microsoft's rate limits happy; one
+  // person's problem never stops the others.
+  for (let i = 0; i < people.length; i += 4) {
+    const results = await Promise.allSettled(people.slice(i, i + 4).map(p => syncPerson(db, p, ctx)))
+    results.forEach((r, j) => {
+      if (r.status === 'rejected') { errors.push(`${people[i + j].email}: ${(r.reason as Error).message}`); return }
+      if (r.value.skipped) { totals.notFound++; return }
+      totals.people++; totals.created += r.value.created; totals.updated += r.value.updated; totals.removed += r.value.removed
+    })
   }
 
+  const error = errors.length ? errors.slice(0, 3).join('; ').slice(0, 500) : null
   if (run) {
     await db.from('sync_runs').update({
       finished_at: new Date().toISOString(), people: totals.people, created: totals.created,
       updated: totals.updated, removed: totals.removed, error,
     }).eq('id', run.id)
   }
-  return error ? json({ error, ...totals }, 502) : json({ ok: true, mock: MOCK, ...totals })
+  if (scope === 'me' && error) return json({ error, ...totals }, 502)
+  return json({ ok: true, mock: MOCK, ...totals, ...(error && { warning: error }) })
 })

@@ -1,26 +1,16 @@
-// Jira Cloud issues → StrideLog tasks.
-//
-// Each person is matched to Jira by their company email. Issues assigned to
-// them become tasks whose status follows Jira (To do, In progress / In review,
-// Blocked, Done), so the day list and reports show real progress.
-//
-// Setup (once, by a Jira admin): create an API token at
-// https://id.atlassian.com/manage-profile/security/api-tokens, then:
-//   supabase secrets set JIRA_SITE=https://<company>.atlassian.net JIRA_EMAIL=<admin email> JIRA_API_TOKEN=<token>
-// For instant updates add a Jira webhook (Settings, System, WebHooks) pointing to
-//   <functions url>/jira-sync?secret=<EMAIL_WEBHOOK_SECRET>
-// for "Issue created / updated / deleted".
-// Local testing without Jira: set JIRA_SYNC_MOCK=true.
+// Jira Cloud issues → StrideLog tasks, for everyone who connected their own
+// Atlassian account (Account, Connected apps). Issues assigned to them become
+// tasks whose status follows Jira (To do, In progress / In review, Blocked,
+// Done). Runs every 15 minutes on working days and when they open their day.
 //
 // Requests (POST JSON):
-//   { action: 'status' }       → is it configured?
-//   { scope: 'me' }            → sync the caller
-//   { scope: 'all' }           → sync everyone (HR / admin, or the scheduler)
-//   { action: 'disconnect', remove: bool } → stop syncing the caller, optionally removing open Jira tasks
-//   Jira webhook payload       → sync the people on that issue
+//   { scope: 'me' }   → sync the caller
+//   { scope: 'all' }  → sync everyone connected (HR / admin, or the scheduler)
+// Auth: a user JWT, or the x-webhook-secret header used by the scheduler.
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { planJira, mockIssues, type JiraIssue } from '../_shared/jira.ts'
 import { localDate } from '../_shared/meetings.ts'
+import { accessToken, isConfigured, isMock, type Connection } from '../_shared/oauth.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -31,69 +21,43 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
 
 const env = (k: string) => Deno.env.get(k) ?? ''
-const MOCK = env('JIRA_SYNC_MOCK') === 'true'
-const SITE = (env('JIRA_SITE') || (MOCK ? 'https://example.atlassian.net' : '')).replace(/\/$/, '')
-const configured = () => MOCK || Boolean(SITE && env('JIRA_EMAIL') && env('JIRA_API_TOKEN'))
+const MOCK = isMock('jira')
 const FIELDS = ['summary', 'status', 'duedate', 'resolutiondate', 'project', 'issuetype']
 
-async function jira(path: string, init: RequestInit = {}) {
-  const res = await fetch(`${SITE}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Basic ${btoa(`${env('JIRA_EMAIL')}:${env('JIRA_API_TOKEN')}`)}`,
-      Accept: 'application/json', 'Content-Type': 'application/json', ...(init.headers ?? {}),
-    },
-  })
-  if (!res.ok) throw new Error(`Jira ${res.status}: ${(await res.text()).slice(0, 200)}`)
-  return res.json()
-}
-
-// Jira account for a company email (needs the token owner to be able to see emails, true for admins).
-async function accountFor(email: string): Promise<string | null> {
-  const users = await jira(`/rest/api/3/user/search?query=${encodeURIComponent(email)}`)
-  const match = (users as Array<{ accountId: string; emailAddress?: string; accountType?: string }>)
-    .find(u => u.accountType === 'atlassian' && (!u.emailAddress || u.emailAddress.toLowerCase() === email.toLowerCase()))
-  return match?.accountId ?? null
-}
-
-// Open issues plus anything finished in the last 14 days.
-async function issuesFor(accountId: string): Promise<JiraIssue[]> {
-  const jql = `assignee = "${accountId}" AND (statusCategory != Done OR resolutiondate >= -14d) ORDER BY updated DESC`
+// Open issues assigned to the person plus anything they finished in the last 14 days.
+async function myIssues(token: string, cloudId: string): Promise<JiraIssue[]> {
+  const jql = 'assignee = currentUser() AND (statusCategory != Done OR resolutiondate >= -14d) ORDER BY updated DESC'
   const out: JiraIssue[] = []
   let nextPageToken: string | undefined
   do {
-    const body = await jira('/rest/api/3/search/jql', {
-      method: 'POST', body: JSON.stringify({ jql, fields: FIELDS, maxResults: 100, nextPageToken }),
+    const res = await fetch(`https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search/jql`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jql, fields: FIELDS, maxResults: 100, nextPageToken }),
     })
+    if (!res.ok) throw new Error(`Jira ${res.status}: ${(await res.text()).slice(0, 200)}`)
+    const body = await res.json()
     out.push(...body.issues)
     nextPageToken = body.isLast ? undefined : body.nextPageToken
   } while (nextPageToken && out.length < 500)
   return out
 }
 
-type Person = { id: string; email: string; jira_account_id: string | null }
+type Person = { id: string; email: string; connection: Connection }
 type Ctx = { today: string; tz: string; categoryIds: Map<string, string>; projectIds: Map<string, string> }
 
 async function syncPerson(db: SupabaseClient, person: Person, ctx: Ctx) {
-  let issues: JiraIssue[]
-  if (MOCK) {
-    issues = mockIssues(person.email, ctx.today)
-  } else {
-    let accountId = person.jira_account_id
-    if (!accountId) {
-      accountId = await accountFor(person.email)
-      if (!accountId) return { created: 0, updated: 0, removed: 0, skipped: true }
-      await db.from('profiles').update({ jira_account_id: accountId }).eq('id', person.id)
-    }
-    issues = await issuesFor(accountId)
-  }
+  const token = await accessToken(db, person.connection)
+  if (!token) return { created: 0, updated: 0, removed: 0, skipped: true }   // access was revoked
+  const site = person.connection.site_url ?? 'https://example.atlassian.net'
+  const issues = MOCK ? mockIssues(person.email, ctx.today) : await myIssues(token, person.connection.cloud_id!)
 
   const { data: existing, error } = await db.from('tasks')
     .select('id, external_id, title, date, status, description, due_date, project_id')
     .eq('user_id', person.id).eq('source', 'jira')
   if (error) throw error
 
-  const plan = planJira(issues, existing ?? [], { today: ctx.today, tz: ctx.tz, site: SITE, projectIds: ctx.projectIds })
+  const plan = planJira(issues, existing ?? [], { today: ctx.today, tz: ctx.tz, site, projectIds: ctx.projectIds })
   if (plan.inserts.length) {
     const rows = plan.inserts.map(({ categoryName, ...t }) => ({
       ...t, user_id: person.id, source: 'jira',
@@ -120,14 +84,10 @@ Deno.serve(async req => {
 
   const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'))
   const body = await req.json().catch(() => ({}))
-  const secret = env('EMAIL_WEBHOOK_SECRET')
-  const urlSecret = new URL(req.url).searchParams.get('secret')
 
-  // Who is asking? The scheduler (header secret), Jira (secret in the URL) or a person.
-  const fromScheduler = Boolean(secret) && req.headers.get('x-webhook-secret') === secret
-  const fromJira = Boolean(secret) && urlSecret === secret && Boolean(body.webhookEvent)
   let caller: { id: string; role: string } | null = null
-  if (!fromScheduler && !fromJira) {
+  const fromScheduler = Boolean(env('EMAIL_WEBHOOK_SECRET')) && req.headers.get('x-webhook-secret') === env('EMAIL_WEBHOOK_SECRET')
+  if (!fromScheduler) {
     const token = req.headers.get('Authorization')?.replace('Bearer ', '') ?? ''
     const { data: { user } } = await db.auth.getUser(token)
     if (!user) return json({ error: 'Not signed in' }, 401)
@@ -137,84 +97,57 @@ Deno.serve(async req => {
   }
 
   const { data: org } = await db.from('org_settings').select('timezone, jira_sync_enabled').eq('id', 1).single()
-  if (body.action === 'status') {
-    return json({ configured: configured(), enabled: Boolean(org?.jira_sync_enabled), mock: MOCK, site: SITE || null })
-  }
-
-  // Stop syncing for the caller; optionally clear their unfinished Jira tasks (finished ones stay as history).
-  if (body.action === 'disconnect' && caller) {
-    await db.from('profiles').update({ jira_sync: false }).eq('id', caller.id)
-    let removed = 0
-    if (body.remove) {
-      const { data } = await db.from('tasks').delete().eq('user_id', caller.id).eq('source', 'jira').neq('status', 'done').select('id')
-      removed = data?.length ?? 0
-    }
-    return json({ ok: true, removed })
-  }
-
-  if (!configured()) return json({ error: 'Jira is not connected yet. Ask an admin to finish the Jira setup.' }, 400)
-  if (!org?.jira_sync_enabled) return json(fromJira ? { ok: true, ignored: true } : { error: 'Jira sync is turned off for the company.' }, fromJira ? 200 : 400)
+  if (!isConfigured('jira')) return json({ error: 'Jira is not set up yet. Ask an admin.' }, 400)
+  if (!org?.jira_sync_enabled) return json({ error: 'Jira sync is turned off for the company.' }, 400)
 
   const scope = body.scope === 'all' ? 'all' : 'me'
-  if (!fromScheduler && !fromJira && scope === 'all' && !['hr', 'admin'].includes(caller!.role)) {
+  if (scope === 'all' && caller && !['hr', 'admin'].includes(caller.role)) {
     return json({ error: 'Only HR or an admin can sync everyone' }, 403)
   }
 
-  let q = db.from('profiles').select('id, email, jira_account_id')
-    .eq('is_approved', true).eq('is_active', true).eq('jira_sync', true).not('email', 'is', null)
-  if (fromJira) {
-    // The current assignee and, when reassigned, the previous one.
-    const ids = new Set<string>()
-    const assignee = body.issue?.fields?.assignee?.accountId
-    if (assignee) ids.add(assignee)
-    for (const item of body.changelog?.items ?? []) {
-      if (item.field === 'assignee' && item.from) ids.add(item.from)
-    }
-    if (!ids.size) return json({ ok: true, people: 0 })
-    q = q.in('jira_account_id', [...ids])
-  } else if (scope === 'me') {
-    q = q.eq('id', caller!.id)
-  }
-  const { data: people, error: pErr } = await q
+  let q = db.from('oauth_connections').select('*, profile:profiles!inner(id, email, is_approved, is_active, jira_sync)')
+    .eq('provider', 'jira').eq('profile.is_approved', true).eq('profile.is_active', true).eq('profile.jira_sync', true)
+  if (scope === 'me') q = q.eq('user_id', caller!.id)
+  const { data: rows, error: pErr } = await q
   if (pErr) return json({ error: pErr.message }, 500)
-  if (fromJira && !people?.length) return json({ ok: true, people: 0 })
+  if (scope === 'me' && !rows?.length) return json({ error: 'Connect your Jira account first (Account, Connected apps).' }, 400)
 
   const { data: run } = await db.from('sync_runs').insert({
     source: 'jira',
-    trigger: fromJira ? 'webhook' : fromScheduler ? 'schedule' : scope === 'all' ? 'admin' : 'person',
+    trigger: fromScheduler ? 'schedule' : scope === 'all' ? 'admin' : 'person',
     triggered_by: caller?.id ?? null,
   }).select('id').single()
 
   const tz = org.timezone || 'Asia/Kolkata'
   const totals = { people: 0, created: 0, updated: 0, removed: 0, notFound: 0 }
-  let error: string | null = null
-  try {
-    const [{ data: cats }, { data: projects }] = await Promise.all([
-      db.from('categories').select('id, name'),
-      db.from('projects').select('id, name').eq('is_active', true),
-    ])
-    const ctx: Ctx = {
-      today: localDate(new Date(), tz), tz,
-      categoryIds: new Map((cats ?? []).map(c => [c.name, c.id])),
-      projectIds: new Map((projects ?? []).map(p => [p.name.toLowerCase(), p.id])),
-    }
-    const list = (people ?? []) as Person[]
-    for (let i = 0; i < list.length; i += 4) {
-      const results = await Promise.all(list.slice(i, i + 4).map(p => syncPerson(db, p, ctx)))
-      for (const r of results) {
-        if (r.skipped) { totals.notFound++; continue }
-        totals.people++; totals.created += r.created; totals.updated += r.updated; totals.removed += r.removed
-      }
-    }
-  } catch (e) {
-    error = e instanceof Error ? e.message : String(e)
+  const errors: string[] = []
+  const [{ data: cats }, { data: projects }] = await Promise.all([
+    db.from('categories').select('id, name'),
+    db.from('projects').select('id, name').eq('is_active', true),
+  ])
+  const ctx: Ctx = {
+    today: localDate(new Date(), tz), tz,
+    categoryIds: new Map((cats ?? []).map(c => [c.name, c.id])),
+    projectIds: new Map((projects ?? []).map(p => [p.name.toLowerCase(), p.id])),
+  }
+  const people: Person[] = (rows ?? []).map(({ profile, ...c }) => ({ id: profile.id, email: profile.email, connection: c as Connection }))
+
+  for (let i = 0; i < people.length; i += 4) {
+    const results = await Promise.allSettled(people.slice(i, i + 4).map(p => syncPerson(db, p, ctx)))
+    results.forEach((r, j) => {
+      if (r.status === 'rejected') { errors.push(`${people[i + j].email}: ${(r.reason as Error).message}`); return }
+      if (r.value.skipped) { totals.notFound++; return }
+      totals.people++; totals.created += r.value.created; totals.updated += r.value.updated; totals.removed += r.value.removed
+    })
   }
 
+  const error = errors.length ? errors.slice(0, 3).join('; ').slice(0, 500) : null
   if (run) {
     await db.from('sync_runs').update({
       finished_at: new Date().toISOString(), people: totals.people, created: totals.created,
       updated: totals.updated, removed: totals.removed, error,
     }).eq('id', run.id)
   }
-  return error ? json({ error, ...totals }, 502) : json({ ok: true, mock: MOCK, ...totals })
+  if (scope === 'me' && error) return json({ error, ...totals }, 502)
+  return json({ ok: true, mock: MOCK, ...totals, ...(error && { warning: error }) })
 })

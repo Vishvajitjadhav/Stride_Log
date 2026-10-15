@@ -1,49 +1,44 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
 import { useAuth } from '../../contexts/AuthContext'
-import { INTEGRATIONS, useIntegrationStatus, useIntegrationSync, useDisconnect } from '../../hooks/useIntegrations'
+import { INTEGRATIONS, useIntegrationStatus, useIntegrationSync, useConnect, useDisconnect } from '../../hooks/useIntegrations'
 import { toast } from '../../lib/toast'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
-import Switch from '../ui/Switch'
 import Sheet from '../ui/Sheet'
 import Icon from '../ui/Icon'
 import AppLogo from './AppLogo'
 
 const APPS = [
   {
-    kind: 'teams', name: 'Microsoft Teams', noun: ['meeting', 'meetings'],
+    kind: 'teams', name: 'Microsoft Teams', account: 'Microsoft', noun: ['meeting', 'meetings'],
     about: 'Your calendar meetings are added to your day. Finished ones are marked done.',
   },
   {
-    kind: 'jira', name: 'Jira', noun: ['issue', 'issues'],
+    kind: 'jira', name: 'Jira', account: 'Atlassian', noun: ['issue', 'issues'],
     about: 'Issues assigned to you appear as tasks and follow their Jira status: To do, In progress, In review, Done.',
   },
 ]
 
 function AppRow({ app }) {
-  const { profile, user, updateProfile } = useAuth()
+  const { profile } = useAuth()
   const { data: status, isLoading } = useIntegrationStatus(app.kind)
   const sync = useIntegrationSync(app.kind)
+  const connect = useConnect(app.kind)
   const disconnect = useDisconnect(app.kind)
   const [asking, setAsking] = useState(false)
-  const { flag, syncedAt } = INTEGRATIONS[app.kind]
   const available = Boolean(status?.configured && status.enabled)
-  const on = available && profile[flag]
+  const connected = Boolean(status?.connected)
+  const syncedAt = profile[INTEGRATIONS[app.kind].syncedAt]
 
   async function syncNow() {
     try {
       const r = await sync.mutateAsync('me')
       const [one, many] = app.noun
-      if (r.people === 0) toast(`No ${app.name} account found for ${user?.email}`)
-      else toast(r.created ? `${r.created} new ${r.created === 1 ? one : many} added` : r.updated ? `${r.updated} ${r.updated === 1 ? 'task' : 'tasks'} updated` : `Your ${many} are up to date`)
+      toast(r.created ? `${r.created} new ${r.created === 1 ? one : many} added` : r.updated ? `${r.updated} ${r.updated === 1 ? 'task' : 'tasks'} updated` : `Your ${many} are up to date`)
     } catch (e) { toast.error(e.message) }
-  }
-
-  async function connect() {
-    await updateProfile({ [flag]: true })
-    toast(`${app.name} connected`)
-    syncNow()
   }
 
   async function stop(remove) {
@@ -54,37 +49,50 @@ function AppRow({ app }) {
     } catch (e) { toast.error(e.message) }
   }
 
-  const state = isLoading ? 'Checking' : !available ? 'Not set up by your admin yet' : on ? 'Connected' : 'Off'
+  const state = isLoading ? 'Checking'
+    : connected ? 'Connected'
+    : !status?.configured ? 'Not set up by your admin yet'
+    : !status.enabled ? 'Turned off for the company'
+    : 'Not connected'
 
   return (
-    <div className="group px-5 py-4 transition-colors hover:bg-gray-50/60">
+    <div className="px-5 py-4 transition-colors hover:bg-gray-50/60">
       <div className="flex items-start gap-3">
         <AppLogo app={app.kind} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-gray-900">{app.name}</p>
             <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-full
-              ${on ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-              {on && <span className="w-1.5 h-1.5 rounded-full bg-green-600" />}
+              ${connected ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+              {connected && <span className="w-1.5 h-1.5 rounded-full bg-green-600" />}
               {state}
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-0.5">{app.about}</p>
-          {on && (
+          {connected && (
             <p className="text-xs text-gray-400 mt-1">
-              {user?.email}{', '}
-              {profile[syncedAt] ? `last synced ${formatDistanceToNow(new Date(profile[syncedAt]), { addSuffix: true })}` : 'not synced yet'}
+              Signed in as {status.account_email ?? status.account_name ?? `your ${app.account} account`}
+              {status.site_url && app.kind === 'jira' ? ` on ${status.site_url.replace('https://', '')}` : ''}
+              {', '}{syncedAt ? `last synced ${formatDistanceToNow(new Date(syncedAt), { addSuffix: true })}` : 'not synced yet'}
             </p>
           )}
+          {connected && status.last_error && <p className="text-xs text-red-600 mt-1">Last sync had a problem: {status.last_error}</p>}
         </div>
-        <Switch checked={on} disabled={!available} label={`Sync ${app.name}`}
-          onChange={v => (v ? connect() : setAsking(true))} />
-      </div>
-      {on && (
-        <div className="mt-3 pl-12">
-          <Button size="sm" variant="outline" loading={sync.isPending} onClick={syncNow}>
-            <Icon name="refresh" size={14} /> Sync now
+        {!connected && available && (
+          <Button size="sm" onClick={() => connect.mutate(undefined, { onError: e => toast.error(e.message) })} loading={connect.isPending}>
+            Connect
           </Button>
+        )}
+      </div>
+
+      {connected && (
+        <div className="mt-3 pl-12 flex flex-wrap gap-2">
+          {available && (
+            <Button size="sm" variant="outline" loading={sync.isPending} onClick={syncNow}>
+              <Icon name="refresh" size={14} /> Sync now
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" className="text-gray-600 hover:text-red-700" onClick={() => setAsking(true)}>Disconnect</Button>
         </div>
       )}
 
@@ -94,21 +102,41 @@ function AppRow({ app }) {
           <Button variant="danger" size="sm" loading={disconnect.isPending && disconnect.variables?.remove} onClick={() => stop(true)}>Remove open tasks</Button>
         </>}>
         <p className="text-sm text-gray-600">
-          New {app.noun[1]} will stop appearing in your day. Finished tasks always stay in your history.
-          Do you also want to remove the unfinished ones that came from {app.name}?
+          StrideLog forgets your {app.account} sign in and new {app.noun[1]} stop appearing in your day. Finished tasks always
+          stay in your history. Do you also want to remove the unfinished ones that came from {app.name}?
         </p>
       </Sheet>
     </div>
   )
 }
 
-// Account card: one place to turn each connected app on or off for yourself.
+// Account card: connect your own Microsoft and Atlassian accounts.
 export default function ConnectedApps() {
+  const [params, setParams] = useSearchParams()
+  const qc = useQueryClient()
+  const first = { teams: useIntegrationSync('teams'), jira: useIntegrationSync('jira') }
+
+  // Coming back from Microsoft / Atlassian sign in.
+  useEffect(() => {
+    const ok = params.get('connected')
+    const err = params.get('connect_error')
+    if (!ok && !err) return
+    const name = APPS.find(a => a.kind === (ok ?? params.get('app')))?.name ?? 'The app'
+    if (ok) {
+      toast(`${name} connected. Syncing now.`)
+      first[ok]?.mutate('me', { onError: e => toast.error(e.message) })
+    } else {
+      toast.error(`${name} was not connected: ${err}`)
+    }
+    qc.invalidateQueries({ queryKey: ['connections'] })
+    setParams({}, { replace: true })
+  }, [params, setParams, qc]) // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <Card>
       <div className="px-5 pt-4 pb-1">
         <p className="text-sm font-semibold text-gray-900">Connected apps</p>
-        <p className="text-xs text-gray-500">Matched to you by your company email. Turn either one off at any time.</p>
+        <p className="text-xs text-gray-500">Sign in with your own work account once. Only your own calendar and issues are read.</p>
       </div>
       <div className="divide-y divide-gray-100">
         {APPS.map(app => <AppRow key={app.kind} app={app} />)}

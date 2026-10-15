@@ -472,3 +472,7 @@ verify_jwt = false
 [functions.jira-sync]
 # Called by people (JWT), the scheduler (shared secret) and Jira webhooks (secret in the URL).
 verify_jwt = false
+
+[functions.connect]
+# Receives the Microsoft / Atlassian sign in redirect (no JWT), and checks the JWT itself for other actions.
+verify_jwt = false
