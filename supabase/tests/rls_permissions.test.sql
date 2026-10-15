@@ -1,7 +1,7 @@
 -- Role & permission tests. Run with:  npx supabase test db
 -- Each block switches to a user via request.jwt.claims, exactly like PostgREST.
 BEGIN;
-SELECT plan(50);
+SELECT plan(54);
 
 -- ── Fixtures ──────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION pg_temp.mk_user(p_id uuid, p_email text, p_role text, p_approved bool DEFAULT true)
@@ -218,6 +218,18 @@ SELECT is_empty(
   'shared tasks stay read only for employees');
 SELECT is((SELECT count(*)::int FROM work_logs WHERE user_id = '00000000-0000-0000-0000-0000000000e2'), 0,
   'daily notes stay private even with sharing on');
+
+-- ── Connected accounts (tokens never reach the browser) ──────────────────────
+SELECT pg_temp.as_postgres();
+INSERT INTO oauth_connections (user_id, provider, access_token, account_email) VALUES
+  ('00000000-0000-0000-0000-0000000000e1', 'teams', 'secret-1', 'emp1@test.dev'),
+  ('00000000-0000-0000-0000-0000000000e2', 'jira',  'secret-2', 'emp2@test.dev');
+
+SELECT pg_temp.act_as('00000000-0000-0000-0000-0000000000e1');
+SELECT throws_ok($$ SELECT access_token FROM oauth_connections $$, '42501', NULL, 'nobody can read stored tokens directly');
+SELECT is((SELECT count(*)::int FROM my_connections()), 1, 'people see only their own connections');
+SELECT is((SELECT account_email FROM my_connections() WHERE provider = 'teams'), 'emp1@test.dev', 'connection status shows who you signed in as');
+SELECT is((SELECT count(*)::int FROM connection_counts()), 0, 'employees do not get company connection counts');
 
 SELECT * FROM finish();
 ROLLBACK;

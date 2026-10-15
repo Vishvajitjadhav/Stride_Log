@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { useOrgSettings, useUpdateOrg } from '../../hooks/useOrg'
-import { useIntegrationStatus, useIntegrationSync, useSyncRuns } from '../../hooks/useIntegrations'
+import { useIntegrationStatus, useIntegrationSync, useSyncRuns, useConnectionCounts } from '../../hooks/useIntegrations'
 import { toast } from '../../lib/toast'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -10,38 +10,40 @@ import Icon from '../../components/ui/Icon'
 import Switch from '../../components/ui/Switch'
 import AppLogo from '../../components/integrations/AppLogo'
 
-const WEBHOOK = `${import.meta.env.VITE_SUPABASE_URL ?? 'https://<project>.supabase.co'}/functions/v1/jira-sync?secret=<EMAIL_WEBHOOK_SECRET>`
+// Where Microsoft and Atlassian send people back after they sign in.
+const CALLBACK = `${import.meta.env.VITE_SUPABASE_URL ?? 'https://<project>.supabase.co'}/functions/v1/connect`
 
 const APPS = {
   teams: {
     title: 'Microsoft Teams meetings',
     enabledKey: 'teams_sync_enabled',
-    about: "Meetings from everyone's Outlook calendar become tasks in their day automatically: finished meetings as Done, upcoming ones as To do, with the right category. Runs every 30 minutes on working days and when someone opens their day.",
+    about: 'Each person connects their own Microsoft work account under Account, Connected apps. Their Teams and Outlook meetings then become tasks: finished ones Done, upcoming ones To do. Syncs every 30 minutes on working days and when they open their day.',
     footnote: 'Private meetings are added as "Private meeting". Declined, cancelled and all day entries are skipped.',
-    guideTitle: 'Connect Microsoft 365 (about 10 minutes, one time)',
-    guideHint: 'Needs a Microsoft 365 admin. Free: no extra licence or cost.',
+    guideTitle: 'Register StrideLog with Microsoft (about 5 minutes, one time)',
+    guideHint: 'Any work account that can open App registrations. Free.',
     steps: [
-      ['Register the app', 'In the Microsoft Entra admin center, open App registrations and choose New registration. Name it StrideLog, single tenant.'],
-      ['Allow calendar reading', 'Under API permissions add Microsoft Graph, Application permissions, Calendars.Read. Then select Grant admin consent.'],
-      ['Create a secret', 'Under Certificates and secrets, create a client secret and copy its value.'],
-      ['Connect StrideLog', 'Copy the Tenant ID and Client ID from the Overview page and run this once.',
-        'npx supabase secrets set MS_TENANT_ID=<tenant id> MS_CLIENT_ID=<client id> MS_CLIENT_SECRET=<secret value>'],
-      ['Optional: sign in with Microsoft', 'In the same app registration add the redirect URI https://<project>.supabase.co/auth/v1/callback, then turn on the Azure provider in Supabase Authentication. People then sign in with their company account.'],
+      ['Open App registrations', 'Sign in at portal.azure.com with your work account, search for App registrations and choose New registration.'],
+      ['Name and redirect', 'Name: StrideLog. Supported account types: Accounts in this organizational directory only. Redirect URI: platform Web, with this address. Then Register.', CALLBACK],
+      ['Permissions', 'API permissions, Add a permission, Microsoft Graph, Delegated permissions: Calendars.Read and User.Read (offline_access is added automatically). No admin consent needed unless your company blocks user consent.'],
+      ['Create a secret', 'Certificates and secrets, New client secret, 24 months. Copy the Value straight away.'],
+      ['Add to Supabase', 'Supabase, Edge Functions, Secrets: add MS_CLIENT_ID (Application ID), MS_TENANT_ID (Directory ID) and MS_CLIENT_SECRET (the secret value).'],
+      ['Turn it on', 'Switch on "Turn on for the company" above. Everyone can then press Connect under Account, Connected apps.'],
     ],
   },
   jira: {
     title: 'Jira issues',
     enabledKey: 'jira_sync_enabled',
-    about: 'Issues assigned to each person become tasks in their day and follow the Jira status: To do, In progress, In review and Done. Matched by company email. Updates instantly through a webhook, and every 15 minutes as a safety net.',
+    about: 'Each person connects their own Atlassian account under Account, Connected apps. Issues assigned to them become tasks that follow the Jira status: To do, In progress, In review and Done. Syncs every 15 minutes on working days and when they open their day.',
     footnote: 'Open issues stay on today until they are done. Finished work is kept in history; issues reassigned to someone else move with them.',
-    guideTitle: 'Connect Jira Cloud (about 5 minutes, one time)',
-    guideHint: 'Needs a Jira admin. Free: uses your existing Jira plan.',
+    guideTitle: 'Register StrideLog with Atlassian (about 5 minutes, one time)',
+    guideHint: 'Any Atlassian account. Free.',
     steps: [
-      ['Create an API token', 'Signed in as a Jira admin, open id.atlassian.com, Security, API tokens, and create a token named StrideLog.'],
-      ['Connect StrideLog', 'Run this once with your Jira address, the admin email and the token.',
-        'npx supabase secrets set JIRA_SITE=https://<company>.atlassian.net JIRA_EMAIL=<admin email> JIRA_API_TOKEN=<token>'],
-      ['Turn on instant updates', 'In Jira, Settings, System, WebHooks, create a webhook with this URL for Issue created, updated and deleted. Use the same secret as the email webhook.',
-        WEBHOOK],
+      ['Create the app', 'Open developer.atlassian.com, your profile, Developer console, Create, OAuth 2.0 integration. Name it StrideLog.'],
+      ['Permissions', 'Permissions: add Jira API with scopes read:jira-work and read:jira-user, and User identity API with read:me.'],
+      ['Callback URL', 'Authorization, OAuth 2.0 (3LO): set the callback URL to this address.', CALLBACK],
+      ['Let colleagues use it', 'Distribution: Edit, Sharing, fill in the short form (vendor: your company, privacy policy: your website) and save. Without this only you can connect.'],
+      ['Add to Supabase', 'Settings: copy Client ID and Secret. In Supabase, Edge Functions, Secrets, add ATLASSIAN_CLIENT_ID and ATLASSIAN_CLIENT_SECRET.'],
+      ['Turn it on', 'Switch on "Turn on for the company" above. Everyone can then press Connect under Account, Connected apps.'],
     ],
   },
 }
@@ -65,6 +67,7 @@ function Panel({ kind }) {
   const { data: status, isLoading } = useIntegrationStatus(kind)
   const sync = useIntegrationSync(kind)
   const { data: runs = [] } = useSyncRuns(kind)
+  const { data: counts = {} } = useConnectionCounts()
   const [guide, setGuide] = useState(false)
   const connected = status?.configured
   const enabled = Boolean(org?.[app.enabledKey])
@@ -78,7 +81,7 @@ function Panel({ kind }) {
   async function syncAll() {
     try {
       const r = await sync.mutateAsync('all')
-      toast(`Synced ${r.people} ${r.people === 1 ? 'person' : 'people'}: ${r.created} new, ${r.updated} updated, ${r.removed} removed${r.notFound ? `. ${r.notFound} not found in ${name}` : ''}`)
+      toast(`Synced ${r.people} ${r.people === 1 ? 'person' : 'people'}: ${r.created} new, ${r.updated} updated, ${r.removed} removed${r.warning ? `. Some could not sync: ${r.warning}` : ''}`)
     } catch (e) {
       toast.error(e.message)
     }
@@ -93,15 +96,11 @@ function Panel({ kind }) {
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-[15px] font-semibold text-gray-900">{app.title}</p>
               {isLoading ? <Badge variant="draft">Checking</Badge>
-                : connected ? <Badge variant="submitted">{status.mock ? 'Connected (test mode)' : 'Connected'}</Badge>
-                : <Badge variant="missing">Not connected</Badge>}
+                : connected ? <Badge variant="submitted">{status.mock ? 'Ready (test mode)' : 'Ready'}</Badge>
+                : <Badge variant="missing">Not set up</Badge>}
+              {connected && <span className="text-xs text-gray-500">{counts[kind] ?? 0} {counts[kind] === 1 ? 'person has' : 'people have'} connected</span>}
             </div>
             <p className="text-sm text-gray-600 mt-1 leading-relaxed">{app.about}</p>
-            {kind === 'jira' && status?.site && !status.mock && (
-              <a href={status.site} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:underline mt-1">
-                {status.site.replace('https://', '')} <Icon name="external" size={12} />
-              </a>
-            )}
           </div>
         </div>
 

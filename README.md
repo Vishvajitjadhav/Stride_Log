@@ -27,19 +27,17 @@ consistency of daily logs, assigned work done on time), not hours.
   admins (it sits under Account) and they are left out of team numbers.
 - **Email**: branded sign up, password reset and invite emails, plus
   notifications for assignments, approvals, a 6 pm reminder and a Monday summary.
-- **Microsoft Teams sync**: meetings from Outlook calendars become tasks
-  automatically (finished ones Done, upcoming ones To do, category picked from
-  the title). Runs every 30 minutes on working days and when someone opens their
-  day; anyone can opt out under Account.
-- **Jira sync**: issues assigned to a person become tasks in their day and follow
-  the Jira status (To do, In progress, In review, Done), instantly through a
-  webhook and every 15 minutes. Each task links back to the issue.
+- **Microsoft Teams**: each person connects their own Microsoft account; their
+  meetings become tasks automatically (finished ones Done, upcoming ones To do,
+  category picked from the title).
+- **Jira**: each person connects their own Atlassian account; issues assigned to
+  them become tasks that follow the Jira status (To do, In progress, In review,
+  Done), with a link back to the issue.
 - **Company sign in**: Continue with Microsoft, and sign ups on the company
   email domain are approved automatically (Admin, Company). The same email
   links each person's Teams calendar and Jira issues.
-- **Connected apps** (Account): each person turns Teams and Jira on or off for
-  themselves, syncs on demand, and can remove unfinished synced tasks when
-  disconnecting.
+- **Connected apps** (Account): Connect, Sync now and Disconnect for Teams and
+  Jira; disconnecting can also remove unfinished synced tasks.
 - **Admin**: approve and invite people, set roles, grant "can assign tasks",
   manage categories, holidays and company branding.
 - **Look and feel**: calm navy theme, **dark mode** (Light, Dark or System),
@@ -144,44 +142,33 @@ http://127.0.0.1:54324.
    `UPDATE profiles SET role='admin', is_approved=true WHERE email='you@company.com';`
    From then on, invite everyone else from **Admin → People**.
 
-## Teams sync (one time setup, free)
+## Teams and Jira (connect your own account, free)
 
-Needs a Microsoft 365 admin, about 10 minutes. Microsoft Graph and the app
-registration cost nothing; your existing Microsoft 365 licences are enough.
+Each person presses **Connect** under Account, Connected apps, signs in with
+their own Microsoft or Atlassian work account and accepts. StrideLog then
+reads only their calendar and the Jira issues assigned to them. Tokens are kept
+server side (`oauth_connections`, no browser access). Teams syncs every 30
+minutes, Jira every 15, and both when someone opens their day.
 
-1. Microsoft Entra admin center, App registrations, New registration
-   (name StrideLog, single tenant).
-2. API permissions, Add, Microsoft Graph, **Application** permissions,
-   `Calendars.Read`, then **Grant admin consent**.
-3. Certificates and secrets, New client secret; copy the value.
-4. Run once (Tenant ID and Client ID are on the app's Overview page):
-   ```bash
-   npx supabase secrets set MS_TENANT_ID=<tenant id> MS_CLIENT_ID=<client id> MS_CLIENT_SECRET=<secret value>
-   npx supabase functions deploy teams-sync --no-verify-jwt
-   ```
-5. In StrideLog: Admin, Integrations, turn on **Turn on for the company**.
+One time, someone registers StrideLog with each provider. Both use this
+redirect / callback URL: `https://<ref>.supabase.co/functions/v1/connect`.
 
-Locally, `TEAMS_SYNC_MOCK=true` in `supabase/functions/.env` creates sample
-meetings so the whole flow can be tried without Microsoft 365.
+**Microsoft** (portal.azure.com, App registrations, New registration):
+single tenant, Web redirect URI as above, Delegated permissions
+`Calendars.Read` and `User.Read`, then a client secret. Supabase secrets:
+`MS_CLIENT_ID`, `MS_TENANT_ID`, `MS_CLIENT_SECRET`.
 
-## Jira sync (one time setup, free)
+**Atlassian** (developer.atlassian.com, Developer console, OAuth 2.0
+integration): scopes `read:jira-work`, `read:jira-user`, `read:me`; callback
+URL as above; Distribution set to Sharing so colleagues can connect. Supabase
+secrets: `ATLASSIAN_CLIENT_ID`, `ATLASSIAN_CLIENT_SECRET`.
 
-Uses your existing Jira Cloud plan; the REST API and webhooks cost nothing.
+Deploy `connect`, `teams-sync` and `jira-sync` with `--no-verify-jwt`, then in
+StrideLog, Admin, Integrations, turn each on for the company.
 
-1. Signed in as a Jira admin, create an API token at
-   https://id.atlassian.com/manage-profile/security/api-tokens.
-2. Run once:
-   ```bash
-   npx supabase secrets set JIRA_SITE=https://<company>.atlassian.net JIRA_EMAIL=<admin email> JIRA_API_TOKEN=<token>
-   npx supabase functions deploy jira-sync --no-verify-jwt
-   ```
-3. For instant updates, in Jira open Settings, System, WebHooks and add
-   `https://<ref>.supabase.co/functions/v1/jira-sync?secret=<EMAIL_WEBHOOK_SECRET>`
-   for Issue created, updated and deleted.
-4. In StrideLog: Admin, Integrations, Jira, turn on **Turn on for the company**.
-
-People are matched by email, so their StrideLog email must be the one they use
-in Jira. Locally, `JIRA_SYNC_MOCK=true` creates sample issues.
+Locally, `TEAMS_SYNC_MOCK=true` / `JIRA_SYNC_MOCK=true` and
+`CONNECT_CALLBACK_URL=http://127.0.0.1:54321/functions/v1/connect` in
+`supabase/functions/.env` simulate the sign in, meetings and issues.
 
 ## Sign in with Microsoft (optional)
 
@@ -206,7 +193,7 @@ src/
 supabase/
   migrations/       Schema, RLS, triggers, notifications, cron
   tests/            pgTAP role/permission tests
-  functions/        send-email, invite-user, teams-sync, jira-sync (Edge Functions)
+  functions/        send-email, invite-user, connect, teams-sync, jira-sync (Edge Functions)
   templates/        Branded auth email templates
 ```
 

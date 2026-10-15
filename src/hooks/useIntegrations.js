@@ -3,15 +3,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
-// The two connected apps. `flag` is the person's on/off switch, `syncedAt`
-// when their last sync finished, `every` how often opening My Day re-syncs.
+// The two connected apps. Each person connects their own Microsoft or
+// Atlassian account; `flag` pauses syncing, `syncedAt` is the last sync,
+// `every` is how often opening My Day re-syncs (minutes).
 export const INTEGRATIONS = {
   teams: { fn: 'teams-sync', flag: 'calendar_sync', syncedAt: 'calendar_synced_at', every: 30 },
   jira: { fn: 'jira-sync', flag: 'jira_sync', syncedAt: 'jira_synced_at', every: 10 },
 }
 
-async function call(kind, body) {
-  const { data, error } = await supabase.functions.invoke(INTEGRATIONS[kind].fn, { body })
+async function invoke(fn, body) {
+  const { data, error } = await supabase.functions.invoke(fn, { body })
   if (error) {
     let message = error.message
     try { message = (await error.context.json()).error ?? message } catch { /* not JSON */ }
@@ -20,16 +21,21 @@ async function call(kind, body) {
   return data
 }
 
-// { configured, enabled, mock }: is the app connected and switched on for the company?
-export function useIntegrationStatus(kind) {
+// { teams: { configured, enabled, connected, account_email, ... }, jira: {...} }
+function useConnections() {
   const { userId } = useAuth()
   return useQuery({
-    queryKey: ['integration_status', kind],
+    queryKey: ['connections', userId],
     enabled: Boolean(userId),
-    staleTime: 1000 * 60 * 10,
+    staleTime: 1000 * 60 * 5,
     retry: false,
-    queryFn: () => call(kind, { action: 'status' }),
+    queryFn: () => invoke('connect', { action: 'status' }),
   })
+}
+
+export function useIntegrationStatus(kind) {
+  const q = useConnections()
+  return { ...q, data: q.data?.[kind] }
 }
 
 function useRefreshAfterSync() {
@@ -39,30 +45,46 @@ function useRefreshAfterSync() {
     qc.invalidateQueries({ queryKey: ['tasks'] })
     qc.invalidateQueries({ queryKey: ['facts'] })
     qc.invalidateQueries({ queryKey: ['sync_runs'] })
+    qc.invalidateQueries({ queryKey: ['connections'] })
     refreshProfile()
   }
 }
 
 export function useIntegrationSync(kind) {
   const refresh = useRefreshAfterSync()
-  return useMutation({ mutationFn: scope => call(kind, { scope }), onSuccess: refresh })
+  return useMutation({ mutationFn: scope => invoke(INTEGRATIONS[kind].fn, { scope }), onSuccess: refresh })
 }
 
-// Turn sync off for me; with remove, unfinished synced tasks are cleared too.
+// Send the browser to Microsoft / Atlassian sign in; it comes back to
+// /profile?connected=teams (or ?connect_error=...).
+export function useConnect(kind) {
+  return useMutation({
+    mutationFn: async () => {
+      const { url } = await invoke('connect', { action: 'start', provider: kind })
+      window.location.assign(url)
+    },
+  })
+}
+
+// Forget the account; with remove, unfinished synced tasks are cleared too.
 export function useDisconnect(kind) {
   const refresh = useRefreshAfterSync()
-  const { updateProfile, userId } = useAuth()
   return useMutation({
-    mutationFn: async ({ remove }) => {
-      if (kind === 'jira') return call('jira', { action: 'disconnect', remove })
-      await updateProfile({ calendar_sync: false })
-      if (!remove) return { removed: 0 }
-      const { data, error } = await supabase.from('tasks').delete()
-        .eq('user_id', userId).eq('source', 'teams').neq('status', 'done').gte('date', new Date().toISOString().slice(0, 10)).select('id')
-      if (error) throw error
-      return { removed: data.length }
-    },
+    mutationFn: ({ remove }) => invoke('connect', { action: 'disconnect', provider: kind, remove }),
     onSuccess: refresh,
+  })
+}
+
+// Admins: how many people connected each app.
+export function useConnectionCounts({ enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['connection_counts'],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('connection_counts')
+      if (error) throw error
+      return Object.fromEntries(data.map(r => [r.provider, r.people]))
+    },
   })
 }
 
@@ -80,14 +102,14 @@ export function useSyncRuns(source, { enabled = true } = {}) {
 }
 
 // Quietly pull the latest when someone opens their day, so nobody has to
-// remember to sync. Jira also updates instantly through its webhook.
+// remember to sync.
 export function useAutoSync(kind) {
   const { profile } = useAuth()
   const { data: status } = useIntegrationStatus(kind)
   const sync = useIntegrationSync(kind)
   const started = useRef(false)
   const { flag, syncedAt, every } = INTEGRATIONS[kind]
-  const active = Boolean(status?.configured && status.enabled && profile?.[flag])
+  const active = Boolean(status?.configured && status.enabled && status.connected && profile?.[flag])
 
   useEffect(() => {
     if (started.current || !active) return
