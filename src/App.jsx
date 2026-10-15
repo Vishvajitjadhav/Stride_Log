@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from '
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import SplashScreen from './components/SplashScreen'
-import PendingApproval from './components/PendingApproval'
 import AppLayout from './components/layout/AppLayout'
 import Toaster from './components/Toaster'
 import Landing from './pages/Landing'
@@ -48,7 +47,7 @@ function LegacyMember() {
 }
 
 function AppRoutes() {
-  const { session, isLoading, isApproved, profileLoaded, recovering, can } = useAuth()
+  const { session, isLoading, isApproved, profileLoaded, recovering, can, profile } = useAuth()
   const { pathname } = useLocation()
 
   // Warm up the pages this person will open next, once the app is idle.
@@ -67,7 +66,18 @@ function AppRoutes() {
 
   if (recovering && !onResetRoute) return <Navigate to="/reset-password" replace />
   if (authed && !profileLoaded && !onResetRoute) return <SplashScreen />
-  if (authed && !isApproved && !onResetRoute) return <PendingApproval />
+  // Created by an admin with a temporary password: choose a new one first.
+  if (authed && isApproved && profile?.must_change_password && !onResetRoute) return <Navigate to="/reset-password" replace />
+
+  // Signed in but not approved (or turned off): landing page with their status, nothing else.
+  if (authed && !isApproved && !onResetRoute) {
+    return (
+      <Routes>
+        <Route path="/" element={<Landing pending />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    )
+  }
 
   return (
     <Routes>

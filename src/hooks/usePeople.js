@@ -62,14 +62,16 @@ export function useUpdatePerson() {
   })
 }
 
-// HR/Admin: send an invite email with role (and optionally a project) pre-set (Edge Function,
-// because inviting needs the service role key).
+// HR/Admin: add a person with role (and optionally a project) pre-set (Edge Function,
+// because creating accounts needs the service role key).
+//   method 'password': returns { email, temp_password } to hand over
+//   method 'email':    sends an invite email instead
 export function useInviteUser() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ email, name, role, project_id }) => {
+    mutationFn: async ({ email, name, role, project_id, method = 'password' }) => {
       const { data, error } = await supabase.functions.invoke('invite-user', {
-        body: { email, name, role, project_id, redirectTo: `${window.location.origin}/reset-password` },
+        body: { email, name, role, project_id, method, redirectTo: `${window.location.origin}/reset-password` },
       })
       if (error) {
         let message = error.message
