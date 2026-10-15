@@ -78,7 +78,11 @@ export function AuthProvider({ children }) {
 
   async function updatePassword(password) {
     const res = await supabase.auth.updateUser({ password })
-    if (!res.error) setRecovering(false)
+    if (!res.error) {
+      setRecovering(false)
+      // Temporary password from an admin has now been replaced.
+      if (profile?.must_change_password) await updateProfile({ must_change_password: false })
+    }
     return res
   }
 

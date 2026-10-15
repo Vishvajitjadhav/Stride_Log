@@ -149,29 +149,70 @@ function PersonEditor({ person, projects, people, onClose }) {
   )
 }
 
+// The sign in details to hand over, shown once after creating the account.
+function Credentials({ email, password }) {
+  const [copied, setCopied] = useState(false)
+  const text = `StrideLog sign in\n${window.location.origin}/login\nEmail: ${email}\nTemporary password: ${password}\nYou will be asked to choose your own password.`
+  return (
+    <div className="space-y-4 page-in">
+      <div className="flex items-center gap-2.5">
+        <span className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center ring-1 ring-inset ring-emerald-200"><Icon name="check" size={16} /></span>
+        <p className="text-sm font-semibold text-gray-900">Account created</p>
+      </div>
+      <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <span className="text-xs text-gray-500">Email</span>
+          <span className="text-sm font-medium text-gray-900 truncate">{email}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <span className="text-xs text-gray-500">Temporary password</span>
+          <span className="font-mono text-[15px] font-semibold tracking-wide text-gray-900 select-all">{password}</span>
+        </div>
+      </div>
+      <Button variant="secondary" className="w-full" onClick={async () => { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1800) }}>
+        <Icon name={copied ? 'check' : 'copy'} size={15} /> {copied ? 'Copied' : 'Copy sign in details'}
+      </Button>
+      <p className="text-xs text-gray-500 leading-relaxed">
+        Share these privately (in person or a direct message). This password is shown only once. At first sign in they must
+        choose their own password. If it is lost, add them again from a new email or reset it from the sign in page.
+      </p>
+    </div>
+  )
+}
+
 function InviteSheet({ projects, roles, onClose }) {
   const invite = useInviteUser()
-  const [form, setForm] = useState({ email: '', name: '', role: 'employee', project_id: '' })
-  const [done, setDone] = useState(false)
+  const [form, setForm] = useState({ email: '', name: '', role: 'employee', project_id: '', method: 'password' })
+  const [done, setDone] = useState(null)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const byEmail = form.method === 'email'
 
   async function send(e) {
     e?.preventDefault()
     try {
-      await invite.mutateAsync({ ...form, project_id: form.project_id || null })
-      setDone(true)
+      setDone(await invite.mutateAsync({ ...form, project_id: form.project_id || null }))
     } catch { /* shown below */ }
   }
 
   return (
-    <Sheet open onClose={onClose} title="Invite someone"
-      footer={done ? <Button onClick={onClose}>Done</Button> : <><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={send} loading={invite.isPending}>Send invite</Button></>}>
-      {done ? (
+    <Sheet open onClose={onClose} title="Add a person"
+      footer={done ? <Button onClick={onClose}>Done</Button> : <><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={send} loading={invite.isPending}>{byEmail ? 'Send invite' : 'Create account'}</Button></>}>
+      {done?.temp_password ? (
+        <Credentials email={done.email} password={done.temp_password} />
+      ) : done ? (
         <div className="text-center py-6">
           <p className="text-sm text-gray-700">Invitation sent to <strong>{form.email}</strong>. They'll set a password from the email and can start right away.</p>
         </div>
       ) : (
         <form onSubmit={send} className="space-y-4">
+          <div className="segmented w-full grid grid-cols-2" role="group" aria-label="How they get access">
+            <button type="button" aria-pressed={!byEmail} onClick={() => set('method', 'password')}>Temporary password</button>
+            <button type="button" aria-pressed={byEmail} onClick={() => set('method', 'email')}>Email invite</button>
+          </div>
+          <p className="text-xs text-gray-500 -mt-1">
+            {byEmail ? 'They get an email with a link to set their password. Needs working email.'
+              : 'You get a temporary password to hand over. They choose their own at first sign in. No email needed.'}
+          </p>
           <div>
             <label className="label" htmlFor="i-email">Work email</label>
             <input id="i-email" type="email" required className="field" value={form.email} onChange={e => set('email', e.target.value)} />
@@ -230,7 +271,7 @@ export default function People() {
           <button onClick={() => setTab('people')} className={`px-4 py-1.5 rounded-lg text-sm font-medium ${tab === 'people' ? 'bg-primary-600 text-white' : 'text-gray-600'}`}>People</button>
         </div>
         <div className="flex-1" />
-        <Button onClick={() => setInviting(true)} aria-label="Invite someone"><Icon name="mail" size={16} /><span className="hidden sm:inline">Invite</span></Button>
+        <Button onClick={() => setInviting(true)} aria-label="Add a person"><Icon name="plus" size={16} /><span className="hidden sm:inline">Add person</span></Button>
       </div>
 
       {tab === 'pending' ? (

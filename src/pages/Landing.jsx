@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { LogoMark, Wordmark } from '../components/Logo'
+import Avatar from '../components/ui/Avatar'
 import Icon from '../components/ui/Icon'
 
 const FEATURES = [
@@ -8,8 +11,54 @@ const FEATURES = [
   { icon: 'analytics', title: 'Report with confidence', text: 'Clear weekly and monthly numbers, plain observations and detailed PDF reports for every employee.' },
 ]
 
-export default function Landing() {
+// Signed in but not approved yet (or turned off): the landing page with a
+// status panel instead of the sign in button. Nothing inside the app opens.
+function AccessStatus() {
+  const { profile, user, refreshProfile } = useAuth()
+  const inactive = profile?.is_active === false
+  const [checking, setChecking] = useState(false)
+
+  // Re-check every 20s so the app opens as soon as HR or an admin approves.
+  useEffect(() => {
+    if (inactive) return
+    const t = setInterval(refreshProfile, 20_000)
+    return () => clearInterval(t)
+  }, [inactive, refreshProfile])
+
+  async function checkNow() {
+    setChecking(true)
+    await refreshProfile()
+    setTimeout(() => setChecking(false), 600)
+  }
+
+  return (
+    <div className="mt-10 max-w-lg rounded-lg bg-white/[0.06] ring-1 ring-white/15 backdrop-blur-sm p-5 sm:p-6 page-in">
+      <div className="flex items-center gap-2.5">
+        <span className="relative flex w-2.5 h-2.5">
+          {!inactive && <span className="absolute inline-flex h-full w-full rounded-full bg-accent-500 opacity-60 animate-ping" />}
+          <span className={`relative inline-flex w-2.5 h-2.5 rounded-full ${inactive ? 'bg-red-400' : 'bg-accent-500'}`} />
+        </span>
+        <p className="text-[15px] font-semibold text-white">{inactive ? 'Your access is turned off' : 'Your account is waiting for approval'}</p>
+      </div>
+      <p className="mt-2.5 text-sm text-[#c8d4e6] leading-relaxed">
+        {inactive
+          ? 'Contact HR or your admin if you think this is a mistake.'
+          : <>You are signed in as <span className="text-white font-medium">{user?.email}</span>. HR or an admin will approve
+            your account and choose your role. This page opens the app by itself once you are approved.</>}
+      </p>
+      {!inactive && (
+        <button onClick={checkNow} disabled={checking}
+          className="mt-4 h-9 px-4 rounded-md bg-white text-[#152540] text-sm font-semibold inline-flex items-center gap-2 transition-colors hover:bg-[#f3f6fa] disabled:opacity-70">
+          <Icon name="refresh" size={15} className={checking ? 'animate-spin' : ''} /> {checking ? 'Checking' : 'Check again'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+export default function Landing({ pending = false }) {
   const navigate = useNavigate()
+  const { profile, signOut } = useAuth()
 
   return (
     <div className="min-h-dvh bg-canvas">
@@ -17,7 +66,19 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto px-6">
           <header className="h-20 flex items-center justify-between">
             <div className="flex items-center gap-3"><LogoMark size={36} onDark /><Wordmark inverted className="!text-xl" /></div>
-            <button onClick={() => navigate('/login')} className="text-sm font-medium text-[#e4eaf3] hover:text-white">Sign in</button>
+            {pending ? (
+              <div className="flex items-center gap-3">
+                <span className="hidden sm:flex items-center gap-2 text-sm text-[#e4eaf3]">
+                  <Avatar person={profile} size="xs" />{profile?.name}
+                </span>
+                <button onClick={signOut}
+                  className="h-9 px-3.5 rounded-md text-sm font-medium text-white ring-1 ring-white/25 transition-colors hover:bg-white/10">
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => navigate('/login')} className="text-sm font-medium text-[#e4eaf3] hover:text-white">Sign in</button>
+            )}
           </header>
 
           <div className="py-20 sm:py-28 max-w-2xl">
@@ -29,12 +90,14 @@ export default function Landing() {
               StrideLog replaces scattered status messages with one simple daily log, and gives managers an honest view of
               how work is progressing across the team.
             </p>
-            <div className="mt-10 flex items-center gap-4">
-              <button onClick={() => navigate('/login')}
-                className="h-11 px-6 rounded-md bg-[#ffffff] text-[#152540] text-[15px] font-semibold hover:bg-[#f3f6fa] transition-colors">
-                Sign in to your workspace
-              </button>
-            </div>
+            {pending ? <AccessStatus /> : (
+              <div className="mt-10 flex items-center gap-4">
+                <button onClick={() => navigate('/login')}
+                  className="h-11 px-6 rounded-md bg-[#ffffff] text-[#152540] text-[15px] font-semibold hover:bg-[#f3f6fa] transition-colors">
+                  Sign in to your workspace
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>

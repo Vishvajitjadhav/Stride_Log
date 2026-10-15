@@ -8,7 +8,8 @@ import Input from '../components/ui/Input'
 // email. supabase-js turns the link into a session before this renders, so we
 // only collect a new password and call updateUser.
 export default function ResetPassword() {
-  const { session, isLoading, updatePassword } = useAuth()
+  const { session, isLoading, updatePassword, profile } = useAuth()
+  const temporary = profile?.must_change_password
   const navigate = useNavigate()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -61,8 +62,10 @@ export default function ResetPassword() {
             </div>
           ) : (
             <>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">Set your password</h2>
-              <p className="text-sm text-gray-400 mb-6">{session?.user?.email}</p>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">{temporary ? 'Choose your own password' : 'Set your password'}</h2>
+              <p className="text-sm text-gray-400 mb-6">
+                {temporary ? <>Replace the temporary password from your admin. Signed in as {session?.user?.email}.</> : session?.user?.email}
+              </p>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <Input label="New password" type="password" autoComplete="new-password" placeholder="At least 8 characters" value={password}
                   onChange={e => setPassword(e.target.value)} required minLength={8} autoFocus />
