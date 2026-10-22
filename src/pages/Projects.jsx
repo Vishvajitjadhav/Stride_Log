@@ -11,6 +11,7 @@ import Button from '../components/ui/Button'
 import Sheet from '../components/ui/Sheet'
 import Icon from '../components/ui/Icon'
 import { toast } from '../lib/toast'
+import Select from '../components/ui/Select'
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#f59e0b', '#14b88c', '#06b6d4', '#3b82f6', '#64748b']
 
@@ -92,10 +93,10 @@ function ProjectEditor({ project, people, onClose }) {
                     <span className="block text-xs text-gray-500">{ROLE_LABELS[p.role]}</span>
                   </span>
                   {role && (
-                    <select className="field !h-8 !py-0 !w-28 !text-xs" value={role} onChange={e => setRole(p.id, e.target.value)} aria-label="Role in project">
+                    <Select className="field !h-8 !py-0 !w-28 !text-xs" value={role} onChange={e => setRole(p.id, e.target.value)} aria-label="Role in project">
                       <option value="member">Member</option>
                       <option value="manager">Manager</option>
-                    </select>
+                    </Select>
                   )}
                 </li>
               )

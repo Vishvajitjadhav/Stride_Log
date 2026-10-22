@@ -20,6 +20,7 @@ import Button from '../components/ui/Button'
 import Icon from '../components/ui/Icon'
 import Tooltip from '../components/ui/Tooltip'
 import SharingSwitch from '../components/SharingSwitch'
+import Select from '../components/ui/Select'
 
 const STATUS_DOT = {
   done: 'bg-emerald-600',
@@ -322,10 +323,10 @@ export default function Team() {
         <div className="flex-1" />
         <input type="search" placeholder="Search employee" value={search} onChange={e => setSearch(e.target.value)} className="field !h-9 !py-0 sm:!w-52" />
         {projects.length > 0 && (
-          <select value={project} onChange={e => setProject(e.target.value)} className="field !h-9 !py-0 sm:!w-44" aria-label="Project">
+          <Select value={project} onChange={e => setProject(e.target.value)} className="field !h-9 !py-0 sm:!w-44" aria-label="Project">
             <option value="all">All projects</option>
             {projects.map(pr => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
-          </select>
+          </Select>
         )}
       </div>
 

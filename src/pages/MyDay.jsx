@@ -17,6 +17,7 @@ import Tooltip from '../components/ui/Tooltip'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Icon from '../components/ui/Icon'
+import Select from '../components/ui/Select'
 
 const NOTE_FIELDS = [
   { key: 'what_i_did', label: 'Summary',  placeholder: 'What you achieved today', rows: 2 },
@@ -203,16 +204,16 @@ export default function MyDay() {
       <Section title="Tasks" hint="Tap the circle to mark a task done. Tap a task to edit it." bodyClassName="px-5 pb-4 pt-3">
         <form onSubmit={quickAdd} className="flex gap-2">
           <input value={quick} onChange={e => setQuick(e.target.value)} placeholder="Add a task" className="field flex-1" aria-label="New task" enterKeyHint="done" />
-          <select value={quickCat} onChange={e => setQuickCat(e.target.value)} className="field !w-[6.5rem] sm:!w-40" aria-label="Category">
+          <Select value={quickCat} onChange={e => setQuickCat(e.target.value)} className="field !w-[6.5rem] sm:!w-40" aria-label="Category">
             <option value="">Category</option>
             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          </Select>
           {myProjects.length > 1 && (
-            <select value={quickProject} aria-label="Project" className="field !w-[6.5rem] sm:!w-40"
+            <Select value={quickProject} aria-label="Project" className="field !w-[6.5rem] sm:!w-40"
               onChange={e => { setQuickProject(e.target.value); try { localStorage.setItem('stridelog:project', e.target.value) } catch { /* storage unavailable */ } }}>
               <option value="">Project</option>
               {myProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            </Select>
           )}
           <Button type="submit" disabled={!quick.trim()} aria-label="Add task"><Icon name="plus" size={16} /><span className="hidden sm:inline">Add</span></Button>
         </form>

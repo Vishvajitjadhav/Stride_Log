@@ -10,6 +10,7 @@ import { STATUS_LABELS } from '../../lib/labels'
 import Sheet from '../ui/Sheet'
 import Button from '../ui/Button'
 import { toast } from '../../lib/toast'
+import Select from '../ui/Select'
 
 const STATUSES = ['pending', 'in_progress', 'done', 'blocked']
 
@@ -118,11 +119,11 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
         {canAssign && (isNew || !isMine) && (
           <div>
             <label className="label" htmlFor="t-owner">Assign to</label>
-            <select id="t-owner" className="field" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value, project_id: '' }))} disabled={!isNew}>
+            <Select id="t-owner" className="field" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value, project_id: '' }))} disabled={!isNew}>
               {picking && <option value="">Choose an employee</option>}
               <option value={userId}>Myself</option>
               {people.filter(p => p.id !== userId).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            </Select>
           </div>
         )}
 
@@ -135,10 +136,10 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label" htmlFor="t-cat">Category</label>
-            <select id="t-cat" className="field" value={form.category_id} onChange={e => set('category_id', e.target.value)}>
+            <Select id="t-cat" className="field" value={form.category_id} onChange={e => set('category_id', e.target.value)}>
               <option value="">None</option>
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="label" htmlFor="t-due">Due date <span className="font-normal text-gray-400">(optional)</span></label>
@@ -150,11 +151,11 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
         {ownProjects.length > 0 && (
           <div>
             <label className="label" htmlFor="t-project">Project</label>
-            <select id="t-project" className="field" value={form.project_id || (ownProjects.length === 1 ? ownProjects[0].id : '')}
+            <Select id="t-project" className="field" value={form.project_id || (ownProjects.length === 1 ? ownProjects[0].id : '')}
               onChange={e => set('project_id', e.target.value)}>
               {ownProjects.length > 1 && <option value="">No project</option>}
               {ownProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            </Select>
           </div>
         )}
 
