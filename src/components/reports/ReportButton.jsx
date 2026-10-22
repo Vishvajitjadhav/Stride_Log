@@ -6,6 +6,7 @@ import { periodOptions, buildReportData, reportFileName } from './buildReport'
 import Sheet from '../ui/Sheet'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
+import Select from '../ui/Select'
 
 // Download a weekly or monthly PDF. defaultScope: 'me' | 'all';
 // personId / projectId preselect one employee or project.
@@ -116,9 +117,9 @@ function ReportDialog({ onClose, defaultScope, personId, projectId }) {
 
         <div>
           <label className="label" htmlFor="r-period">Period</label>
-          <select id="r-period" className="field" value={periodIdx} onChange={e => setPeriodIdx(Number(e.target.value))}>
+          <Select id="r-period" className="field" value={periodIdx} onChange={e => setPeriodIdx(Number(e.target.value))}>
             {periods.map((p, i) => <option key={p.from} value={i}>{p.label}</option>)}
-          </select>
+          </Select>
         </div>
 
         {scopes.length > 1 && (
@@ -131,16 +132,16 @@ function ReportDialog({ onClose, defaultScope, personId, projectId }) {
         )}
 
         {scope === 'person' && (
-          <select className="field" value={person} onChange={e => setPerson(e.target.value)} aria-label="Employee">
+          <Select className="field" value={person} onChange={e => setPerson(e.target.value)} aria-label="Employee">
             <option value="">Choose an employee</option>
             {people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          </Select>
         )}
         {scope === 'project' && (
-          <select className="field" value={project} onChange={e => setProject(e.target.value)} aria-label="Project">
+          <Select className="field" value={project} onChange={e => setProject(e.target.value)} aria-label="Project">
             <option value="">Choose a project</option>
             {projects.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
+          </Select>
         )}
 
         <p className="text-xs text-gray-500 leading-relaxed">

@@ -1,4 +1,5 @@
 import { PRESETS } from '../utils/dates'
+import Select from './ui/Select'
 
 // Three plain dropdowns: Period, Employee, Project (+ dates for "Custom").
 export default function ReportFilters({ filters, setFilter, people = [], projects = [], showPerson = true, showProject = true }) {
@@ -6,9 +7,9 @@ export default function ReportFilters({ filters, setFilter, people = [], project
     <div className="flex flex-wrap items-end gap-3">
       <label className="flex flex-col gap-1">
         <span className="label !mb-0">Period</span>
-        <select className="field !h-9 !py-0 !w-44" value={filters.preset} onChange={e => setFilter({ preset: e.target.value })}>
+        <Select className="field !h-9 !py-0 !w-44" value={filters.preset} onChange={e => setFilter({ preset: e.target.value })}>
           {PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-        </select>
+        </Select>
       </label>
 
       {filters.preset === 'custom' && (
@@ -29,20 +30,20 @@ export default function ReportFilters({ filters, setFilter, people = [], project
       {showPerson && (
         <label className="flex flex-col gap-1">
           <span className="label !mb-0">Employee</span>
-          <select className="field !h-9 !py-0 !w-52" value={filters.person} onChange={e => setFilter({ person: e.target.value })}>
+          <Select className="field !h-9 !py-0 !w-52" value={filters.person} onChange={e => setFilter({ person: e.target.value })}>
             <option value="all">All employees</option>
             {people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          </Select>
         </label>
       )}
 
       {showProject && projects.length > 0 && (
         <label className="flex flex-col gap-1">
           <span className="label !mb-0">Project</span>
-          <select className="field !h-9 !py-0 !w-48" value={filters.project} onChange={e => setFilter({ project: e.target.value })}>
+          <Select className="field !h-9 !py-0 !w-48" value={filters.project} onChange={e => setFilter({ project: e.target.value })}>
             <option value="all">All projects</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          </Select>
         </label>
       )}
     </div>

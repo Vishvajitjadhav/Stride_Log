@@ -15,6 +15,7 @@ import Icon from '../../components/ui/Icon'
 import BulkImport from '../../components/BulkImport'
 import { PEOPLE_TEMPLATE, parsePeopleRows } from '../../utils/bulkImport'
 import { downloadRows } from '../../lib/sheets'
+import Select from '../../components/ui/Select'
 
 const INHERENT_ASSIGN = ['manager', 'admin']
 
@@ -33,14 +34,14 @@ function PendingRow({ person, projects, roles }) {
         </div>
       </div>
       <div className="flex gap-2">
-        <select className="field !py-1.5 sm:!w-36" value={role} onChange={e => setRole(e.target.value)} aria-label="Role">
+        <Select className="field !py-1.5 sm:!w-36" value={role} onChange={e => setRole(e.target.value)} aria-label="Role">
           {roles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-        </select>
+        </Select>
         {projects.length > 0 && (
-          <select className="field !py-1.5 sm:!w-40" value={project} onChange={e => setProject(e.target.value)} aria-label="Project">
+          <Select className="field !py-1.5 sm:!w-40" value={project} onChange={e => setProject(e.target.value)} aria-label="Project">
             <option value="">No project yet</option>
             {projects.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
+          </Select>
         )}
       </div>
       <div className="flex gap-2">
@@ -103,9 +104,9 @@ function PersonEditor({ person, projects, people, onClose }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label" htmlFor="p-role">Role</label>
-            <select id="p-role" className="field" value={form.role} onChange={e => set('role', e.target.value)} disabled={lockedAdmin || isSelf}>
+            <Select id="p-role" className="field" value={form.role} onChange={e => set('role', e.target.value)} disabled={lockedAdmin || isSelf}>
               {[...new Set([...roles, form.role])].map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
         <div>
@@ -117,10 +118,10 @@ function PersonEditor({ person, projects, people, onClose }) {
         </div>
         <div>
           <label className="label" htmlFor="p-mgr">Reports to</label>
-          <select id="p-mgr" className="field" value={form.manager_id} onChange={e => set('manager_id', e.target.value)} disabled={lockedAdmin}>
+          <Select id="p-mgr" className="field" value={form.manager_id} onChange={e => set('manager_id', e.target.value)} disabled={lockedAdmin}>
             <option value="">Nobody</option>
             {people.filter(p => p.id !== person.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          </Select>
         </div>
 
         <label className={`flex items-start gap-3 rounded-md border p-3 ${can('grantPermissions') ? 'border-primary-200 bg-primary-50/40' : 'border-gray-100 opacity-60'}`}>
@@ -227,16 +228,16 @@ function InviteSheet({ projects, roles, onClose }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label" htmlFor="i-role">Role</label>
-              <select id="i-role" className="field" value={form.role} onChange={e => set('role', e.target.value)}>
+              <Select id="i-role" className="field" value={form.role} onChange={e => set('role', e.target.value)}>
                 {roles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="label" htmlFor="i-project">Project</label>
-              <select id="i-project" className="field" value={form.project_id} onChange={e => set('project_id', e.target.value)}>
+              <Select id="i-project" className="field" value={form.project_id} onChange={e => set('project_id', e.target.value)}>
                 <option value="">None yet</option>
                 {projects.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+              </Select>
             </div>
           </div>
           {invite.isError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{invite.error.message}</p>}

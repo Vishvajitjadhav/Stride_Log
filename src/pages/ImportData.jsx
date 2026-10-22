@@ -7,6 +7,7 @@ import { mapRows } from '../utils/importMap'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 import { STATUS_LABELS } from '../lib/labels'
+import Select from '../components/ui/Select'
 
 // Fields we map sheet columns onto, with header auto-detection hints.
 const FIELDS = [
@@ -125,13 +126,13 @@ export default function ImportData() {
                 {isAdmin && (
                   <div>
                     <label className="text-xs font-medium text-gray-500 block mb-1">Import for</label>
-                    <select value={targetUser || myId} onChange={e => setTargetUser(e.target.value)}
-                      className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary-400">
+                    <Select value={targetUser || myId} onChange={e => setTargetUser(e.target.value)}
+                      className="field sm:!w-72">
                       <option value={myId}>{profile?.name} (me)</option>
                       {members.filter(m => m.id !== myId).map(m => (
                         <option key={m.id} value={m.id}>{m.name}</option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                 )}
 
@@ -141,14 +142,14 @@ export default function ImportData() {
                       <label className="text-xs font-medium text-gray-500 block mb-1">
                         {f.label}{f.required && <span className="text-red-400"> *</span>}
                       </label>
-                      <select
+                      <Select
                         value={columnMap[f.key] ?? ''}
                         onChange={e => setColumnMap(m => ({ ...m, [f.key]: e.target.value }))}
-                        className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
+                        className="field !py-1.5"
                       >
                         <option value="">Not used</option>
                         {columns.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                      </Select>
                     </div>
                   ))}
                 </div>
