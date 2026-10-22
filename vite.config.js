@@ -14,10 +14,13 @@ export default defineConfig({
         name: 'StrideLog Daily Work Tracker',
         short_name: 'StrideLog',
         description: 'Log your daily tasks and see your team’s weekly progress.',
-        theme_color: '#1d3254',
-        background_color: '#f5f6f8',
+        id: '/',
+        theme_color: '#f6f7fc',
+        background_color: '#f6f7fc',
         display: 'standalone',
-        orientation: 'portrait',
+        // Any: phones stay portrait by habit, tablets and desktops can rotate.
+        orientation: 'any',
+        categories: ['business', 'productivity'],
         start_url: '/today',
         scope: '/',
         icons: [
@@ -29,13 +32,14 @@ export default defineConfig({
         shortcuts: [
           { name: 'My Day', url: '/today', icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }] },
           { name: 'Team', url: '/team', icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }] },
+          { name: 'Reports', url: '/reports', icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }] },
         ],
       },
       workbox: {
         // App shell is precached; API calls always go to the network.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         // Rarely used heavy chunks (PDF engine, Excel parser) load on demand instead.
-        globIgnores: ['**/react-pdf*.js', '**/ImportData*.js', '**/ReportDocument*.js'],
+        globIgnores: ['**/react-pdf*.js', '**/ImportData*.js', '**/ReportDocument*.js', '**/xlsx*.js'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/auth\//, /^\/rest\//, /^\/functions\//],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,

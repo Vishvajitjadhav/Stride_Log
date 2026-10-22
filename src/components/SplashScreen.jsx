@@ -4,15 +4,16 @@ export default function SplashScreen() {
   return (
     <div className="fixed inset-0 z-50 bg-canvas flex flex-col items-center justify-center" role="status" aria-label="Loading StrideLog">
       <div className="relative">
-        <span className="absolute inset-0 rounded-[22%] bg-[#1d3254] opacity-20 animate-[sl-ring_1.8s_ease-out_infinite]" />
+        <span className="absolute inset-0 rounded-[25%] bg-primary-500 opacity-25 animate-[sl-ring_1.8s_ease-out_infinite]" />
         <svg width="76" height="76" viewBox="0 0 512 512" className="relative drop-shadow-lg">
-          <rect width="512" height="512" rx="112" fill="#1d3254" />
+          <defs><linearGradient id="sl-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#7c7ff7" /><stop offset="1" stopColor="#4338ca" /></linearGradient></defs>
+          <rect width="512" height="512" rx="128" fill="url(#sl-g)" />
           <g stroke="#fff" strokeWidth="44" strokeLinecap="round" fill="none">
             <path d="M128 348 H232" strokeOpacity="0.5" className="sl-line" style={{ animationDelay: '0ms' }} />
             <path d="M196 264 H300" strokeOpacity="0.78" className="sl-line" style={{ animationDelay: '160ms' }} />
             <path d="M264 180 H316" className="sl-line" style={{ animationDelay: '320ms' }} />
           </g>
-          <circle cx="380" cy="180" r="34" fill="#c9a43f" className="sl-dot" />
+          <circle cx="380" cy="180" r="36" fill="#34d3a6" className="sl-dot" />
         </svg>
       </div>
       <p className="mt-6 text-2xl tracking-tight text-gray-900 sl-word">

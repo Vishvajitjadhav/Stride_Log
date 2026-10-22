@@ -2,6 +2,7 @@
 //   perm:    permission needed to see the item (lib/permissions.js)
 //   notPerm: hide the item from people who have this permission
 //   phone:   false keeps it out of the phone tab bar (sidebar only)
+//   short:   shorter label for the phone tab bar
 // Managers / HR / admins: Team · Reports · Leaderboard · Projects · Admin (their
 // own day is optional and lives under Account). Everyone else: Today · My
 // Progress, plus Team and Leaderboard when a manager shares them.
@@ -9,13 +10,13 @@
 const NAV = [
   { to: '/team',     label: 'Team',        icon: 'team',      perm: 'viewTeam' },
   { to: '/reports',  label: 'Reports',     icon: 'analytics', perm: 'viewTeam' },
-  { to: '/leaderboard', label: 'Leaderboard', icon: 'star',   perm: 'viewTeam' },
+  { to: '/leaderboard', label: 'Leaderboard', short: 'Leaders', icon: 'star', perm: 'viewTeam' },
   { to: '/projects', label: 'Projects',    icon: 'flag',      perm: 'viewTeam', phone: false },
   { to: '/today',    label: 'Today',       icon: 'today',     notPerm: 'viewTeam' },
   { to: '/progress', label: 'My Progress', icon: 'dashboard', notPerm: 'viewTeam' },
   // Shared with employees when a manager turns it on.
   { to: '/team',     label: 'Team',        icon: 'team',      perm: 'seeTeamTasks', notPerm: 'viewTeam' },
-  { to: '/leaderboard', label: 'Leaderboard', icon: 'star',   perm: 'seeLeaderboard', notPerm: 'viewTeam' },
+  { to: '/leaderboard', label: 'Leaderboard', short: 'Leaders', icon: 'star', perm: 'seeLeaderboard', notPerm: 'viewTeam' },
   { to: '/admin',    label: 'Admin',       icon: 'settings',  perm: 'manageCategories', badge: 'pending' },
 ]
 

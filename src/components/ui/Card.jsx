@@ -1,7 +1,7 @@
 // interactive: lifts slightly on hover (for cards that open something).
 export default function Card({ children, className = '', interactive = false, ...props }) {
   return (
-    <div className={`bg-surface rounded-lg border border-gray-200 ${interactive ? 'card-hover cursor-pointer' : ''} ${className}`} {...props}>
+    <div className={`card ${interactive ? 'card-hover cursor-pointer' : ''} ${className}`} {...props}>
       {children}
     </div>
   )
@@ -11,7 +11,7 @@ export default function Card({ children, className = '', interactive = false, ..
 export function Section({ title, hint, tip, actions, children, className = '', bodyClassName = 'p-5' }) {
   return (
     <Card className={className}>
-      <div className="flex items-start justify-between gap-3 px-5 pt-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5">
         <div className="min-w-0">
           <h2 className="section-title flex items-center gap-1.5">{title}{tip}</h2>
           {hint && <p className="section-hint">{hint}</p>}

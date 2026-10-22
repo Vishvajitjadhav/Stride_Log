@@ -12,7 +12,7 @@ function ProviderButton({ onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-md py-2.5 text-sm font-medium text-gray-700
+      className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-xl py-2.5 bg-surface text-sm font-medium text-gray-700
         hover:bg-gray-50 hover:border-gray-300 active:scale-[.99] transition-all"
     >
       {children}
@@ -97,15 +97,15 @@ export default function Login() {
     : isSignup ? 'An admin will approve your access' : 'Sign in to your workspace'
 
   return (
-    <div className="min-h-dvh bg-[#132238] auth-bg flex items-center justify-center px-4">
+    <div className="min-h-dvh auth-bg flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-8">
-          <BrandMark inverted />
+          <BrandMark />
         </div>
 
-        <div className="bg-surface rounded-lg shadow-xl p-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-1">{heading}</h2>
-          <p className="text-sm text-gray-400 mb-6">{sub}</p>
+        <div className="card !rounded-3xl !shadow-[0_24px_60px_-24px_rgb(79_76_227/.35)] rise p-6 sm:p-8">
+          <h2 className="text-2xl font-semibold tracking-tight text-gray-900 mb-1">{heading}</h2>
+          <p className="text-sm text-gray-500 mb-6">{sub}</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignup && (
@@ -132,7 +132,7 @@ export default function Login() {
             {notice && <p className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">{notice}</p>}
 
             <button type="submit" disabled={loading}
-              className="w-full bg-brand text-white font-medium py-2.5 rounded-md hover:bg-brand-hover transition-colors disabled:opacity-50">
+              className="w-full bg-gradient-to-b from-[#6c6af0] to-brand text-white font-semibold py-3 rounded-xl shadow-[0_8px_20px_-8px_rgb(79_76_227/.6)] hover:from-primary-600 hover:to-primary-700 active:scale-[.99] transition-all disabled:opacity-50">
               {loading ? 'Please wait' : isForgot ? 'Send reset link' : isSignup ? 'Create account' : 'Sign in'}
             </button>
           </form>
@@ -159,15 +159,15 @@ export default function Login() {
           )}
         </div>
 
-        <p className="text-center text-[#c8d4e6] text-xs mt-6">
+        <p className="text-center text-gray-500 text-sm mt-6">
           {isForgot ? (
-            <button onClick={() => go('signin')} className="text-white font-semibold underline hover:no-underline">
+            <button onClick={() => go('signin')} className="text-primary-600 font-semibold hover:underline">
               Back to sign in
             </button>
           ) : (
             <>
               {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
-              <button onClick={() => go(isSignup ? 'signin' : 'signup')} className="text-white font-semibold underline hover:no-underline">
+              <button onClick={() => go(isSignup ? 'signin' : 'signup')} className="text-primary-600 font-semibold hover:underline">
                 {isSignup ? 'Sign in' : 'Sign up'}
               </button>
             </>

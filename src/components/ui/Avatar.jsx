@@ -18,5 +18,5 @@ export default function Avatar({ person, size = 'sm', className = '' }) {
   if (person?.avatar_url && !broken) {
     return <img src={person.avatar_url} alt="" loading="lazy" onError={() => setBroken(true)} className={`${base} object-cover bg-gray-100`} />
   }
-  return <div className={`${base} bg-primary-100 text-primary-800 font-semibold flex items-center justify-center`}>{initials}</div>
+  return <div className={`${base} bg-gradient-to-br from-primary-100 to-mint-100 text-primary-700 font-semibold flex items-center justify-center`}>{initials}</div>
 }

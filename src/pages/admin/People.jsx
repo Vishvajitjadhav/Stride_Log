@@ -12,6 +12,9 @@ import Avatar from '../../components/ui/Avatar'
 import Button from '../../components/ui/Button'
 import Sheet from '../../components/ui/Sheet'
 import Icon from '../../components/ui/Icon'
+import BulkImport from '../../components/BulkImport'
+import { PEOPLE_TEMPLATE, parsePeopleRows } from '../../utils/bulkImport'
+import { downloadRows } from '../../lib/sheets'
 
 const INHERENT_ASSIGN = ['manager', 'admin']
 
@@ -244,6 +247,77 @@ function InviteSheet({ projects, roles, onClose }) {
   )
 }
 
+// Many people at once from Excel or CSV. Accounts are created a few at a time
+// through the same invite function as Add person.
+function ImportPeople({ people, pending, projects, roles, onClose }) {
+  const invite = useInviteUser()
+  const [method, setMethod] = useState('password')
+  const existingEmails = useMemo(
+    () => new Set([...people, ...pending].map(p => (p.email ?? '').toLowerCase()).filter(Boolean)),
+    [people, pending]
+  )
+
+  async function run(rows, onProgress) {
+    const done = []
+    const failed = []
+    let next = 0
+    let finished = 0
+    async function worker() {
+      while (next < rows.length) {
+        const r = rows[next++]
+        try {
+          const res = await invite.mutateAsync({ email: r.email, name: r.name, role: r.role, project_id: r.project_id, method })
+          done.push({ ...r, temp_password: res?.temp_password ?? null })
+        } catch (e) {
+          failed.push({ label: r.name, message: e.message })
+        }
+        onProgress(++finished)
+      }
+    }
+    await Promise.all([worker(), worker(), worker()])
+    done.sort((a, b) => a.row - b.row)
+    return { done, failed }
+  }
+
+  const signInSheet = done => downloadRows('stridelog_sign_in_details',
+    ['Name', 'Email', 'Role', 'Temporary password', 'Sign in at'],
+    done.map(d => [d.name, d.email, ROLE_LABELS[d.role], d.temp_password ?? 'Invite email sent', `${window.location.origin}/login`]))
+
+  return (
+    <BulkImport title="Import people" noun={{ one: 'person', many: 'people' }} onClose={onClose}
+      template={PEOPLE_TEMPLATE}
+      lists={[{ title: 'Roles you can give', values: roles.map(r => ROLE_LABELS[r]) }, { title: 'Projects', values: projects.map(p => p.name) }]}
+      parse={rows => parsePeopleRows(rows, { roles, projects, existingEmails })}
+      columns={[
+        { key: 'name', label: 'Name', render: r => <span className="font-medium text-gray-900">{r.name}</span> },
+        { key: 'email', label: 'Email' },
+        { key: 'role', label: 'Role', render: r => ROLE_LABELS[r.role] },
+        { key: 'projectName', label: 'Project', render: r => r.projectName || <span className="text-gray-400">None</span> },
+      ]}
+      options={
+        <div className="space-y-2">
+          <span className="label">How they get access</span>
+          <div className="segmented w-full grid grid-cols-2" role="group" aria-label="How they get access">
+            <button type="button" aria-pressed={method === 'password'} onClick={() => setMethod('password')}>Temporary passwords</button>
+            <button type="button" aria-pressed={method === 'email'} onClick={() => setMethod('email')}>Email invites</button>
+          </div>
+          <p className="text-xs text-gray-500">
+            {method === 'email' ? 'Each person gets an email with a link to set their password.'
+              : 'You get one sheet with every temporary password to hand over. They choose their own at first sign in.'}
+          </p>
+        </div>
+      }
+      run={run}
+      result={done => done.some(d => d.temp_password) ? (
+        <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-4 space-y-3">
+          <p className="text-sm text-gray-700">Download the sign in details now. Temporary passwords are shown only once.</p>
+          <Button onClick={() => signInSheet(done)}><Icon name="download" size={16} /> Download sign in sheet</Button>
+        </div>
+      ) : <p className="text-sm text-gray-600">Invitation emails are on their way.</p>}
+    />
+  )
+}
+
 export default function People() {
   const { profile } = useAuth()
   const { data: pending = [] } = usePendingApprovals()
@@ -255,6 +329,7 @@ export default function People() {
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState(null)
   const [inviting, setInviting] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   const filtered = useMemo(
     () => people.filter(p => `${p.name} ${p.email ?? ''}`.toLowerCase().includes(search.toLowerCase())),
@@ -271,6 +346,9 @@ export default function People() {
           <button onClick={() => setTab('people')} className={`px-4 py-1.5 rounded-lg text-sm font-medium ${tab === 'people' ? 'bg-primary-600 text-white' : 'text-gray-600'}`}>People</button>
         </div>
         <div className="flex-1" />
+        <Button variant="outline" onClick={() => setImporting(true)} aria-label="Import people from Excel or CSV" title="Import many people from Excel or CSV">
+          <Icon name="upload" size={16} /><span className="hidden sm:inline">Import</span>
+        </Button>
         <Button onClick={() => setInviting(true)} aria-label="Add a person"><Icon name="plus" size={16} /><span className="hidden sm:inline">Add person</span></Button>
       </div>
 
@@ -308,6 +386,7 @@ export default function People() {
 
       {editing && <PersonEditor person={editing} projects={projects} people={people.filter(p => p.is_active)} onClose={() => setEditing(null)} />}
       {inviting && <InviteSheet projects={projects} roles={roles} onClose={() => setInviting(false)} />}
+      {importing && <ImportPeople people={people} pending={pending} projects={projects} roles={roles} onClose={() => setImporting(false)} />}
     </div>
   )
 }

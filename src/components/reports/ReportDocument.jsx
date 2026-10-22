@@ -10,9 +10,9 @@ Font.registerHyphenationCallback(word =>
   word.length <= 18 ? [word] : word.match(/.{1,12}/g))
 
 // Built-in Helvetica covers WinAnsi only; stick to plain characters.
-const NAVY = '#1d3254'
-const NAVY_2 = '#2f4e7e'
-const GOLD = '#c9a43f'
+const NAVY = '#2e2d7e'
+const NAVY_2 = '#4f4ce3'
+const GOLD = '#14b88c'
 const INK = '#0f172a'
 const BODY = '#334155'
 const MUTED = '#64748b'

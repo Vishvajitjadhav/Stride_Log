@@ -4,26 +4,28 @@ import { usePendingApprovals } from '../../hooks/usePeople'
 import { visibleNav } from './nav'
 import Icon from '../ui/Icon'
 
-// Phone tab bar: the same few destinations as the sidebar, plus your account.
+// Phone and tablet tab bar: a floating glass bar with the same destinations as
+// the sidebar, plus your account. Tablets also get the sidebar only items.
 export default function BottomNav() {
   const { can } = useAuth()
   const { data: pending = [] } = usePendingApprovals({ enabled: can('managePeople') })
-  const tabs = [...visibleNav(can).filter(n => n.phone !== false), { to: '/profile', label: 'Account', icon: 'user' }]
+  const tabs = [...visibleNav(can), { to: '/profile', label: 'Account', icon: 'user' }]
 
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">
-      <div className="flex">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pointer-events-none">
+      <div className="pointer-events-auto mx-auto max-w-xl flex glass rounded-2xl border border-gray-200/70 shadow-[0_10px_30px_-10px_rgb(20_26_41/.25)] px-1">
         {tabs.map(t => (
           <NavLink key={t.to} to={t.to}
-            className={({ isActive }) => `flex-1 flex flex-col items-center justify-center gap-1 pt-2 pb-1.5 text-[11px] font-medium transition-colors ${
-              isActive ? 'text-primary-800' : 'text-gray-400'}`}>
+            className={({ isActive }) => `${t.phone === false ? 'hidden md:flex' : 'flex'} flex-1 min-w-0 flex-col items-center justify-center gap-0.5 pt-2 pb-1.5 text-[11px] font-medium transition-colors ${
+              isActive ? 'text-primary-700' : 'text-gray-500'}`}>
             {({ isActive }) => (
               <>
-                <span className={`relative flex items-center justify-center h-7 w-12 rounded-full transition-colors duration-200 ${isActive ? 'bg-primary-50' : ''}`}>
-                  <Icon name={t.icon} size={21} strokeWidth={isActive ? 2.1 : 1.7} />
-                  {t.badge === 'pending' && pending.length > 0 && <span className="absolute -top-0.5 -right-1 w-2 h-2 bg-accent-500 rounded-full" />}
+                <span className={`relative flex items-center justify-center h-8 w-12 rounded-xl transition-all duration-300 ${
+                  isActive ? 'bg-gradient-to-br from-[#6c6af0] to-brand text-white shadow-[0_6px_14px_-6px_rgb(79_76_227/.7)] scale-105' : ''}`}>
+                  <Icon name={t.icon} size={20} strokeWidth={isActive ? 2.1 : 1.8} />
+                  {t.badge === 'pending' && pending.length > 0 && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-accent-500 rounded-full ring-2 ring-surface" />}
                 </span>
-                {t.label}
+                <span className="truncate max-w-full px-0.5">{t.short ?? t.label}</span>
               </>
             )}
           </NavLink>

@@ -20,11 +20,11 @@ export default function MemberDetail() {
   const { data: projects = [] } = useProjects()
   const [assigning, setAssigning] = useState(false)
 
-  if (!person) return <Card className="h-40 skeleton max-w-6xl mx-auto" />
+  if (!person) return <Card className="h-40 skeleton max-w-6xl 2xl:max-w-7xl 3xl:max-w-[88rem] mx-auto" />
   const projectNames = projectsOf(projects, person.id).map(p => p.name).join(', ')
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5">
+    <div className="max-w-6xl 2xl:max-w-7xl 3xl:max-w-[88rem] mx-auto space-y-5">
       <div className="flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="h-9 w-9 -ml-2 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-md" aria-label="Back">
           <Icon name="left" />

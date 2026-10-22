@@ -7,7 +7,7 @@ import ReportButton from '../components/reports/ReportButton'
 export default function Progress() {
   const { profile } = useAuth()
   return (
-    <div className="max-w-6xl mx-auto space-y-5">
+    <div className="max-w-6xl 2xl:max-w-7xl 3xl:max-w-[88rem] mx-auto space-y-5">
       <div>
         <h2 className="page-title">{getGreeting()}, {profile.name.split(' ')[0]}</h2>
         <p className="page-subtitle">Your work this week, day by day.</p>
