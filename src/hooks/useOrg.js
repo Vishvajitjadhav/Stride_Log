@@ -67,6 +67,14 @@ export function useHolidayMutations() {
       },
       onSuccess,
     }),
+    // Bulk import: one request; an existing date gets the new name.
+    addMany: useMutation({
+      mutationFn: async (rows) => {
+        const { error } = await supabase.from('holidays').upsert(rows.map(({ date, name }) => ({ date, name })))
+        if (error) throw error
+      },
+      onSuccess,
+    }),
     remove: useMutation({
       mutationFn: async (date) => {
         const { error } = await supabase.from('holidays').delete().eq('date', date)

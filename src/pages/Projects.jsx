@@ -12,7 +12,7 @@ import Sheet from '../components/ui/Sheet'
 import Icon from '../components/ui/Icon'
 import { toast } from '../lib/toast'
 
-const COLORS = ['#2f4e7e', '#3b6e8f', '#2c7a7b', '#3f7d5c', '#6b8e3d', '#b8902f', '#a84a3f', '#9d4f6e', '#5b5f97', '#64748b']
+const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#f59e0b', '#14b88c', '#06b6d4', '#3b82f6', '#64748b']
 
 function ProjectEditor({ project, people, onClose }) {
   const { save } = useProjectMutations()
@@ -121,7 +121,7 @@ export default function Projects() {
   const visible = projects.filter(p => p.is_active !== archived)
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5">
+    <div className="max-w-6xl 2xl:max-w-7xl 3xl:max-w-[88rem] mx-auto space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="page-title">Projects</h2>

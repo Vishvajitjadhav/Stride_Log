@@ -13,7 +13,7 @@ function read() {
 function apply(pref) {
   const dark = pref === 'dark' || (pref === 'system' && media?.matches)
   document.documentElement.classList.toggle('dark', dark)
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0c111b' : '#1d3254')
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b0e1a' : '#f6f7fc')
 }
 
 media?.addEventListener('change', () => {

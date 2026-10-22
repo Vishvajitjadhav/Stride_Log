@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useCategories, useCategoryMutations } from '../../hooks/useCategories'
 import { useHolidays, useHolidayMutations, useOrgSettings, useUpdateOrg, useUploadLogo } from '../../hooks/useOrg'
-import { formatShort, todayISO } from '../../utils/dates'
+import { formatShort, formatDisplay, todayISO } from '../../utils/dates'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
+import BulkImport from '../../components/BulkImport'
+import { HOLIDAY_TEMPLATE, parseHolidayRows } from '../../utils/bulkImport'
 
-const PRESET_COLORS = ['#2f4e7e', '#4a6ca3', '#3b6e8f', '#2c7a7b', '#4f8a83', '#3f7d5c', '#6b8e3d', '#b8902f', '#8a6a1f', '#a84a3f', '#9d4f6e', '#5b5f97', '#64748b']
+const PRESET_COLORS = ['#6366f1', '#4f46e5', '#8b5cf6', '#a855f7', '#ec4899', '#f43f5e', '#f97316', '#f59e0b', '#84cc16', '#14b88c', '#06b6d4', '#3b82f6', '#64748b']
 
 function ColorPicker({ value, onChange }) {
   return (
@@ -72,8 +74,10 @@ export function Categories() {
 
 export function Holidays() {
   const { data } = useHolidays()
-  const { add, remove } = useHolidayMutations()
+  const { add, addMany, remove } = useHolidayMutations()
   const [form, setForm] = useState({ date: todayISO(), name: '' })
+  const [importing, setImporting] = useState(false)
+  const known = data?.byDate ?? {}
   const year = new Date().getFullYear()
   const list = (data?.list ?? []).filter(h => h.date >= `${year - 1}-01-01`)
 
@@ -87,10 +91,13 @@ export function Holidays() {
   return (
     <div className="space-y-4">
       <Card className="p-4">
-        <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-[10rem_1fr_auto] gap-2">
+        <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-[10rem_1fr_auto_auto] gap-2">
           <input type="date" className="field" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required />
-          <input className="field" placeholder="e.g. Diwali" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
+          <input className="field" placeholder="For example Diwali" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
           <Button type="submit" loading={add.isPending}>Add holiday</Button>
+          <Button type="button" variant="outline" onClick={() => setImporting(true)} title="Import many holidays from Excel or CSV">
+            <Icon name="upload" size={16} /> Import
+          </Button>
         </form>
       </Card>
       <Card className="divide-y divide-gray-50">
@@ -104,6 +111,24 @@ export function Holidays() {
         ))}
       </Card>
       <p className="text-xs text-gray-400">Holidays aren't counted as missed days. Anyone who logs work on a holiday is credited with an extra day.</p>
+      {importing && (
+        <BulkImport title="Import holidays" noun={{ one: 'holiday', many: 'holidays' }} onClose={() => setImporting(false)}
+          template={HOLIDAY_TEMPLATE} parse={parseHolidayRows}
+          columns={[
+            { key: 'date', label: 'Date', render: r => <span className="font-medium text-gray-900">{formatDisplay(r.date)}</span> },
+            { key: 'name', label: 'Holiday', render: r => known[r.date] && known[r.date] !== r.name
+              ? <>{r.name} <span className="text-xs text-amber-700">replaces {known[r.date]}</span></> : r.name },
+          ]}
+          run={async (rows, onProgress) => {
+            try {
+              await addMany.mutateAsync(rows)
+              onProgress(rows.length)
+              return { done: rows, failed: [] }
+            } catch (e) {
+              return { done: [], failed: [{ label: 'All rows', message: e.message }] }
+            }
+          }} />
+      )}
     </div>
   )
 }

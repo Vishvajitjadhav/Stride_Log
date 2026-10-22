@@ -287,7 +287,7 @@ export default function Team() {
   const isCurrent = view === 'week' ? weekStart === weekStartISO(today) : date === today
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5">
+    <div className="max-w-6xl 2xl:max-w-7xl 3xl:max-w-[88rem] mx-auto space-y-5">
       {/* Title row */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
