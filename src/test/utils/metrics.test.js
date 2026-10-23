@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  summarize, compare, perPerson, perProject, trend, bucketSize, categoryMix, expectedLogDays,
+  summarize, compare, perPerson, perProject, trend, bucketSize, categoryMix, expectedLogDays, logGrid,
 } from '../../utils/metrics'
 import { presetRange, previousRange, workingDays, isWorkingDay } from '../../utils/dates'
 
@@ -119,5 +119,11 @@ describe('breakdowns', () => {
   })
   it('expectedLogDays never counts future days', () => {
     expect(expectedLogDays([ana], [], { from: '2026-10-05', to: '2026-10-31' }, new Set(), '2026-10-05')).toBe(1)
+  })
+  it('logGrid marks each weekday per person', () => {
+    const { days, rows } = logGrid({ logs, people, range, holidays, today })
+    expect(days).toEqual(['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09'])
+    expect(rows.find(r => r.id === 'a').cells).toEqual(['logged', 'holiday', 'logged', 'missed', 'future'])
+    expect(rows.find(r => r.id === 'r').cells).toEqual(['before', 'holiday', 'missed', 'logged', 'future'])
   })
 })

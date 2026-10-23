@@ -245,16 +245,19 @@
 .scrollbar-none::-webkit-scrollbar { display: none; }
 
 /* ── Tables ─────────────────────────────────────────────────────────────── */
-.table {
-  @apply w-full text-sm;
+/* In the components layer so utilities on a cell (text-right, align-middle) win. */
+@layer components {
+  .table {
+    @apply w-full text-sm;
+  }
+  .table th {
+    @apply text-left text-xs font-medium text-gray-500 px-4 py-2.5 bg-gray-50/80 border-b border-gray-200 whitespace-nowrap;
+  }
+  .table td {
+    @apply px-4 py-3 border-b border-gray-100 text-gray-700 align-top;
+  }
+  .table tr:last-child td { @apply border-b-0; }
 }
-.table th {
-  @apply text-left text-xs font-medium text-gray-500 px-4 py-2.5 bg-gray-50/80 border-b border-gray-200 whitespace-nowrap;
-}
-.table td {
-  @apply px-4 py-3 border-b border-gray-100 text-gray-700 align-top;
-}
-.table tr:last-child td { @apply border-b-0; }
 
 /* Sign in screens: a bright, airy gradient with soft colour blobs. */
 .auth-bg {
