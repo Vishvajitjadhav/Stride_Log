@@ -5,7 +5,7 @@ import { useHolidays } from './useOrg'
 import { usePeople } from './usePeople'
 import { useProjects } from './useProjects'
 import { previousRange, weekStartISO, addDaysISO, todayISO, compareLabel } from '../utils/dates'
-import { summarize, compare, perPerson, perProject, trend, bucketSize, categoryMix, inRange } from '../utils/metrics'
+import { summarize, compare, perPerson, perProject, trend, bucketSize, categoryMix, inRange, logGrid } from '../utils/metrics'
 import { isTracked } from '../lib/permissions'
 
 const TASK_COLS = 'id, user_id, role, date, title, status, category, category_color, assigned_by, due_date, completed_on, project_id, project'
@@ -121,6 +121,8 @@ export function useDashboard(filters, { self } = {}) {
       trend: trend({ ...ctx, range }),
       categories: categoryMix(inRange(tasks, range)),
       persons: perPerson({ ...ctx, range }),
+      logGrid: logGrid({ ...ctx, range }),
+      holidayNames: holidaysQ.data?.byDate ?? {},
       projects: projectRows,
     }
   }, [factsQ.data, holidaysQ.data, peopleQ.data, projectsQ.data, filters.preset, range.from, range.to, person, projectId, self, today]) // eslint-disable-line react-hooks/exhaustive-deps

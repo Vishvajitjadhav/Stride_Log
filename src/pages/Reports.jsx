@@ -10,6 +10,7 @@ import { ROLE_LABELS } from '../lib/permissions'
 import ReportFilters from '../components/ReportFilters'
 import KpiCard from '../components/charts/KpiCard'
 import { DoneColumns, HBars } from '../components/charts/Charts'
+import LogHeatmap from '../components/charts/LogHeatmap'
 import ReportButton from '../components/reports/ReportButton'
 import Card, { Section } from '../components/ui/Card'
 import Avatar from '../components/ui/Avatar'
@@ -44,10 +45,10 @@ function EmployeeTable({ rows, onOpen }) {
               {COLS.map(c => (
                 <th key={c.key} className="text-right">
                   <span className="inline-flex items-center gap-1.5">
+                    <Tooltip text={c.tip} align="right" />
                     <button onClick={() => toggle(c.key)} className="hover:text-gray-900">
                       {c.label}{sort.key === c.key ? (sort.dir < 0 ? ' ↓' : ' ↑') : ''}
                     </button>
-                    <Tooltip text={c.tip} align="right" />
                   </span>
                 </th>
               ))}
@@ -56,7 +57,7 @@ function EmployeeTable({ rows, onOpen }) {
           <tbody>
             {sorted.map(r => (
               <tr key={r.id} onClick={() => onOpen(r.id)} className="cursor-pointer hover:bg-primary-50/40">
-                <td>
+                <td className="align-middle">
                   <div className="flex items-center gap-3">
                     <Avatar person={r} size="sm" />
                     <div>
@@ -65,7 +66,7 @@ function EmployeeTable({ rows, onOpen }) {
                     </div>
                   </div>
                 </td>
-                {COLS.map(c => <td key={c.key} className="text-right tabular-nums whitespace-nowrap">{c.render(r)}</td>)}
+                {COLS.map(c => <td key={c.key} className="text-right align-middle tabular-nums whitespace-nowrap">{c.render(r)}</td>)}
               </tr>
             ))}
           </tbody>
@@ -236,6 +237,12 @@ export default function Reports() {
               <PeriodTable rows={periodRows} size={size} />
             </Section>
           )}
+
+          <Section title="Daily logs"
+            tip={<Tooltip text={GLOSSARY.consistency.tip} />}
+            hint="Who submitted their daily log on each working day. Hover a square for the date.">
+            <LogHeatmap grid={data.logGrid} holidayNames={data.holidayNames} />
+          </Section>
 
           {!single && (
             <Section title={data.project ? 'Project members' : 'Employees'} hint="Select an employee to see their report." bodyClassName="pt-3">
