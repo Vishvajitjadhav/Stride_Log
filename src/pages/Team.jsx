@@ -29,6 +29,18 @@ const STATUS_DOT = {
   pending: 'bg-gray-300',
 }
 
+// Tasks grouped by project, in order of first appearance, with "No project" last.
+// A person whose tasks have no project gets a single unnamed group.
+function byProject(tasks) {
+  const groups = new Map()
+  tasks.forEach(t => {
+    const key = t.project_id ?? ''
+    if (!groups.has(key)) groups.set(key, { id: key, name: t.project, tasks: [] })
+    groups.get(key).tasks.push(t)
+  })
+  return [...groups.values()].sort((a, b) => Number(!a.id) - Number(!b.id))
+}
+
 function dayKind(date, holidays) {
   if (holidays?.byDate?.[date]) return 'holiday'
   return isWorkingDay(date, holidays?.set) ? 'work' : 'weekend'
@@ -51,7 +63,7 @@ function Summary({ items }) {
 }
 
 // ── Day view: who is doing what ─────────────────────────────────────────────
-function PersonDay({ person, tasks, log, kind, projectNames, onAssign, onOpen, tasksOnly, isMe }) {
+function PersonDay({ person, tasks, log, kind, projectNames, projectColor, onAssign, onOpen, tasksOnly, isMe }) {
   const done = tasks.filter(t => t.status === 'done').length
   const status = tasksOnly ? null : log?.submitted
     ? (kind === 'work' ? <Badge variant="submitted">Submitted</Badge> : <Badge variant="extra">Extra day</Badge>)
@@ -77,19 +89,31 @@ function PersonDay({ person, tasks, log, kind, projectNames, onAssign, onOpen, t
         {tasks.length === 0 ? (
           <p className="text-sm text-gray-400">No tasks for this day.</p>
         ) : (
-          <ul className="space-y-2">
-            {tasks.map(t => (
-              <li key={t.id} className="flex items-start gap-2.5 text-sm">
-                <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[t.status]}`} title={STATUS_LABELS[t.status]} />
-                <span className={`flex-1 min-w-0 ${t.status === 'done' ? 'text-gray-500' : 'text-gray-800'}`}>
-                  {t.title}
-                  {t.assigned_by && <span className="text-xs text-primary-600"> (assigned)</span>}
-                </span>
-                <span className="text-xs text-gray-500 shrink-0 hidden sm:inline">{t.category ?? 'Uncategorized'}</span>
-                <span className="text-xs font-medium text-gray-600 shrink-0 w-20 text-right">{STATUS_LABELS[t.status]}</span>
-              </li>
+          <div className="space-y-3">
+            {byProject(tasks).map((g, i, all) => (
+              <div key={g.id}>
+                {(all.length > 1 || g.id) && (
+                  <p className="flex items-center gap-1.5 mb-1.5 text-xs font-semibold text-gray-500">
+                    <span className="w-2 h-2 rounded-[3px]" style={{ background: g.id ? projectColor[g.id] ?? 'var(--chart-done)' : 'var(--color-gray-300)' }} />
+                    {g.name ?? 'No project'}
+                  </p>
+                )}
+                <ul className="space-y-2">
+                  {g.tasks.map(t => (
+                    <li key={t.id} className="flex items-start gap-2.5 text-sm">
+                      <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[t.status]}`} title={STATUS_LABELS[t.status]} />
+                      <span className={`flex-1 min-w-0 ${t.status === 'done' ? 'text-gray-500' : 'text-gray-800'}`}>
+                        {t.title}
+                        {t.assigned_by && <span className="text-xs text-primary-600"> (assigned)</span>}
+                      </span>
+                      <span className="text-xs text-gray-500 shrink-0 hidden sm:inline">{t.category ?? 'Uncategorized'}</span>
+                      <span className="text-xs font-medium text-gray-600 shrink-0 w-20 text-right">{STATUS_LABELS[t.status]}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
         {!tasksOnly && (log?.summary || log?.blockers) && (
           <div className="mt-3 pt-3 border-t border-gray-100 space-y-1 text-sm">
@@ -122,6 +146,7 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
     : Number(Boolean(a.log?.submitted)) - Number(Boolean(b.log?.submitted)) || a.person.name.localeCompare(b.person.name)
   ), [people, data, tasksOnly, me])
 
+  const projectColor = useMemo(() => Object.fromEntries(projects.map(p => [p.id, p.color])), [projects])
   const submitted = rows.filter(r => r.log?.submitted).length
   const all = rows.flatMap(r => r.tasks)
   const done = all.filter(t => t.status === 'done').length
@@ -146,7 +171,7 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         {rows.map(r => (
           <PersonDay key={r.person.id} {...r} kind={kind} tasksOnly={tasksOnly} isMe={r.person.id === me}
-            projectNames={projectsOf(projects, r.person.id).map(pr => pr.name).join(', ')}
+            projectNames={projectsOf(projects, r.person.id).map(pr => pr.name).join(', ')} projectColor={projectColor}
             onOpen={() => onOpen(r.person, date)}
             onAssign={canAssign ? () => onAssign(r.person.id) : undefined} />
         ))}
