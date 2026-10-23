@@ -83,6 +83,19 @@ export default function MyDay() {
 
   const [editing, setEditing] = useState(null)   // task | 'new' | null
   const [quick, setQuick] = useState('')
+  const quickBox = useRef(null)
+  // Grow the task box with its text (up to max-h-40, then it scrolls).
+  useEffect(() => {
+    const grow = () => {
+      const el = quickBox.current
+      if (!el) return
+      el.style.height = 'auto'
+      el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`
+    }
+    grow()
+    window.addEventListener('resize', grow)
+    return () => window.removeEventListener('resize', grow)
+  }, [quick])
   const [quickCat, setQuickCat] = useState('')
   // Remembered pick; until there is one, default to the person's only project.
   const [pickedProject, setPickedProject] = useState(() => { try { return localStorage.getItem('stridelog:project') } catch { return null } })
@@ -203,20 +216,24 @@ export default function MyDay() {
 
       {/* Tasks */}
       <Section title="Tasks" hint="Tap the circle to mark a task done. Tap a task to edit it." bodyClassName="px-5 pb-4 pt-3">
-        <form onSubmit={quickAdd} className="flex gap-2">
-          <input value={quick} onChange={e => setQuick(e.target.value)} placeholder="Add a task" className="field flex-1" aria-label="New task" enterKeyHint="done" />
-          <Select value={quickCat} onChange={e => setQuickCat(e.target.value)} className="field !w-[6.5rem] sm:!w-40" aria-label="Category">
-            <option value="">Category</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
-          {myProjects.length > 0 && (
-            <Select value={quickProject} aria-label="Project" className="field !w-[6.5rem] sm:!w-40"
-              onChange={e => { setPickedProject(e.target.value); try { localStorage.setItem('stridelog:project', e.target.value) } catch { /* storage unavailable */ } }}>
-              <option value="">No project</option>
-              {myProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        <form onSubmit={quickAdd} className="flex flex-col sm:flex-row sm:items-start gap-2">
+          <textarea ref={quickBox} rows={1} value={quick} onChange={e => setQuick(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) quickAdd(e) }}
+            placeholder="Add a task" className="field sm:flex-1 resize-none max-h-40" aria-label="New task" enterKeyHint="done" />
+          <div className="flex gap-2">
+            <Select value={quickCat} onChange={e => setQuickCat(e.target.value)} className="!w-auto flex-1 min-w-0 sm:flex-none sm:!w-40" aria-label="Category">
+              <option value="">Category</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
-          )}
-          <Button type="submit" disabled={!quick.trim()} aria-label="Add task"><Icon name="plus" size={16} /><span className="hidden sm:inline">Add</span></Button>
+            {myProjects.length > 0 && (
+              <Select value={quickProject} aria-label="Project" className="!w-auto flex-1 min-w-0 sm:flex-none sm:!w-40"
+                onChange={e => { setPickedProject(e.target.value); try { localStorage.setItem('stridelog:project', e.target.value) } catch { /* storage unavailable */ } }}>
+                <option value="">No project</option>
+                {myProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </Select>
+            )}
+            <Button type="submit" disabled={!quick.trim()} aria-label="Add task" className="shrink-0"><Icon name="plus" size={16} /><span className="hidden sm:inline">Add</span></Button>
+          </div>
         </form>
         <button onClick={() => setEditing('new')} className="text-xs font-medium text-primary-700 hover:text-primary-900 mt-2">
           Add with due date or notes
