@@ -84,7 +84,10 @@ export default function MyDay() {
   const [editing, setEditing] = useState(null)   // task | 'new' | null
   const [quick, setQuick] = useState('')
   const [quickCat, setQuickCat] = useState('')
-  const [quickProject, setQuickProject] = useState(() => { try { return localStorage.getItem('stridelog:project') ?? '' } catch { return '' } })
+  // Remembered pick; until there is one, default to the person's only project.
+  const [pickedProject, setPickedProject] = useState(() => { try { return localStorage.getItem('stridelog:project') } catch { return null } })
+  const quickProject = pickedProject === '' || myProjects.some(p => p.id === pickedProject) ? pickedProject
+    : myProjects.length === 1 ? myProjects[0].id : ''
   const [notes, setNotes] = useState({ what_i_did: '', blockers: '' })
   const [showDone, setShowDone] = useState(true)
   const loadedFor = useRef(null)
@@ -124,9 +127,7 @@ export default function MyDay() {
     const title = quick.trim()
     if (!title) return
     setQuick('')
-    // One project: always use it. Several: use the one picked (remembered).
-    const project_id = myProjects.length === 1 ? myProjects[0].id
-      : myProjects.some(p => p.id === quickProject) ? quickProject : null
+    const project_id = myProjects.some(p => p.id === quickProject) ? quickProject : null
     await add.mutateAsync({ title, date, category_id: quickCat || null, project_id })
   }
 
@@ -208,10 +209,10 @@ export default function MyDay() {
             <option value="">Category</option>
             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
-          {myProjects.length > 1 && (
+          {myProjects.length > 0 && (
             <Select value={quickProject} aria-label="Project" className="field !w-[6.5rem] sm:!w-40"
-              onChange={e => { setQuickProject(e.target.value); try { localStorage.setItem('stridelog:project', e.target.value) } catch { /* storage unavailable */ } }}>
-              <option value="">Project</option>
+              onChange={e => { setPickedProject(e.target.value); try { localStorage.setItem('stridelog:project', e.target.value) } catch { /* storage unavailable */ } }}>
+              <option value="">No project</option>
               {myProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </Select>
           )}
