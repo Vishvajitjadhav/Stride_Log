@@ -42,7 +42,8 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
     date: task?.date ?? defaultDate ?? todayISO(),
     due_date: task?.due_date ?? '',
     description: task?.description ?? '',
-    project_id: task?.project_id ?? '',
+    // undefined until picked: new tasks then default to the person's only project.
+    project_id: task ? (task.project_id ?? '') : undefined,
   }))
   const [details, setDetails] = useState(Boolean(task?.description))
   const [error, setError] = useState('')
@@ -53,6 +54,7 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
   const assigning = isNew && form.user_id !== userId
   // Projects of the person the task is for; the field only shows when they have any.
   const ownProjects = projectsOf(projects, form.user_id)
+  const projectId = form.project_id ?? (ownProjects.length === 1 ? ownProjects[0].id : '')
 
   async function handleSave(e) {
     e?.preventDefault()
@@ -67,7 +69,7 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
       date: form.date,
       due_date: form.due_date || null,
       description: form.description.trim() || null,
-      project_id: form.project_id || (ownProjects.length === 1 ? ownProjects[0].id : null),
+      project_id: projectId || null,
     }
     try {
       if (isNew) await add.mutateAsync(fields)
@@ -119,7 +121,7 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
         {canAssign && (isNew || !isMine) && (
           <div>
             <label className="label" htmlFor="t-owner">Assign to</label>
-            <Select id="t-owner" className="field" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value, project_id: '' }))} disabled={!isNew}>
+            <Select id="t-owner" className="field" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value, project_id: undefined }))} disabled={!isNew}>
               {picking && <option value="">Choose an employee</option>}
               <option value={userId}>Myself</option>
               {people.filter(p => p.id !== userId).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -150,10 +152,10 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
 
         {ownProjects.length > 0 && (
           <div>
-            <label className="label" htmlFor="t-project">Project</label>
-            <Select id="t-project" className="field" value={form.project_id || (ownProjects.length === 1 ? ownProjects[0].id : '')}
+            <label className="label" htmlFor="t-project">Project <span className="font-normal text-gray-400">(optional)</span></label>
+            <Select id="t-project" className="field" value={projectId}
               onChange={e => set('project_id', e.target.value)}>
-              {ownProjects.length > 1 && <option value="">No project</option>}
+              <option value="">No project</option>
               {ownProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </Select>
           </div>
