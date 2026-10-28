@@ -8,7 +8,7 @@ const QUICK = ['today', 'this_week', 'this_month']
 // The one filter bar for Board, Calendar and Reports:
 // When (Today, This week, This month, or More), where the work came from
 // (StrideLog, Jira, Teams), Employee and Project.
-export default function FilterBar({ filters, setFilter, people = [], projects = [], showPerson = true, showProject = true, showSources = true }) {
+export default function FilterBar({ filters, setFilter, people = [], projects = [], showPeriod = true, showPerson = true, showProject = true, showSources = true }) {
   const { data: org } = useOrgSettings()
   // Jira and Teams only appear once the company has turned them on.
   const sources = SOURCES.filter(s => s.key === 'manual' || (s.key === 'jira' ? org?.jira_sync_enabled : org?.teams_sync_enabled))
@@ -22,6 +22,7 @@ export default function FilterBar({ filters, setFilter, people = [], projects = 
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {showPeriod && <>
       <div className="segmented" role="group" aria-label="Period">
         {QUICK.map(k => (
           <button key={k} type="button" aria-pressed={filters.preset === k} onClick={() => setFilter({ preset: k })}>
@@ -45,6 +46,7 @@ export default function FilterBar({ filters, setFilter, people = [], projects = 
             onChange={e => setFilter({ preset: 'custom', from: filters.from, to: e.target.value })} />
         </div>
       )}
+      </>}
 
       {showPerson && (
         <Select aria-label="Employee" className="field !h-9 !py-0 !w-auto max-w-52" value={filters.person} onChange={e => setFilter({ person: e.target.value })}>

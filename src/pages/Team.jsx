@@ -5,12 +5,15 @@ import { usePeople } from '../hooks/usePeople'
 import { useHolidays } from '../hooks/useOrg'
 import { useProjects, projectsOf } from '../hooks/useProjects'
 import { useDayFacts, useFacts } from '../hooks/useAnalytics'
+import { useFilters, bySource } from '../hooks/useFilters'
 import {
   todayISO, addDaysISO, weekStartISO, daysBetween, isWorkingDay, formatLong, formatRange,
 } from '../utils/dates'
 import { ROLE_LABELS, isTracked } from '../lib/permissions'
 import { STATUS_LABELS, statusStyle } from '../lib/status'
 import TaskEditor from '../components/tasks/TaskEditor'
+import Board from '../components/team/Board'
+import FilterBar from '../components/FilterBar'
 import DayDrawer from '../components/DayDrawer'
 import ReportButton from '../components/reports/ReportButton'
 import Card from '../components/ui/Card'
@@ -174,13 +177,15 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
 }
 
 // ── Week view: employees × days ─────────────────────────────────────────────
-function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
+function WeekView({ weekStart, people, holidays, sources, onPickDay, onOpen }) {
   const today = todayISO()
   const days = daysBetween(weekStart, addDaysISO(weekStart, 6))
   const { data, isLoading } = useFacts({ from: days[0], to: days[6] })
 
   const cell = (pid, d) => {
-    const tasks = (data?.tasks ?? []).filter(t => t.user_id === pid && t.date === d)
+    // Meetings first, then open work, then what is done.
+    const order = t => (t.source === 'teams' ? 0 : t.status === 'done' ? 2 : 1)
+    const tasks = bySource(data?.tasks ?? [], sources).filter(t => t.user_id === pid && t.date === d).sort((a, b) => order(a) - order(b))
     const log = (data?.logs ?? []).find(l => l.user_id === pid && l.date === d)
     const done = tasks.filter(t => t.status === 'done').length
     const kind = dayKind(d, holidays)
@@ -190,7 +195,7 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
     else if (kind !== 'work') state = 'off'
     else if (d < today) state = 'missed'
     else state = 'open'
-    return { done, total: tasks.length, state }
+    return { done, total: tasks.length, state, tasks }
   }
 
   const STYLE = {
@@ -208,7 +213,7 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
   return (
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="table min-w-[720px]">
+        <table className="table min-w-[980px]">
           <thead>
             <tr>
               <th className="sticky left-0 z-10 bg-gray-50 min-w-[11rem]">Employee</th>
@@ -241,11 +246,20 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
                   </td>
                   {cells.map(c => (
                     <td key={c.d} className="!px-1.5 !py-1.5">
-                      <button onClick={() => onOpen(p, c.d)} title={`${LABEL[c.state]}: ${c.done} of ${c.total} tasks done. Click to see the tasks.`}
-                        className={`w-full h-11 rounded-md flex flex-col items-center justify-center text-xs tabular-nums transition-all duration-150 hover:ring-2 hover:ring-primary-300 hover:-translate-y-px hover:shadow-sm ${STYLE[c.state]}`}>
-                        {c.total > 0 ? <span className="font-semibold">{c.done}/{c.total}</span> : <span>{c.state === 'off' || c.state === 'future' ? '' : '0'}</span>}
-                        {c.state === 'missed' && <span className="text-[10px]">missed</span>}
-                        {c.state === 'extra' && <span className="text-[10px]">extra</span>}
+                      <button onClick={() => onOpen(p, c.d)} title={`${LABEL[c.state]}: ${c.done} of ${c.total} tasks done. Click to see the day.`}
+                        className={`w-full min-h-[4.75rem] rounded-md p-1.5 flex flex-col gap-0.5 text-left text-xs transition-all duration-150 hover:ring-2 hover:ring-primary-300 hover:-translate-y-px hover:shadow-sm ${STYLE[c.state]}`}>
+                        <span className="text-[10px] font-semibold tabular-nums">
+                          {c.total > 0 ? `${c.done}/${c.total} done` : c.state === 'missed' ? 'No activity' : c.state === 'extra' ? 'Extra day' : ''}
+                        </span>
+                        {c.tasks.slice(0, 3).map(t => (
+                          <span key={t.id} className="flex items-center gap-1 min-w-0 text-[11px] text-gray-700">
+                            {t.source === 'teams'
+                              ? <Icon name="calendar" size={11} className="shrink-0 text-[#4b53bc]" />
+                              : <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusStyle(t.status).dot}`} />}
+                            <span className={`truncate ${t.status === 'done' && t.source !== 'teams' ? 'line-through text-gray-400' : ''}`}>{t.title}</span>
+                          </span>
+                        ))}
+                        {c.tasks.length > 3 && <span className="text-[10px] text-gray-500">{c.tasks.length - 3} more</span>}
                       </button>
                     </td>
                   ))}
@@ -263,7 +277,8 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
         {[['bg-emerald-50 ring-emerald-200', 'Active'], ['bg-red-50 ring-red-200', 'No activity'], ['bg-accent-50 ring-accent-100', 'Extra day (weekend or holiday)'], ['bg-gray-50 ring-gray-200', 'Day off']].map(([c, l]) => (
           <span key={l} className="inline-flex items-center gap-1.5"><span className={`w-3 h-3 rounded ring-1 ring-inset ${c}`} />{l}</span>
         ))}
-        <span>Numbers show tasks done out of tasks planned.</span>
+        <span className="inline-flex items-center gap-1.5"><Icon name="calendar" size={12} className="text-[#4b53bc]" />Teams meeting</span>
+        <span>Dots show task status. Click a day for every task.</span>
       </div>
     </Card>
   )
@@ -276,7 +291,10 @@ export default function Team() {
   const full = can('viewTeam')
   const today = todayISO()
   const [params, setParams] = useSearchParams()
-  const view = full && params.get('view') === 'week' ? 'week' : 'day'
+  const VIEWS = full ? ['day', 'board', 'week'] : ['day', 'board']
+  const view = VIEWS.includes(params.get('view')) ? params.get('view') : 'day'
+  const { filters, setFilter } = useFilters('today')
+  const [editing, setEditing] = useState(null)
   const date = params.get('date') || today
   const set = patch => {
     const next = new URLSearchParams(params)
@@ -310,10 +328,11 @@ export default function Team() {
       {/* Title row */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="page-title">{view === 'week' ? 'Team week' : isCurrent ? 'Team today' : 'Team on this day'}</h2>
+          <h2 className="page-title">{view === 'board' ? (full ? 'Team board' : 'My board') : view === 'week' ? 'Team calendar' : isCurrent ? 'Team today' : 'Team on this day'}</h2>
           <p className="page-subtitle">
-            {!full ? 'What your teammates are working on. Read only.'
-              : view === 'week' ? 'What everyone planned and finished each day.' : 'What everyone is working on and how far they have got.'}
+            {view === 'board' ? (full ? 'Where every piece of work stands and who has it.' : 'Where your work stands.')
+              : !full ? 'What your teammates are working on. Read only.'
+              : view === 'week' ? 'Meetings and tasks for everyone, day by day.' : 'What everyone is working on and how far they have got.'}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -326,18 +345,18 @@ export default function Team() {
 
       {/* Date + view controls */}
       <div className="flex flex-wrap items-center gap-2">
+        <div className="segmented" role="group" aria-label="View">
+          {VIEWS.map(v => (
+            <button key={v} aria-pressed={view === v} onClick={() => set({ view: v })}>{{ day: 'People', board: 'Board', week: 'Calendar' }[v]}</button>
+          ))}
+        </div>
+        {view !== 'board' && <>
         <div className="flex items-center bg-surface border border-gray-200 rounded-md">
           <button onClick={() => set({ date: addDaysISO(date, -step) })} className="h-9 w-9 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Previous"><Icon name="left" size={18} /></button>
           <span className="px-2 text-sm font-medium text-gray-900 min-w-[11rem] text-center">{label}</span>
           <button onClick={() => set({ date: addDaysISO(date, step) })} className="h-9 w-9 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Next"><Icon name="right" size={18} /></button>
         </div>
         {!isCurrent && <Button variant="outline" size="sm" className="h-9" onClick={() => set({ date: '' })}>{view === 'week' ? 'This week' : 'Today'}</Button>}
-        {full && (
-          <div className="segmented" role="group" aria-label="View">
-            <button aria-pressed={view === 'day'} onClick={() => set({ view: 'day' })}>Day</button>
-            <button aria-pressed={view === 'week'} onClick={() => set({ view: 'week' })}>Week</button>
-          </div>
-        )}
         <div className="flex-1" />
         <input type="search" placeholder="Search employee" value={search} onChange={e => setSearch(e.target.value)} className="field !h-9 !py-0 sm:!w-52" />
         {projects.length > 0 && (
@@ -346,16 +365,26 @@ export default function Team() {
             {projects.map(pr => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
           </Select>
         )}
+        </>}
       </div>
+      {view === 'week' && <FilterBar filters={filters} setFilter={setFilter} showPeriod={false} showPerson={false} showProject={false} />}
 
-      {isLoading ? <Card className="h-48 skeleton" /> : visible.length === 0 ? (
+      {view === 'board' ? (
+        <Board filters={filters} setFilter={setFilter} people={people.filter(isTracked)} projects={projects} holidays={holidays} me={userId} full={full}
+          onOpen={c => {
+            // Jira issues (and Jira work you can't edit) open in Jira.
+            if (c.kind === 'issue' || (c.url && !canAssign && c.userId !== userId)) { if (c.url) window.open(c.url, '_blank', 'noopener'); return }
+            if (canAssign || c.userId === userId) setEditing(c.task)
+            else setDrawer({ person: people.find(p => p.id === c.userId), date: c.task.date })
+          }} />
+      ) : isLoading ? <Card className="h-48 skeleton" /> : visible.length === 0 ? (
         <Card className="p-10 text-center text-sm text-gray-500">No employees match your search.</Card>
       ) : view === 'day' ? (
         <DayView date={date} people={visible} projects={projects} holidays={holidays} canAssign={canAssign} onAssign={setAssignTo}
           tasksOnly={!full} me={userId}
           onOpen={(person, d) => setDrawer({ person, date: d })} />
       ) : (
-        <WeekView weekStart={weekStart} people={visible} holidays={holidays} onPickDay={d => set({ view: 'day', date: d })}
+        <WeekView weekStart={weekStart} people={visible} holidays={holidays} sources={filters.sources} onPickDay={d => set({ view: 'day', date: d })}
           onOpen={(person, d) => setDrawer({ person, date: d })} />
       )}
 
@@ -363,6 +392,8 @@ export default function Team() {
         <DayDrawer person={drawer.person} date={drawer.date} tasksOnly={!full}
           onDate={d => setDrawer(x => ({ ...x, date: d }))} onClose={() => setDrawer(null)} />
       )}
+
+      {editing && <TaskEditor key={editing.id} open task={editing} onClose={() => setEditing(null)} />}
 
       {assignTo !== null && (
         <TaskEditor key={assignTo || 'any'} open assignTo={assignTo} defaultDate={date >= today ? date : today} onClose={() => setAssignTo(null)} />
