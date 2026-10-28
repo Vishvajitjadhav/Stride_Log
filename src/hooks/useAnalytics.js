@@ -5,11 +5,12 @@ import { useHolidays } from './useOrg'
 import { usePeople } from './usePeople'
 import { useProjects } from './useProjects'
 import { previousRange, weekStartISO, addDaysISO, todayISO, compareLabel } from '../utils/dates'
-import { summarize, compare, perPerson, perProject, trend, bucketSize, categoryMix, inRange, logGrid } from '../utils/metrics'
+import { summarize, compare, perPerson, perProject, trend, bucketSize, categoryMix, inRange } from '../utils/metrics'
+import { lastWeeks, weeklyDone, trendLabel } from '../utils/insights'
 import { isTracked } from '../lib/permissions'
 import { bySource } from './useFilters'
 
-const TASK_COLS = 'id, user_id, role, date, title, status, category, category_color, assigned_by, due_date, completed_on, project_id, project, source'
+const TASK_COLS = 'id, user_id, role, date, title, status, category, category_color, assigned_by, due_date, completed_on, project_id, project, source, description, external_id, external_url, changed_at'
 const LOG_COLS = 'user_id, role, date, submitted, blockers, summary'
 
 // PostgREST caps responses (1000 rows by default), so page through.
@@ -110,7 +111,14 @@ export function useDashboard(filters, { self } = {}) {
     const scoped = (project ? [project] : projects)
       .map(p => ({ ...p, members: p.members.filter(m => person ? m.user_id === person : tracked.has(m.user_id)) }))
       .filter(p => !person || p.members.length)
+    // Each person and project against their own last 6 weeks.
+    const weeks = lastWeeks(range.to < today ? range.to : today, 6)
+    const withTrend = (row, rows) => {
+      const series = weeklyDone(rows, weeks)
+      return { ...row, series, trend: trendLabel(series) }
+    }
     const projectRows = perProject({ tasks: projectTasks, projects: scoped, range, today, holidays })
+      .map(p => withTrend(p, projectTasks.filter(t => t.project_id === p.id)))
 
     return {
       range,
@@ -123,8 +131,9 @@ export function useDashboard(filters, { self } = {}) {
       growth: compare(current, previous),
       trend: trend({ ...ctx, range }),
       categories: categoryMix(inRange(tasks, range)),
-      persons: perPerson({ ...ctx, range }),
-      logGrid: logGrid({ ...ctx, range }),
+      persons: perPerson({ ...ctx, range }).map(p => withTrend(p, tasks.filter(t => t.user_id === p.id))),
+      tasks: inRange(tasks, range),
+      weeks,
       holidayNames: holidaysQ.data?.byDate ?? {},
       projects: projectRows,
     }

@@ -61,23 +61,3 @@ export function DoneColumns({ data, xKey = 'label', height = 220, xFormatter }) 
     </div>
   )
 }
-
-// Horizontal bars (e.g. share of tasks per category), single series, value at
-// tip. Each bar sweeps in after the one above it.
-export function HBars({ data, valueKey, labelKey = 'name', suffix = '' }) {
-  const max = Math.max(1, ...data.map(d => d[valueKey]))
-  return (
-    <div className="space-y-3 stagger">
-      {data.map((d, i) => (
-        <div key={d[labelKey]} style={{ '--i': i }} className="grid grid-cols-[minmax(0,7rem)_1fr] items-center gap-3" title={`${d[labelKey]}: ${d[valueKey]}${suffix}`}>
-          <span className="text-xs text-gray-600 truncate">{d[labelKey]}</span>
-          <div className="flex items-center gap-2">
-            <div className="h-2.5 rounded-full bg-gradient-to-r from-primary-500 to-mint-400 grow-x"
-              style={{ width: `${(d[valueKey] / max) * 100}%`, minWidth: 4, animationDelay: `${i * 70 + 100}ms` }} />
-            <span className="text-xs font-semibold text-gray-700 tabular-nums">{d[valueKey]}{suffix}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}

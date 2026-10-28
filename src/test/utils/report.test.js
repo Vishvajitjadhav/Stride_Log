@@ -48,7 +48,7 @@ describe('observations for one employee', () => {
     expect(out).toEqual([
       'Tasks completed held steady at 7 compared with last month.',
       'Finished 70% of planned tasks.',
-      'Missed the daily log on 1 working day.',
+      'No activity on 1 working day.',
     ])
   })
 })
@@ -95,11 +95,11 @@ describe('shapeReport', () => {
     expect(r.scope.name).toBe('All employees')
     expect(r.details.map(d => d.name)).toEqual(['Ana', 'Ben'])
     const mon = ana.days.find(d => d.date === '2026-10-05')
-    expect(mon).toMatchObject({ state: 'Submitted', summary: 'Login done', blockers: 'Waiting on API' })
+    expect(mon).toMatchObject({ state: 'Active', summary: 'Login done', blockers: 'Waiting on API' })
     expect(mon.tasks.map(t => t.title)).toEqual(['Build login', 'Fix bug'])
     expect(mon.tasks[1].assignedBy).toBe('Maya Manager')
     expect(ana.days.find(d => d.date === '2026-10-06').state).toBe('Holiday: Founders Day')
-    expect(ana.days.find(d => d.date === '2026-10-07').state).toBe('Not submitted')
+    expect(ana.days.find(d => d.date === '2026-10-07').state).toBe('No activity')
     expect(ana.days.find(d => d.date === '2026-10-10').state).toBe('Extra day')
     // Sunday with no work is left out
     expect(ana.days.find(d => d.date === '2026-10-11')).toBeUndefined()

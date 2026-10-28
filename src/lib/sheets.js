@@ -49,3 +49,18 @@ export async function downloadRows(fileName, header, rows) {
   XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
   save(XLSX, wb, fileName, 'xlsx')
 }
+
+// A report as an Excel workbook (one sheet per entry) or, for CSV, the first
+// sheet only. sheets: [{ title, rows: [[header...], [cells...], ...] }]
+export async function downloadWorkbook(fileName, sheets, format = 'xlsx') {
+  const XLSX = await load()
+  const wb = XLSX.utils.book_new()
+  ;(format === 'csv' ? sheets.slice(0, 1) : sheets).forEach(({ title, rows }) => {
+    const ws = XLSX.utils.aoa_to_sheet(rows)
+    // Size columns by the widest row (the first may be a one cell title).
+    const wide = rows.reduce((a, r) => (r.length > a.length ? r : a), [])
+    ws['!cols'] = widths([wide, ...rows])
+    XLSX.utils.book_append_sheet(wb, ws, title.slice(0, 31))
+  })
+  save(XLSX, wb, fileName, format)
+}
