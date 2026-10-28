@@ -27,11 +27,11 @@ export default function WeekTable({ weekStart, tasks = [], logs = [], holidays, 
             const holiday = holidays?.byDate?.[d]
             if (!working && dayTasks.length === 0 && !log?.submitted) return null
             const state = log?.submitted
-              ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Submitted' : 'Extra day'}</Badge>
+              ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Active' : 'Extra day'}</Badge>
               : d > today ? <Badge variant="off">Upcoming</Badge>
               : !working ? <Badge variant="off">{holiday ? 'Holiday' : 'Weekend'}</Badge>
               : d === today ? <Badge variant="draft">In progress</Badge>
-              : <Badge variant="missing">Not submitted</Badge>
+              : <Badge variant="missing">No activity</Badge>
             const rows = dayTasks.length ? dayTasks : [null]
             const notes = [log?.what_i_did && ['Summary', log.what_i_did], log?.blockers && ['Blocker', log.blockers]].filter(Boolean)
 

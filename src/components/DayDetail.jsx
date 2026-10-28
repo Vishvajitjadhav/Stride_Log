@@ -38,8 +38,8 @@ export default function DayDetail({ userId, date, compact = false, tasksOnly = f
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {tasksOnly ? null : log?.submitted_at ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Submitted' : 'Extra day'}</Badge>
-            : <Badge variant="draft">Not submitted</Badge>}
+          {tasksOnly ? null : log?.submitted_at ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Active' : 'Extra day'}</Badge>
+            : <Badge variant="draft">No activity</Badge>}
           {isMe && date <= todayISO() && (
             <Button size="sm" variant="outline" onClick={() => navigate(date === todayISO() ? '/today' : `/today?date=${date}`)}>Open</Button>
           )}

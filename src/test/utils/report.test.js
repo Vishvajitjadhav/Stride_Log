@@ -21,7 +21,7 @@ describe('observations', () => {
     expect(out).toEqual([
       'Tasks completed rose from 5 to 8 compared with last week.',
       'Ana completed the most tasks (6, 86% of planned).',
-      'Missed daily logs: Raj (2 days).',
+      'Days with no activity: Raj (2 days).',
       'Most work went to Development (60% of tasks).',
       '2 tasks are blocked and may need help.',
     ])
@@ -33,7 +33,7 @@ describe('observations', () => {
       { name: 'A', done: 1, completionRate: 50, expectedDays: 2, loggedDays: 2 },
       { name: 'B', done: 2, completionRate: 60, expectedDays: 2, loggedDays: 2 },
     ] }))
-      .toContain('Everyone submitted a daily log on every working day.')
+      .toContain('Everyone was active on every working day.')
     expect(observations({ current: { planned: 0, done: 0, blocked: 0 } })).toEqual(['No tasks were planned in this period.'])
   })
 })

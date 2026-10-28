@@ -12,9 +12,9 @@ export const GLOSSARY = {
     tip: 'Tasks completed divided by all tasks planned for the period. 80% means 8 of every 10 planned tasks were finished.',
   },
   consistency: {
-    label: 'Daily logs submitted',
-    short: 'Working days where the day was submitted.',
-    tip: 'Working days (Monday to Friday, excluding company holidays) on which the person submitted their daily log, out of the working days expected. Weekends and holidays never count against anyone.',
+    label: 'Active days',
+    short: 'Working days with work logged.',
+    tip: 'Working days (Monday to Friday, excluding company holidays) on which the person worked on a task, had a meeting or wrote a note, out of the working days expected. It is counted on its own, nobody has to submit. Weekends and holidays never count against anyone.',
   },
   blocked: {
     label: 'Blocked tasks',

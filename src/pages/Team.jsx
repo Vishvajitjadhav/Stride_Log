@@ -59,8 +59,8 @@ function Summary({ items }) {
 function PersonDay({ person, tasks, log, kind, projectNames, projectColor, onAssign, onOpen, tasksOnly, isMe }) {
   const done = tasks.filter(t => t.status === 'done').length
   const status = tasksOnly ? null : log?.submitted
-    ? (kind === 'work' ? <Badge variant="submitted">Submitted</Badge> : <Badge variant="extra">Extra day</Badge>)
-    : kind === 'work' ? <Badge variant="missing">Not submitted</Badge> : <Badge variant="off">{kind === 'holiday' ? 'Holiday' : 'Weekend'}</Badge>
+    ? (kind === 'work' ? <Badge variant="submitted">Active</Badge> : <Badge variant="extra">Extra day</Badge>)
+    : kind === 'work' ? <Badge variant="missing">No activity</Badge> : <Badge variant="off">{kind === 'holiday' ? 'Holiday' : 'Weekend'}</Badge>
 
   return (
     <Card>
@@ -135,7 +135,7 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
   })).sort((a, b) => tasksOnly
     // Employees: themselves first, then by name.
     ? Number(b.person.id === me) - Number(a.person.id === me) || a.person.name.localeCompare(b.person.name)
-    // Managers: not submitted first (needs attention), then by name.
+    // Managers: no activity first (needs attention), then by name.
     : Number(Boolean(a.log?.submitted)) - Number(Boolean(b.log?.submitted)) || a.person.name.localeCompare(b.person.name)
   ), [people, data, tasksOnly, me])
 
@@ -152,7 +152,7 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
       <Summary items={[
         tasksOnly
           ? { label: 'Working on it', value: rows.filter(r => r.tasks.length).length, of: `of ${rows.length}`, tip: 'Teammates with at least one task for this day.' }
-          : { label: 'Submitted', value: submitted, of: `of ${rows.length}`, tip: 'People who submitted their daily log for this day.' },
+          : { label: 'Active', value: submitted, of: `of ${rows.length}`, tip: 'People who worked on a task or wrote a note this day. It happens on its own, nobody has to submit.' },
         { label: 'Tasks done', value: done, of: `of ${all.length}`, tip: 'Tasks marked done out of all tasks planned for, or finished on, this day.' },
         { label: 'Blocked', value: blocked, of: blocked === 1 ? 'task' : 'tasks', tip: 'Tasks waiting on someone or something. Open the person to help.' },
       ]} />
@@ -201,7 +201,7 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
     future: 'text-gray-300',
     open: 'bg-surface text-gray-700',
   }
-  const LABEL = { submitted: 'Submitted', extra: 'Extra day', missed: 'Not submitted', off: 'Day off', future: 'Upcoming', open: 'In progress' }
+  const LABEL = { submitted: 'Active', extra: 'Extra day', missed: 'No activity', off: 'Day off', future: 'Upcoming', open: 'In progress' }
 
   if (isLoading) return <Card className="h-64 skeleton" />
 
@@ -220,7 +220,7 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
                 </th>
               ))}
               <th className="text-right">
-                <span className="inline-flex items-center gap-1">Week <Tooltip align="right" text="Tasks done out of tasks planned for the week, and working days submitted out of working days so far." /></span>
+                <span className="inline-flex items-center gap-1">Week <Tooltip align="right" text="Tasks done out of tasks planned for the week, and active working days out of working days so far." /></span>
               </th>
             </tr>
           </thead>
@@ -260,7 +260,7 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
         </table>
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1.5 px-5 py-3 border-t border-gray-100 text-xs text-gray-500">
-        {[['bg-emerald-50 ring-emerald-200', 'Submitted'], ['bg-red-50 ring-red-200', 'Not submitted'], ['bg-accent-50 ring-accent-100', 'Extra day (weekend or holiday)'], ['bg-gray-50 ring-gray-200', 'Day off']].map(([c, l]) => (
+        {[['bg-emerald-50 ring-emerald-200', 'Active'], ['bg-red-50 ring-red-200', 'No activity'], ['bg-accent-50 ring-accent-100', 'Extra day (weekend or holiday)'], ['bg-gray-50 ring-gray-200', 'Day off']].map(([c, l]) => (
           <span key={l} className="inline-flex items-center gap-1.5"><span className={`w-3 h-3 rounded ring-1 ring-inset ${c}`} />{l}</span>
         ))}
         <span>Numbers show tasks done out of tasks planned.</span>

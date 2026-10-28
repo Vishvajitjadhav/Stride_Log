@@ -48,7 +48,7 @@ const STYLES = {
 }
 
 const LEGEND = [
-  ['submitted', 'Submitted'], ['partial', 'Started but not submitted'], ['missed', 'Missed'],
+  ['submitted', 'Active'], ['partial', 'Notes only'], ['missed', 'No activity'],
   ['extra', 'Extra day'], ['holiday', 'Holiday'], ['weekend', 'Weekend'],
 ]
 
@@ -85,7 +85,7 @@ export default function MonthCalendar({ userId, month, onMonthChange, selected, 
         <button onClick={() => onMonthChange(subMonths(month, 1))} className="p-2 rounded-lg hover:bg-gray-50 text-gray-500" aria-label="Previous month"><Icon name="left" /></button>
         <div className="text-center">
           <p className="section-title">{format(month, 'MMMM yyyy')}</p>
-          <p className="text-[11px] text-gray-400">{isLoading ? 'Loading…' : `${counts.submitted} submitted · ${counts.missed} missed · ${counts.extra} extra`}</p>
+          <p className="text-[11px] text-gray-400">{isLoading ? 'Loading…' : `${counts.submitted} active · ${counts.missed} no activity · ${counts.extra} extra`}</p>
         </div>
         <button onClick={() => onMonthChange(addMonths(month, 1))} className="p-2 rounded-lg hover:bg-gray-50 text-gray-500" aria-label="Next month"><Icon name="right" /></button>
       </div>

@@ -257,7 +257,7 @@ function MyScore({ me }) {
   // Growth above 50 already means improving, so only suggest it when it dips.
   const weakest = [...parts].filter(p => p.key !== 'growth' || me.growth < 50).sort((a, b) => me[a.key] - me[b.key])[0]
   const advice = {
-    consistency: 'Submitting your day, even a short one, lifts consistency fastest.',
+    consistency: 'Updating your tasks every working day, even one small one, lifts consistency fastest.',
     follow_through: 'Plan a little less and finish it; carried over tasks lower follow through.',
     on_time: 'Flag blockers early on assigned tasks so due dates can move before they are missed.',
     growth: 'Small steady steps count: growth compares you only with your own last period.',

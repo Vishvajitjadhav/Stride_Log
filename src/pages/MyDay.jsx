@@ -117,15 +117,30 @@ export default function MyDay() {
     })
   }, [log, date, userId])
 
+  // Notes save themselves a moment after typing stops. Writing notes counts
+  // as activity, so it also marks the day Active.
+  const [noteState, setNoteState] = useState('')   // '' | 'saving' | 'saved'
+  const noteTimer = useRef(null)
   function changeNote(key, value) {
     const next = { ...notes, [key]: value }
     setNotes(next)
     writeDraft(userId, date, next)
+    clearTimeout(noteTimer.current)
+    noteTimer.current = setTimeout(async () => {
+      setNoteState('saving')
+      const written = Object.values(next).some(v => v.trim())
+      try {
+        await save.mutateAsync({ ...next, ...(written && !log?.submitted_at && { submitted_at: new Date().toISOString() }) })
+        clearDraft(userId, date)
+        setNoteState('saved')
+      } catch (e) { setNoteState(''); toast.error(e.message) }
+    }, 1000)
   }
+  useEffect(() => () => clearTimeout(noteTimer.current), [])
 
   const working = isWorkingDay(date, holidays?.set)
   const holidayName = holidays?.byDate?.[date]
-  const submitted = Boolean(log?.submitted_at)
+  const active = Boolean(log?.submitted_at)
 
   const { open, done, carried } = useMemo(() => {
     const open = tasks.filter(t => t.status !== 'done' && t.date === date)
@@ -147,22 +162,6 @@ export default function MyDay() {
 
   function setStatus(task, status) {
     update.mutate({ id: task.id, status })
-  }
-
-  async function saveNotes() {
-    await save.mutateAsync(notes)
-    clearDraft(userId, date)
-    toast('Notes saved')
-  }
-
-  async function submit() {
-    await save.mutateAsync({ ...notes, submitted_at: new Date().toISOString() })
-    clearDraft(userId, date)
-    toast(working ? 'Day submitted. Well done.' : 'Extra day logged. Thank you.')
-  }
-
-  async function reopen() {
-    await save.mutateAsync({ submitted_at: null })
   }
 
 
@@ -193,7 +192,10 @@ export default function MyDay() {
       <Card className="px-5 py-4">
         <div className="flex items-center justify-between mb-2.5">
           <p className="text-sm text-gray-600"><span className="text-base font-semibold text-gray-900 tabular-nums">{done.length} of {total}</span> tasks done</p>
-          {submitted ? <Badge variant="submitted">Day submitted</Badge> : <Badge variant="draft">Not submitted yet</Badge>}
+          <span className="inline-flex items-center gap-1.5">
+            {active ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Active' : 'Extra day'}</Badge> : <Badge variant="draft">No activity yet</Badge>}
+            <Tooltip align="right" text="Your day counts as active on its own once you add, update or finish a task, or write a note. There is nothing to submit." />
+          </span>
         </div>
         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
           <div className="h-full bg-primary-600 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
@@ -263,7 +265,7 @@ export default function MyDay() {
       </Section>
 
       {/* Notes */}
-      <Section title="Daily notes" hint="Optional. Your manager sees these with your tasks." bodyClassName="px-5 pb-5 pt-3 space-y-4">
+      <Section title="Daily notes" hint={noteState === 'saving' ? 'Saving…' : noteState === 'saved' ? 'Saved' : 'Optional. Saved as you type. Your manager sees these with your tasks.'} bodyClassName="px-5 pb-5 pt-3 space-y-4">
         {NOTE_FIELDS.map(f => (
           <div key={f.key}>
             <label className="label" htmlFor={`n-${f.key}`}>{f.label}</label>
@@ -272,24 +274,6 @@ export default function MyDay() {
           </div>
         ))}
       </Section>
-
-      {/* Actions, sticky above the tab bar on phones */}
-      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] lg:bottom-4 z-20">
-        <div className="bg-surface border border-gray-200 rounded-lg shadow-[0_4px_16px_rgba(15,23,42,0.08)] px-4 py-3 flex items-center gap-2">
-          <p className="flex-1 text-xs text-gray-500 truncate hidden sm:block">{submitted ? 'Submitted. You can still edit today.' : 'Submit when you finish for the day.'}</p>
-          <div className="flex-1 sm:hidden" />
-          {submitted ? (
-            <Button variant="outline" onClick={reopen} loading={save.isPending}>Edit submission</Button>
-          ) : (
-            <>
-              <Button variant="outline" onClick={saveNotes} loading={save.isPending && !save.variables?.submitted_at}>Save</Button>
-              <Button onClick={submit} disabled={total === 0 && !notes.what_i_did.trim()} loading={save.isPending && Boolean(save.variables?.submitted_at)}>
-                Submit day
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
 
       {editing && (
         <TaskEditor

@@ -74,7 +74,7 @@ const s = StyleSheet.create({
 
 const fmt = (iso, f = 'd MMM yyyy') => format(parseISO(iso), f)
 const rangeText = r => `${fmt(r.from, r.from.slice(0, 4) === r.to.slice(0, 4) ? 'd MMM' : 'd MMM yyyy')} to ${fmt(r.to)}`
-const stateColor = st => (st === 'Submitted' ? STATUS_COLOR.done : st === 'Not submitted' ? STATUS_COLOR.blocked : st === 'Extra day' ? '#8a6a1f' : MUTED)
+const stateColor = st => (st === 'Active' ? STATUS_COLOR.done : st === 'No activity' ? STATUS_COLOR.blocked : st === 'Extra day' ? '#8a6a1f' : MUTED)
 
 function Mark({ size = 34 }) {
   return (
@@ -158,7 +158,7 @@ function PersonHeader({ p, data }) {
         {[
           ['Tasks completed', `${p.done} of ${p.planned}`],
           ['Completion rate', `${p.completionRate}%`],
-          ['Daily logs submitted', `${p.loggedDays} of ${p.expectedDays} days`],
+          ['Active days', `${p.loggedDays} of ${p.expectedDays} days`],
           ['Blocked tasks', String(p.blocked)],
           ['Extra days', String(p.extraDays)],
         ].map(([k, v]) => (
@@ -215,7 +215,7 @@ function MonthlyDetail({ p }) {
         { label: 'Week', w: '30%', get: r => rangeText(r) },
         { label: 'Tasks done', w: '18%', align: 'right', get: r => `${r.done} of ${r.planned}` },
         { label: 'Completion', w: '16%', align: 'right', get: r => `${r.completionRate}%` },
-        { label: 'Daily logs', w: '20%', align: 'right', get: r => `${r.loggedDays} of ${r.expectedDays}` },
+        { label: 'Active days', w: '20%', align: 'right', get: r => `${r.loggedDays} of ${r.expectedDays}` },
         { label: 'Blocked', w: '16%', align: 'right', get: r => r.blocked },
       ]} />
       {p.open.length > 0 && (
@@ -325,7 +325,7 @@ export default function ReportDocument({ data }) {
               { label: 'Role', w: '17%', get: r => ROLE_LABELS[r.role] ?? r.role },
               { label: 'Tasks done', w: '14%', align: 'right', get: r => `${r.done} of ${r.planned}` },
               { label: 'Completion', w: '12%', align: 'right', get: r => (r.planned ? `${r.completionRate}%` : 'No tasks') },
-              { label: 'Daily logs', w: '13%', align: 'right', get: r => `${r.loggedDays} of ${r.expectedDays}` },
+              { label: 'Active days', w: '13%', align: 'right', get: r => `${r.loggedDays} of ${r.expectedDays}` },
               { label: 'Blocked', w: '9%', align: 'right', get: r => r.blocked, style: r => (r.blocked ? { color: STATUS_COLOR.blocked } : null) },
               { label: 'Extra', w: '8%', align: 'right', get: r => r.extraDays },
             ]} />

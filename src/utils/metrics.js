@@ -233,7 +233,7 @@ export function observations({ current, previous, persons = [], categories = [],
     const p = persons[0]
     const missed = Math.max(0, p.expectedDays - p.loggedDays)
     out.push(`Finished ${p.completionRate}% of planned tasks.`)
-    out.push(missed ? `Missed the daily log on ${plural(missed, 'working day')}.` : 'Submitted a daily log on every working day.')
+    out.push(missed ? `No activity on ${plural(missed, 'working day')}.` : 'Active on every working day.')
   } else if (persons.length > 1) {
     const top = [...persons].filter(p => p.done > 0).sort((a, b) => b.done - a.done)[0]
     if (top) out.push(`${top.name} completed the most tasks (${top.done}, ${top.completionRate}% of planned).`)
@@ -242,11 +242,11 @@ export function observations({ current, previous, persons = [], categories = [],
       .filter(p => p.days > 0)
       .sort((a, b) => b.days - a.days)
     if (missed.length === 0) {
-      out.push('Everyone submitted a daily log on every working day.')
+      out.push('Everyone was active on every working day.')
     } else {
       const names = missed.slice(0, 3).map(p => `${p.name} (${plural(p.days, 'day')})`).join(', ')
       const more = missed.length > 3 ? ` and ${missed.length - 3} more` : ''
-      out.push(`Missed daily logs: ${names}${more}.`)
+      out.push(`Days with no activity: ${names}${more}.`)
     }
   }
 
