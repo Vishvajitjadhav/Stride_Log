@@ -373,8 +373,10 @@ export default function Team() {
       </div>
 
       {/* Phones and tablets: the rail is folded, so the views sit up here too. */}
-      <div className="lg:hidden segmented w-full grid" style={{ gridTemplateColumns: `repeat(${VIEWS.length}, minmax(0, 1fr))` }} role="group" aria-label="View">
-        {VIEWS.map(v => <button key={v} aria-pressed={view === v} onClick={() => set({ view: v })}>{VIEW_LOOK[v].label}</button>)}
+      <div className="lg:hidden">
+        <div className="segmented w-full grid" style={{ gridTemplateColumns: `repeat(${VIEWS.length}, minmax(0, 1fr))` }} role="group" aria-label="View">
+          {VIEWS.map(v => <button key={v} aria-pressed={view === v} onClick={() => set({ view: v })}>{VIEW_LOOK[v].label}</button>)}
+        </div>
       </div>
 
       {view === 'board' ? (
