@@ -28,6 +28,8 @@ describe('normalizeStatus', () => {
   it('maps in-progress variants', () => {
     expect(normalizeStatus('In Progress')).toBe('in_progress')
     expect(normalizeStatus('WIP')).toBe('in_progress')
+    expect(normalizeStatus('In Review')).toBe('in_review')
+    expect(normalizeStatus('Ready for QA')).toBe('in_review')
   })
   it('defaults to pending', () => {
     expect(normalizeStatus('')).toBe('pending')

@@ -34,6 +34,7 @@ export function normalizeStatus(value) {
   if (s.includes('progress') || s.includes('wip') || s.includes('ongoing') || s.includes('doing')) {
     return 'in_progress'
   }
+  if (s.includes('review') || /\bqa\b/.test(s) || s.includes('testing')) return 'in_review'
   if (s.includes('block') || s.includes('stuck')) return 'blocked'
   return 'pending'
 }

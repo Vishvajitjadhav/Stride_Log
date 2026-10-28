@@ -7,8 +7,9 @@ import { useProjects } from './useProjects'
 import { previousRange, weekStartISO, addDaysISO, todayISO, compareLabel } from '../utils/dates'
 import { summarize, compare, perPerson, perProject, trend, bucketSize, categoryMix, inRange, logGrid } from '../utils/metrics'
 import { isTracked } from '../lib/permissions'
+import { bySource } from './useFilters'
 
-const TASK_COLS = 'id, user_id, role, date, title, status, category, category_color, assigned_by, due_date, completed_on, project_id, project'
+const TASK_COLS = 'id, user_id, role, date, title, status, category, category_color, assigned_by, due_date, completed_on, project_id, project, source'
 const LOG_COLS = 'user_id, role, date, submitted, blockers, summary'
 
 // PostgREST caps responses (1000 rows by default), so page through.
@@ -61,7 +62,7 @@ export function useDayFacts(date) {
 }
 
 // Everything a report screen needs, computed from one fetch.
-//   filters: { preset, from, to, person: id|'all', project: id|'all' }
+//   filters: { preset, from, to, person: id|'all', project: id|'all', sources? }
 //   self:    a single profile (personal pages); skips the people directory
 export function useDashboard(filters, { self } = {}) {
   const today = todayISO()
@@ -71,6 +72,7 @@ export function useDashboard(filters, { self } = {}) {
   const fetchFrom = [range.from, prev.from, trendFrom].sort()[0]
   const person = filters.person && filters.person !== 'all' ? filters.person : null
   const projectId = filters.project && filters.project !== 'all' ? filters.project : null
+  const sources = filters.sources?.join(',')
 
   const holidaysQ = useHolidays()
   const peopleQ = usePeople({ enabled: !self })
@@ -91,8 +93,9 @@ export function useDashboard(filters, { self } = {}) {
       const members = new Set(project.members.map(m => m.user_id))
       people = people.filter(p => members.has(p.id))
     }
+    const allTasks = bySource(factsQ.data.tasks, sources?.split(','))
     const ids = new Set(people.map(p => p.id))
-    let tasks = factsQ.data.tasks.filter(t => ids.has(t.user_id))
+    let tasks = allTasks.filter(t => ids.has(t.user_id))
     if (project) tasks = tasks.filter(t => t.project_id === project.id)
     const logs = factsQ.data.logs.filter(l => ids.has(l.user_id))
 
@@ -103,7 +106,7 @@ export function useDashboard(filters, { self } = {}) {
     // Project cards: the same people as the rest of the report (employees and
     // BAs, or the one selected), across every project or just the selected one.
     const tracked = new Set((self ? [self] : person ? people : (peopleQ.data ?? []).filter(isTracked)).map(p => p.id))
-    const projectTasks = factsQ.data.tasks.filter(t => tracked.has(t.user_id))
+    const projectTasks = allTasks.filter(t => tracked.has(t.user_id))
     const scoped = (project ? [project] : projects)
       .map(p => ({ ...p, members: p.members.filter(m => person ? m.user_id === person : tracked.has(m.user_id)) }))
       .filter(p => !person || p.members.length)
@@ -125,7 +128,7 @@ export function useDashboard(filters, { self } = {}) {
       holidayNames: holidaysQ.data?.byDate ?? {},
       projects: projectRows,
     }
-  }, [factsQ.data, holidaysQ.data, peopleQ.data, projectsQ.data, filters.preset, range.from, range.to, person, projectId, self, today]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [factsQ.data, holidaysQ.data, peopleQ.data, projectsQ.data, filters.preset, range.from, range.to, person, projectId, sources, self, today]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     data,

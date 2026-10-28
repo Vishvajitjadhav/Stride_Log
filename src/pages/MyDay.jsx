@@ -12,6 +12,7 @@ import { toast } from '../lib/toast'
 import { todayISO, addDaysISO, formatShort, formatLong, isWorkingDay } from '../utils/dates'
 import TaskItem from '../components/tasks/TaskItem'
 import TaskEditor from '../components/tasks/TaskEditor'
+import ProjectPicker from '../components/tasks/ProjectPicker'
 import Card, { Section } from '../components/ui/Card'
 import Tooltip from '../components/ui/Tooltip'
 import Badge from '../components/ui/Badge'
@@ -226,11 +227,8 @@ export default function MyDay() {
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
             {myProjects.length > 0 && (
-              <Select value={quickProject} aria-label="Project" className="!w-auto flex-1 min-w-0 sm:flex-none sm:!w-40"
-                onChange={e => { setPickedProject(e.target.value); try { localStorage.setItem('stridelog:project', e.target.value) } catch { /* storage unavailable */ } }}>
-                <option value="">No project</option>
-                {myProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </Select>
+              <ProjectPicker projects={myProjects} value={quickProject} aria-label="Project" className="!w-auto flex-1 min-w-0 sm:flex-none sm:!w-40"
+                onChange={v => { setPickedProject(v); try { localStorage.setItem('stridelog:project', v) } catch { /* storage unavailable */ } }} />
             )}
             <Button type="submit" disabled={!quick.trim()} aria-label="Add task" className="shrink-0"><Icon name="plus" size={16} /><span className="hidden sm:inline">Add</span></Button>
           </div>

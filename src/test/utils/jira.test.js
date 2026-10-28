@@ -13,7 +13,9 @@ const opts = { today: '2026-10-12', tz: 'Asia/Kolkata', site: 'https://acme.atla
 describe('statusFor / categoryForIssue', () => {
   it('maps Jira status categories to StrideLog statuses', () => {
     expect(statusFor(issue('A-1', 'To Do', 'new'))).toBe('pending')
-    expect(statusFor(issue('A-2', 'In Review', 'indeterminate'))).toBe('in_progress')
+    expect(statusFor(issue('A-2', 'In Progress', 'indeterminate'))).toBe('in_progress')
+    expect(statusFor(issue('A-5', 'In Review', 'indeterminate'))).toBe('in_review')
+    expect(statusFor(issue('A-6', 'Ready for QA', 'indeterminate'))).toBe('in_review')
     expect(statusFor(issue('A-3', 'Blocked', 'indeterminate'))).toBe('blocked')
     expect(statusFor(issue('A-4', 'Done', 'done'))).toBe('done')
   })
@@ -30,7 +32,7 @@ describe('planJira', () => {
       issue('APP-2', 'Done', 'done', { resolutiondate: '2026-10-10T20:00:00.000+0000' }),
     ], [], opts)
     expect(plan.inserts).toEqual([
-      expect.objectContaining({ external_id: 'APP-1', title: 'APP-1 Summary APP-1', status: 'in_progress', date: '2026-10-12',
+      expect.objectContaining({ external_id: 'APP-1', title: 'APP-1 Summary APP-1', status: 'in_review', date: '2026-10-12',
         due_date: '2026-10-15', project_id: 'p1', description: 'Jira: In Review, Mobile App', external_url: 'https://acme.atlassian.net/browse/APP-1' }),
       // 20:00 UTC on the 10th is the 11th in India
       expect.objectContaining({ external_id: 'APP-2', status: 'done', date: '2026-10-11', completed_on: '2026-10-11' }),

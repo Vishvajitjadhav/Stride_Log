@@ -6,13 +6,12 @@ import { usePeople } from '../../hooks/usePeople'
 import { useTaskMutations } from '../../hooks/useTasks'
 import { useProjects, projectsOf } from '../../hooks/useProjects'
 import { todayISO, formatDisplay } from '../../utils/dates'
-import { STATUS_LABELS } from '../../lib/labels'
+import { STATUSES, STATUS_LABELS, statusStyle } from '../../lib/status'
 import Sheet from '../ui/Sheet'
 import Button from '../ui/Button'
 import { toast } from '../../lib/toast'
 import Select from '../ui/Select'
-
-const STATUSES = ['pending', 'in_progress', 'done', 'blocked']
+import ProjectPicker from './ProjectPicker'
 
 // Create / edit / assign a task. `task` = existing row (edit) or undefined (new).
 // `assignTo` = preselect an assignee (e.g. from a team member page);
@@ -52,9 +51,20 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
   const canDelete = !isNew && (canAssign || (isMine && !task.assigned_by))
   const busy = add.isPending || update.isPending || remove.isPending
   const assigning = isNew && form.user_id !== userId
-  // Projects of the person the task is for; the field only shows when they have any.
-  const ownProjects = projectsOf(projects, form.user_id)
-  const projectId = form.project_id ?? (ownProjects.length === 1 ? ownProjects[0].id : '')
+  // Assigning starts with the project: it narrows the people to its members,
+  // and a chosen person narrows the projects to theirs.
+  const projectFirst = canAssign && isNew
+  const projectOptions = form.user_id ? projectsOf(projects, form.user_id) : projectFirst ? projects : []
+  // Until picked, a chosen person's only project is the default.
+  const projectId = form.project_id ?? (form.user_id && projectOptions.length === 1 ? projectOptions[0].id : '')
+  const members = projectFirst && projectId ? new Set(projects.find(p => p.id === projectId)?.members.map(m => m.user_id)) : null
+  const personOptions = members ? people.filter(p => members.has(p.id)) : people
+  const inProject = id => !members || members.has(id)
+
+  function chooseOwner(id) {
+    // Keep the project when the new person is in it.
+    setForm(f => ({ ...f, user_id: id, project_id: f.project_id && projectsOf(projects, id).some(p => p.id === f.project_id) ? f.project_id : undefined }))
+  }
 
   async function handleSave(e) {
     e?.preventDefault()
@@ -93,6 +103,13 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
     }
   }
 
+  const projectField = (
+    <div>
+      <label className="label" htmlFor="t-project">Project <span className="font-normal text-gray-400">(optional)</span></label>
+      <ProjectPicker id="t-project" projects={projectOptions} value={projectId} onChange={v => set('project_id', v)} />
+    </div>
+  )
+
   return (
     <Sheet
       open={open}
@@ -119,13 +136,16 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
         )}
 
         {canAssign && (isNew || !isMine) && (
-          <div>
-            <label className="label" htmlFor="t-owner">Assign to</label>
-            <Select id="t-owner" className="field" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value, project_id: undefined }))} disabled={!isNew}>
-              {picking && <option value="">Choose an employee</option>}
-              <option value={userId}>Myself</option>
-              {people.filter(p => p.id !== userId).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </Select>
+          <div className={projectFirst && projectOptions.length > 0 ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
+            {projectFirst && projectOptions.length > 0 && projectField}
+            <div>
+              <label className="label" htmlFor="t-owner">Assign to</label>
+              <Select id="t-owner" className="field" value={form.user_id} onChange={e => chooseOwner(e.target.value)} disabled={!isNew}>
+                {(picking || !form.user_id) && <option value="">Choose an employee</option>}
+                {inProject(userId) && <option value={userId}>Myself</option>}
+                {personOptions.filter(p => p.id !== userId).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </Select>
+            </div>
           </div>
         )}
 
@@ -150,25 +170,20 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
           </div>
         </div>
 
-        {ownProjects.length > 0 && (
-          <div>
-            <label className="label" htmlFor="t-project">Project <span className="font-normal text-gray-400">(optional)</span></label>
-            <Select id="t-project" className="field" value={projectId}
-              onChange={e => set('project_id', e.target.value)}>
-              <option value="">No project</option>
-              {ownProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </Select>
-          </div>
-        )}
+        {!projectFirst && projectOptions.length > 0 && projectField}
 
         <div>
           <span className="label">Status</span>
-          <div className="segmented w-full grid grid-cols-4" role="group" aria-label="Status">
-            {STATUSES.map(s => (
-              <button type="button" key={s} aria-pressed={form.status === s} onClick={() => set('status', s)} className="!px-1">
-                {STATUS_LABELS[s]}
-              </button>
-            ))}
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Status">
+            {STATUSES.map(s => {
+              const on = form.status === s
+              return (
+                <button type="button" key={s} aria-pressed={on} onClick={() => set('status', s)}
+                  className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-medium ring-1 ring-inset transition-colors ${on ? statusStyle(s).badge : 'ring-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                  <span className={`w-2 h-2 rounded-full ${statusStyle(s).dot}`} aria-hidden="true" />{STATUS_LABELS[s]}
+                </button>
+              )
+            })}
           </div>
           {task?.source === 'jira' && (
             <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1.5">

@@ -27,6 +27,7 @@ const PATHS = {
   edit: <><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></>,
   check: <path d="M20 6 9 17l-5-5" />,
   circle: <circle cx="12" cy="12" r="9" />,
+  review: <><path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.75" /></>,
   progress: <><circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none" /></>,
   block: <><circle cx="12" cy="12" r="9" /><path d="m5.7 5.7 12.6 12.6" /></>,
   install: <><rect x="5" y="2" width="14" height="20" rx="2" /><path d="M12 18h.01" /></>,

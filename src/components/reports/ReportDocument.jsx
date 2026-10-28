@@ -1,7 +1,7 @@
 import { Document, Page, View, Text, Image, Svg, Rect, Path, Circle, StyleSheet, Font } from '@react-pdf/renderer'
 import { format, parseISO } from 'date-fns'
 import { ROLE_LABELS } from '../../lib/permissions'
-import { STATUS_LABELS } from '../../lib/labels'
+import { STATUS_LABELS, STATUS_STYLE } from '../../lib/status'
 import { GLOSSARY } from '../../lib/glossary'
 
 // Don't hyphenate normal words (no dashes in reports). Very long strings such
@@ -18,7 +18,7 @@ const BODY = '#334155'
 const MUTED = '#64748b'
 const LINE = '#e2e8f0'
 const SOFT = '#f5f7fa'
-const STATUS_COLOR = { done: '#166534', in_progress: '#92400e', blocked: '#b91c1c', pending: '#475569' }
+const STATUS_COLOR = Object.fromEntries(Object.entries(STATUS_STYLE).map(([k, v]) => [k, v.hex]))
 
 const s = StyleSheet.create({
   page: { paddingTop: 40, paddingBottom: 56, paddingHorizontal: 40, fontFamily: 'Helvetica', fontSize: 9, color: BODY },

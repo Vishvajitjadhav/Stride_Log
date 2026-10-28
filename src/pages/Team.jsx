@@ -9,7 +9,7 @@ import {
   todayISO, addDaysISO, weekStartISO, daysBetween, isWorkingDay, formatLong, formatRange,
 } from '../utils/dates'
 import { ROLE_LABELS, isTracked } from '../lib/permissions'
-import { STATUS_LABELS } from '../lib/labels'
+import { STATUS_LABELS, statusStyle } from '../lib/status'
 import TaskEditor from '../components/tasks/TaskEditor'
 import DayDrawer from '../components/DayDrawer'
 import ReportButton from '../components/reports/ReportButton'
@@ -21,13 +21,6 @@ import Icon from '../components/ui/Icon'
 import Tooltip from '../components/ui/Tooltip'
 import SharingSwitch from '../components/SharingSwitch'
 import Select from '../components/ui/Select'
-
-const STATUS_DOT = {
-  done: 'bg-emerald-600',
-  in_progress: 'bg-amber-500',
-  blocked: 'bg-red-600',
-  pending: 'bg-gray-300',
-}
 
 // Tasks grouped by project, in order of first appearance, with "No project" last.
 // A person whose tasks have no project gets a single unnamed group.
@@ -101,7 +94,7 @@ function PersonDay({ person, tasks, log, kind, projectNames, projectColor, onAss
                 <ul className="space-y-2">
                   {g.tasks.map(t => (
                     <li key={t.id} className="flex items-start gap-2.5 text-sm">
-                      <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[t.status]}`} title={STATUS_LABELS[t.status]} />
+                      <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${statusStyle(t.status).dot}`} title={STATUS_LABELS[t.status]} />
                       <span className={`flex-1 min-w-0 ${t.status === 'done' ? 'text-gray-500' : 'text-gray-800'}`}>
                         {t.title}
                         {t.assigned_by && <span className="text-xs text-primary-600"> (assigned)</span>}

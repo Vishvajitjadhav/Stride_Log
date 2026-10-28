@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { todayISO, getGreeting, presetRange, compareLabel } from '../../utils/dates'
+import { todayISO, getGreeting, presetRange, compareLabel, toISO } from '../../utils/dates'
 
 describe('getGreeting', () => {
   afterEach(() => vi.useRealTimers())
@@ -23,6 +23,10 @@ describe('long periods', () => {
   it('rolling month windows end with the current month', () => {
     expect(presetRange('last_3_months', ref)).toEqual({ from: '2026-08-01', to: '2026-10-31' })
     expect(presetRange('last_6_months', ref)).toEqual({ from: '2026-05-01', to: '2026-10-31' })
+  })
+  it('today', () => {
+    expect(presetRange('today', ref)).toEqual({ from: toISO(ref), to: toISO(ref) })
+    expect(compareLabel('today')).toBe('yesterday')
   })
   it('calendar years', () => {
     expect(presetRange('this_year', ref)).toEqual({ from: '2026-01-01', to: '2026-12-31' })

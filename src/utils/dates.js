@@ -22,6 +22,7 @@ export function getGreeting() {
 
 // Named ranges for report filters. compare: wording for "versus the previous period".
 export const PRESETS = [
+  { key: 'today',         label: 'Today',         compare: 'yesterday' },
   { key: 'this_week',     label: 'This week',     compare: 'last week' },
   { key: 'last_week',     label: 'Last week',     compare: 'the week before' },
   { key: 'this_month',    label: 'This month',    compare: 'last month' },
@@ -39,6 +40,7 @@ export function compareLabel(preset) {
 
 export function presetRange(key, ref = new Date()) {
   switch (key) {
+    case 'today':        return { from: toISO(ref), to: toISO(ref) }
     case 'this_week':    return { from: toISO(startOfWeek(ref, WEEK)), to: toISO(endOfWeek(ref, WEEK)) }
     case 'last_week': {
       const d = subWeeks(ref, 1)

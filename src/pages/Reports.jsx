@@ -7,7 +7,7 @@ import { formatRange } from '../utils/dates'
 import { observations } from '../utils/metrics'
 import { GLOSSARY } from '../lib/glossary'
 import { ROLE_LABELS } from '../lib/permissions'
-import ReportFilters from '../components/ReportFilters'
+import FilterBar from '../components/FilterBar'
 import KpiCard from '../components/charts/KpiCard'
 import { DoneColumns, HBars } from '../components/charts/Charts'
 import LogHeatmap from '../components/charts/LogHeatmap'
@@ -183,7 +183,7 @@ export default function Reports() {
           projectId={filters.project !== 'all' ? filters.project : undefined} />
       </div>
 
-      <ReportFilters filters={filters} setFilter={setFilter} people={allPeople} projects={projects} />
+      <FilterBar filters={filters} setFilter={setFilter} people={allPeople} projects={projects} />
 
       {isLoading || !data ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{[0, 1, 2, 3].map(i => <Card key={i} className="h-32 skeleton" />)}</div>

@@ -7,7 +7,7 @@ import { renderEmail, sendEmail, inlineLogo, type Org } from '../_shared/email.t
 const fmtDate = (iso?: string | null) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '0%')
-const STATUS: Record<string, string> = { pending: 'To do', in_progress: 'In progress', done: 'Done', blocked: 'Blocked' }
+const STATUS: Record<string, string> = { pending: 'To do', in_progress: 'In progress', in_review: 'In review', done: 'Done', blocked: 'Blocked' }
 
 type Notification = {
   id: string; user_id: string; type: string; title: string; body: string | null

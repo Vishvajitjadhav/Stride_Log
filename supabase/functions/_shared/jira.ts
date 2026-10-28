@@ -27,6 +27,7 @@ export function statusFor(issue: JiraIssue) {
   const s = issue.fields.status
   if (/block|impediment|on hold/i.test(s.name)) return 'blocked'
   if (s.statusCategory.key === 'done') return 'done'
+  if (/review|\bqa\b|testing|verif/i.test(s.name)) return 'in_review'
   if (s.statusCategory.key === 'indeterminate') return 'in_progress'
   return 'pending'
 }
