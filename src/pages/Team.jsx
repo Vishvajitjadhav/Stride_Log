@@ -5,7 +5,7 @@ import { usePeople } from '../hooks/usePeople'
 import { useHolidays } from '../hooks/useOrg'
 import { useProjects, projectsOf } from '../hooks/useProjects'
 import { useDayFacts, useFacts } from '../hooks/useAnalytics'
-import { useFilters, bySource } from '../hooks/useFilters'
+import { useFilters, bySource, activeCount, SOURCES } from '../hooks/useFilters'
 import {
   todayISO, addDaysISO, weekStartISO, daysBetween, isWorkingDay, formatLong, formatRange,
 } from '../utils/dates'
@@ -14,6 +14,7 @@ import { STATUS_LABELS, statusStyle } from '../lib/status'
 import TaskEditor from '../components/tasks/TaskEditor'
 import Board from '../components/team/Board'
 import FilterBar from '../components/FilterBar'
+import RailLayout, { FilterPanel, RailField, RailChoices, RailSearch } from '../components/layout/RailLayout'
 import DayDrawer from '../components/DayDrawer'
 import ReportButton from '../components/reports/ReportButton'
 import Card from '../components/ui/Card'
@@ -23,7 +24,6 @@ import Button from '../components/ui/Button'
 import Icon from '../components/ui/Icon'
 import Tooltip from '../components/ui/Tooltip'
 import SharingSwitch from '../components/SharingSwitch'
-import Select from '../components/ui/Select'
 
 // Tasks grouped by project, in order of first appearance, with "No project" last.
 // A person whose tasks have no project gets a single unnamed group.
@@ -164,7 +164,7 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
           {kind === 'holiday' ? `${holidays.byDate[date]} is a company holiday.` : 'This is a weekend.'} Logging is optional and counts as an extra day.
         </p>
       )}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 @3xl:grid-cols-2 @7xl:grid-cols-3 gap-3">
         {rows.map(r => (
           <PersonDay key={r.person.id} {...r} kind={kind} tasksOnly={tasksOnly} isMe={r.person.id === me}
             projectNames={projectsOf(projects, r.person.id).map(pr => pr.name).join(', ')} projectColor={projectColor}
@@ -308,10 +308,10 @@ export default function Team() {
   const { data: projects = [] } = useProjects()
   const { data: holidays } = useHolidays()
   const [search, setSearch] = useState('')
-  const [project, setProject] = useState('all')
   const [drawer, setDrawer] = useState(null)   // { person, date }
   const [assignTo, setAssignTo] = useState(null)
   const canAssign = can('assignTasks')
+  const project = filters.project
 
   const visible = people.filter(p =>
     isTracked(p) &&
@@ -322,55 +322,63 @@ export default function Team() {
   const step = view === 'week' ? 7 : 1
   const label = view === 'week' ? formatRange(weekStart, addDaysISO(weekStart, 6)) : formatLong(date)
   const isCurrent = view === 'week' ? weekStart === weekStartISO(today) : date === today
+  const active = (view === 'board' ? activeCount(filters) : Number(project !== 'all') + Number(view === 'week' && filters.sources.length < SOURCES.length)) + Number(Boolean(search.trim()))
+  const clear = () => { setFilter({ person: 'all', project: 'all', sources: [] }); setSearch('') }
+  const VIEW_LOOK = { day: { label: 'People', icon: 'team' }, board: { label: 'Board', icon: 'dashboard' }, week: { label: 'Calendar', icon: 'calendar' } }
+
+  const rail = (
+    <FilterPanel active={active} onClear={clear}>
+      <RailField label="View">
+        <RailChoices label="View" value={view} onChange={v => set({ view: v })} options={VIEWS.map(v => ({ key: v, ...VIEW_LOOK[v] }))} />
+      </RailField>
+      {view === 'board' ? (
+        <FilterBar fieldsOnly filters={filters} setFilter={setFilter} people={people.filter(isTracked)} projects={projects} showPerson={full} />
+      ) : (
+        <>
+          <RailField label={view === 'week' ? 'Week' : 'Day'}>
+            <div className="flex items-center rounded-lg bg-surface ring-1 ring-inset ring-gray-200">
+              <button onClick={() => set({ date: addDaysISO(date, -step) })} className="h-9 w-9 shrink-0 flex items-center justify-center rounded-l-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors" aria-label="Previous"><Icon name="left" size={17} /></button>
+              <span className="flex-1 min-w-0 text-center text-[13px] font-medium text-gray-900 truncate">{label}</span>
+              <button onClick={() => set({ date: addDaysISO(date, step) })} className="h-9 w-9 shrink-0 flex items-center justify-center rounded-r-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors" aria-label="Next"><Icon name="right" size={17} /></button>
+            </div>
+            {!isCurrent && (
+              <button onClick={() => set({ date: '' })} className="mt-1.5 text-xs font-semibold text-primary-700 hover:text-primary-800">
+                Back to {view === 'week' ? 'this week' : 'today'}
+              </button>
+            )}
+          </RailField>
+          <FilterBar fieldsOnly filters={filters} setFilter={setFilter} projects={projects} showPeriod={false} showPerson={false} showSources={view === 'week'} />
+          <RailField label="Employee"><RailSearch value={search} onChange={setSearch} placeholder="Search employee" label="Search employee" /></RailField>
+        </>
+      )}
+    </FilterPanel>
+  )
 
   return (
-    <div className="max-w-[120rem] mx-auto space-y-5">
-      {/* Title row */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="page-title">{view === 'board' ? (full ? 'Team board' : 'My board') : view === 'week' ? 'Team calendar' : isCurrent ? 'Team today' : 'Team on this day'}</h2>
-          <p className="page-subtitle">
+    <RailLayout rail={rail} active={active} summary={view === 'board' ? VIEW_LOOK.board.label : label}>
+      {/* Title and actions */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 mr-auto">
+          <h2 className="text-lg font-semibold text-gray-900 tracking-tight">{view === 'board' ? (full ? 'Team board' : 'My board') : view === 'week' ? 'Team calendar' : isCurrent ? 'Team today' : 'Team on this day'}</h2>
+          <p className="text-xs text-gray-500">
             {view === 'board' ? (full ? 'Where every piece of work stands and who has it.' : 'Where your work stands.')
               : !full ? 'What your teammates are working on. Read only.'
               : view === 'week' ? 'Meetings and tasks for everyone, day by day.' : 'What everyone is working on and how far they have got.'}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <SharingSwitch what="tasks" tip="When on, employees get a read only Team page with everyone's tasks. Daily notes and blockers stay private to managers." />
-          {canAssign && <Link to="/assigned" className="hidden sm:inline text-sm font-medium text-primary-700 hover:text-primary-800 mr-1">Assigned by me</Link>}
-          {full && <ReportButton defaultScope="all" label="Download report" />}
-          {canAssign && <Button onClick={() => setAssignTo('')}><Icon name="plus" size={16} /><span className="hidden sm:inline">Assign task</span></Button>}
-        </div>
+        <SharingSwitch what="tasks" tip="When on, employees get a read only Team page with everyone's tasks. Daily notes and blockers stay private to managers." />
+        {canAssign && <Link to="/assigned" className="hidden sm:inline text-sm font-medium text-primary-700 hover:text-primary-800">Assigned by me</Link>}
+        {full && <ReportButton defaultScope="all" label="Report" />}
+        {canAssign && <Button onClick={() => setAssignTo('')}><Icon name="plus" size={16} /><span className="hidden sm:inline">Assign task</span></Button>}
       </div>
 
-      {/* Date + view controls */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="segmented" role="group" aria-label="View">
-          {VIEWS.map(v => (
-            <button key={v} aria-pressed={view === v} onClick={() => set({ view: v })}>{{ day: 'People', board: 'Board', week: 'Calendar' }[v]}</button>
-          ))}
-        </div>
-        {view !== 'board' && <>
-        <div className="flex items-center bg-surface border border-gray-200 rounded-md">
-          <button onClick={() => set({ date: addDaysISO(date, -step) })} className="h-9 w-9 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Previous"><Icon name="left" size={18} /></button>
-          <span className="px-2 text-sm font-medium text-gray-900 min-w-[11rem] text-center">{label}</span>
-          <button onClick={() => set({ date: addDaysISO(date, step) })} className="h-9 w-9 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Next"><Icon name="right" size={18} /></button>
-        </div>
-        {!isCurrent && <Button variant="outline" size="sm" className="h-9" onClick={() => set({ date: '' })}>{view === 'week' ? 'This week' : 'Today'}</Button>}
-        <div className="flex-1" />
-        <input type="search" placeholder="Search employee" value={search} onChange={e => setSearch(e.target.value)} className="field !h-9 !py-0 sm:!w-52" />
-        {projects.length > 0 && (
-          <Select value={project} onChange={e => setProject(e.target.value)} className="field !h-9 !py-0 sm:!w-44" aria-label="Project">
-            <option value="all">All projects</option>
-            {projects.map(pr => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
-          </Select>
-        )}
-        </>}
+      {/* Phones and tablets: the rail is folded, so the views sit up here too. */}
+      <div className="lg:hidden segmented w-full grid" style={{ gridTemplateColumns: `repeat(${VIEWS.length}, minmax(0, 1fr))` }} role="group" aria-label="View">
+        {VIEWS.map(v => <button key={v} aria-pressed={view === v} onClick={() => set({ view: v })}>{VIEW_LOOK[v].label}</button>)}
       </div>
-      {view === 'week' && <FilterBar filters={filters} setFilter={setFilter} showPeriod={false} showPerson={false} showProject={false} />}
 
       {view === 'board' ? (
-        <Board filters={filters} setFilter={setFilter} people={people.filter(isTracked)} projects={projects} holidays={holidays} me={userId} full={full}
+        <Board filters={filters} people={people.filter(isTracked)} holidays={holidays} me={userId} full={full}
           onOpen={c => {
             // Jira issues (and Jira work you can't edit) open in Jira.
             if (c.kind === 'issue' || (c.url && !canAssign && c.userId !== userId)) { if (c.url) window.open(c.url, '_blank', 'noopener'); return }
@@ -378,7 +386,7 @@ export default function Team() {
             else setDrawer({ person: people.find(p => p.id === c.userId), date: c.task.date })
           }} />
       ) : isLoading ? <Card className="h-48 skeleton" /> : visible.length === 0 ? (
-        <Card className="p-10 text-center text-sm text-gray-500">No employees match your search.</Card>
+        <Card className="p-10 text-center text-sm text-gray-500">No employees match these filters.</Card>
       ) : view === 'day' ? (
         <DayView date={date} people={visible} projects={projects} holidays={holidays} canAssign={canAssign} onAssign={setAssignTo}
           tasksOnly={!full} me={userId}
@@ -398,6 +406,6 @@ export default function Team() {
       {assignTo !== null && (
         <TaskEditor key={assignTo || 'any'} open assignTo={assignTo} defaultDate={date >= today ? date : today} onClose={() => setAssignTo(null)} />
       )}
-    </div>
+    </RailLayout>
   )
 }

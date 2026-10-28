@@ -4,6 +4,7 @@ import { SOURCES } from '../hooks/useFilters'
 import { useOrgSettings } from '../hooks/useOrg'
 import Select from './ui/Select'
 import Icon from './ui/Icon'
+import { FilterPanel, RailField } from './layout/RailLayout'
 
 // Where the work came from, as one dropdown with a tick per source.
 // At least one source always stays on.
@@ -76,22 +77,24 @@ function SourcePills({ sources, value, onChange }) {
 
 // The one set of filters for Board, Calendar and Reports: Period, Employee,
 // Project and Sources (StrideLog, Jira, Teams).
-//   panel: stacked, labelled and tinted (the Reports side rail); otherwise one
-//          compact tinted row. children: extra controls such as a search box.
+//   panel: stacked, labelled and tinted (a page's left rail); otherwise one
+//          compact tinted row. fieldsOnly: the stacked fields alone, to place
+//          inside a FilterPanel with other controls. children: extra controls.
 //   onClear / activeExtra: "Clear all" and extra active filters to count
 export default function FilterBar({
-  filters, setFilter, people = [], projects = [], panel = false, children, onClear, activeExtra = 0,
+  filters, setFilter, people = [], projects = [], panel = false, fieldsOnly = false, children, onClear, activeExtra = 0,
   showPeriod = true, showPerson = true, showProject = true, showSources = true,
 }) {
   const { data: org } = useOrgSettings()
   // Jira and Teams only appear once the company has turned them on.
   const sources = SOURCES.filter(s => s.key === 'manual' || (s.key === 'jira' ? org?.jira_sync_enabled : org?.teams_sync_enabled))
   const sourcesNarrowed = sources.some(s => !filters.sources.includes(s.key))
+  const stacked = panel || fieldsOnly
   const active = Number(filters.person !== 'all') + Number(filters.project !== 'all') + Number(sourcesNarrowed) + activeExtra
 
   const period = showPeriod && (
     <>
-      <Select aria-label="Period" title={formatRange(filters.from, filters.to)} className={field(false, panel ? '' : '!w-auto')}
+      <Select aria-label="Period" title={formatRange(filters.from, filters.to)} className={field(false, stacked ? '' : '!w-auto')}
         value={filters.preset} onChange={e => setFilter({ preset: e.target.value })}>
         {PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
       </Select>
@@ -107,38 +110,30 @@ export default function FilterBar({
     </>
   )
   const person = showPerson && (
-    <Select aria-label="Employee" className={field(filters.person !== 'all', panel ? '' : '!w-auto max-w-52')} value={filters.person} onChange={e => setFilter({ person: e.target.value })}>
+    <Select aria-label="Employee" className={field(filters.person !== 'all', stacked ? '' : '!w-auto max-w-52')} value={filters.person} onChange={e => setFilter({ person: e.target.value })}>
       <option value="all">All employees</option>
       {people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
     </Select>
   )
   const project = showProject && projects.length > 0 && (
-    <Select aria-label="Project" className={field(filters.project !== 'all', panel ? '' : '!w-auto max-w-48')} value={filters.project} onChange={e => setFilter({ project: e.target.value })}>
+    <Select aria-label="Project" className={field(filters.project !== 'all', stacked ? '' : '!w-auto max-w-48')} value={filters.project} onChange={e => setFilter({ project: e.target.value })}>
       <option value="all">All projects</option>
       {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
     </Select>
   )
   const hasSources = showSources && sources.length > 1
 
-  if (panel) {
-    const label = 'block text-[11px] font-semibold uppercase tracking-[0.08em] text-primary-700 mb-1.5'
-    return (
-      <div className="rounded-2xl p-4 bg-gradient-to-b from-primary-50 to-primary-50/40 ring-1 ring-inset ring-primary-200/80 space-y-3.5">
-        <div className="flex items-center gap-2">
-          <Icon name="filter" size={16} className="text-primary-600" />
-          <p className="text-sm font-semibold text-primary-800">Filters</p>
-          {active > 0 && <span className="text-[11px] font-semibold rounded-full bg-primary-600 text-white px-2 py-0.5">{active} on</span>}
-          {active > 0 && onClear && (
-            <button type="button" onClick={onClear} className="ml-auto text-xs font-semibold text-primary-700 hover:text-primary-800 transition-colors">Clear all</button>
-          )}
-        </div>
-        {showPeriod && <div><span className={label}>Period</span><div className="space-y-2">{period}</div><p className="text-[11px] text-primary-700/70 mt-1">{formatRange(filters.from, filters.to)}</p></div>}
-        {person && <div><span className={label}>Employee</span>{person}</div>}
-        {project && <div><span className={label}>Project</span>{project}</div>}
-        {hasSources && <div><span className={label}>Sources</span><SourcePills sources={sources} value={filters.sources} onChange={v => setFilter({ sources: v })} /></div>}
+  if (panel || fieldsOnly) {
+    const fields = (
+      <>
+        {showPeriod && <RailField label="Period" hint={formatRange(filters.from, filters.to)}><div className="space-y-2">{period}</div></RailField>}
+        {person && <RailField label="Employee">{person}</RailField>}
+        {project && <RailField label="Project">{project}</RailField>}
+        {hasSources && <RailField label="Sources"><SourcePills sources={sources} value={filters.sources} onChange={v => setFilter({ sources: v })} /></RailField>}
         {children}
-      </div>
+      </>
     )
+    return fieldsOnly ? fields : <FilterPanel active={active} onClear={onClear}>{fields}</FilterPanel>
   }
 
   return (

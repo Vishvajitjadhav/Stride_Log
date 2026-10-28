@@ -54,3 +54,8 @@ export function bySource(tasks, sources) {
   if (!sources || sources.length === ALL_SOURCES.length) return tasks
   return tasks.filter(t => sources.includes(t.source ?? 'manual'))
 }
+
+// How many filters narrow the data (employee, project, sources).
+export function activeCount(filters) {
+  return Number(filters.person !== 'all') + Number(filters.project !== 'all') + Number(filters.sources.length < ALL_SOURCES.length)
+}

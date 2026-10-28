@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useDashboard } from '../hooks/useAnalytics'
-import { useFilters } from '../hooks/useFilters'
+import { useFilters, activeCount } from '../hooks/useFilters'
 import { useHolidays } from '../hooks/useOrg'
 import { formatRange, todayISO } from '../utils/dates'
 import { statusCounts, attention, insights } from '../utils/insights'
@@ -10,6 +10,7 @@ import { toast } from '../lib/toast'
 import { ROLE_LABELS } from '../lib/permissions'
 import { reportSheets } from '../components/reports/exportSheets'
 import FilterBar from '../components/FilterBar'
+import RailLayout, { RailSearch } from '../components/layout/RailLayout'
 import { DoneColumns } from '../components/charts/Charts'
 import ReportButton from '../components/reports/ReportButton'
 import { StatusTiles, StatusRing, StackBars, PeopleTable, TaskTable } from '../components/reports/ReportParts'
@@ -28,7 +29,6 @@ export default function Reports() {
   const [status, setStatus] = useState(null)   // show only this status
   const [search, setSearch] = useState('')
   const [saving, setSaving] = useState(false)
-  const [filtersOpen, setFiltersOpen] = useState(false)   // phones and tablets
 
   const peopleById = useMemo(() => Object.fromEntries(allPeople.map(p => [p.id, p])), [allPeople])
   const single = data && filters.person !== 'all' && data.persons.length === 1 ? data.persons[0] : null
@@ -82,22 +82,11 @@ export default function Reports() {
   }
 
   return (
-    <div className="max-w-[120rem] mx-auto grid grid-cols-1 lg:grid-cols-[15.5rem_minmax(0,1fr)] 2xl:grid-cols-[17rem_minmax(0,1fr)] gap-5 items-start">
-      {/* Left rail: what you are looking at (filters), then what it means. */}
-      <aside className="space-y-4 lg:sticky lg:top-[4.75rem] lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto scrollbar-none">
-        <button type="button" onClick={() => setFiltersOpen(o => !o)} aria-expanded={filtersOpen}
-          className="lg:hidden w-full flex items-center justify-between rounded-xl px-4 h-11 bg-primary-50 ring-1 ring-inset ring-primary-200 text-sm font-semibold text-primary-800 transition-colors active:bg-primary-100">
-          <span className="flex items-center gap-2"><Icon name="filter" size={16} />Filters</span>
-          <span className="flex items-center gap-2 text-xs font-medium text-primary-700">{period}<Icon name="down" size={16} className={`transition-transform duration-200 ${filtersOpen ? 'rotate-180' : ''}`} /></span>
-        </button>
-        <div className={`${filtersOpen ? 'block' : 'hidden'} lg:block`}>
+    <RailLayout summary={period} active={activeCount(filters) + Number(Boolean(search.trim())) + Number(Boolean(status))} rail={<>
+        <div>
           <FilterBar panel filters={filters} setFilter={setFilter} people={allPeople} projects={projects}
             onClear={clearAll} activeExtra={Number(Boolean(search.trim())) + Number(Boolean(status))}>
-            <div className="relative">
-              <Icon name="search" size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search task, key or person"
-                aria-label="Search tasks" className={`field !h-9 !py-0 !pl-9 ${search.trim() ? '!border-primary-500 ring-2 ring-primary-100' : ''}`} />
-            </div>
+            <RailSearch value={search} onChange={setSearch} placeholder="Search task, key or person" label="Search tasks" />
           </FilterBar>
         </div>
 
@@ -146,10 +135,8 @@ export default function Reports() {
             </Card>
           </div>
         )}
-      </aside>
+      </>}>
 
-      {/* Main: the numbers. Container queries size it by its own width. */}
-      <div className="@container min-w-0 space-y-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="min-w-0 mr-auto">
             <h2 className="text-lg font-semibold text-gray-900 tracking-tight truncate">{title}</h2>
@@ -206,7 +193,6 @@ export default function Reports() {
             </Section>
           </div>
         )}
-      </div>
-    </div>
+    </RailLayout>
   )
 }

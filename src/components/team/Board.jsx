@@ -4,7 +4,6 @@ import { bySource } from '../../hooks/useFilters'
 import { boardCards, sortCards, COLUMNS, STUCK_DAYS } from '../../utils/board'
 import { statusStyle, STATUS_LABELS } from '../../lib/status'
 import { formatShort, todayISO } from '../../utils/dates'
-import FilterBar from '../FilterBar'
 import Card from '../ui/Card'
 import Avatar from '../ui/Avatar'
 import Icon from '../ui/Icon'
@@ -89,7 +88,7 @@ function Column({ col, cards, peopleById, onOpen }) {
 
 // Status columns for everyone's work (managers) or your own (employees).
 //   onOpen(card): open a task or a Jira issue
-export default function Board({ filters, setFilter, people, projects, holidays, me, full, onOpen }) {
+export default function Board({ filters, people, holidays, me, full, onOpen }) {
   const today = todayISO()
   const { data, isLoading } = useBoard({ from: filters.from, to: filters.to, userId: full ? undefined : me, withIssues: full })
   const peopleById = useMemo(() => Object.fromEntries(people.map(p => [p.id, p])), [people])
@@ -119,8 +118,6 @@ export default function Board({ filters, setFilter, people, projects, holidays, 
 
   return (
     <div className="space-y-4">
-      <FilterBar filters={filters} setFilter={setFilter} people={people} projects={projects} showPerson={full} />
-
       {/* Tinted by meaning; a zero stays neutral so colour only shows where it matters. */}
       <div className={`grid ${stats.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} gap-2.5`}>
         {stats.map(s => (
