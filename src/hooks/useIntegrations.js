@@ -121,3 +121,62 @@ export function useAutoSync(kind) {
 
   return { status, active, syncing: sync.isPending, sync }
 }
+
+// ── Company Jira (admins) ───────────────────────────────────────────────────
+
+// { on, mine, owner, account_email, site_url, broken }
+export function useCompanyJira({ enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['company_jira'],
+    enabled,
+    retry: false,
+    queryFn: () => invoke('connect', { action: 'company_status' }),
+  })
+}
+
+// Jira projects the company connection can see: [{ key, name }]
+export function useJiraProjects({ enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['company_jira', 'projects'],
+    enabled,
+    retry: false,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => (await invoke('connect', { action: 'company_projects' })).projects,
+  })
+}
+
+// Projects the company reads: [{ jira_key, jira_name, project_id }]
+export function useJiraLinks() {
+  return useQuery({
+    queryKey: ['jira_links'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('jira_project_links').select('*').order('jira_name')
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useCompanyJiraMutations() {
+  const qc = useQueryClient()
+  const done = () => {
+    qc.invalidateQueries({ queryKey: ['company_jira'] })
+    qc.invalidateQueries({ queryKey: ['connections'] })
+    qc.invalidateQueries({ queryKey: ['jira_links'] })
+  }
+  const use = useMutation({ mutationFn: () => invoke('connect', { action: 'company_use' }), onSuccess: done })
+  const stop = useMutation({ mutationFn: () => invoke('connect', { action: 'company_stop' }), onSuccess: done })
+  // Replace the chosen projects: links = [{ jira_key, jira_name, project_id }]
+  const saveLinks = useMutation({
+    mutationFn: async links => {
+      const del = await supabase.from('jira_project_links').delete().neq('jira_key', '')
+      if (del.error) throw del.error
+      if (links.length) {
+        const ins = await supabase.from('jira_project_links').insert(links)
+        if (ins.error) throw ins.error
+      }
+    },
+    onSuccess: done,
+  })
+  return { use, stop, saveLinks }
+}

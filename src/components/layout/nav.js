@@ -1,7 +1,7 @@
-// One navigation definition for the desktop sidebar and the phone tab bar.
+// One navigation definition for the desktop top bar and the phone tab bar.
 //   perm:    permission needed to see the item (lib/permissions.js)
 //   notPerm: hide the item from people who have this permission
-//   phone:   false keeps it out of the phone tab bar (sidebar only)
+//   phone:   false keeps it out of the phone tab bar (desktop menu only)
 //   short:   shorter label for the phone tab bar
 // Managers / HR / admins: Team · Reports · Leaderboard · Projects · Admin (their
 // own day is optional and lives under Account). Everyone else: Today · My
@@ -43,4 +43,21 @@ export function pageTitle(pathname, can) {
   if (pathname.startsWith('/team/')) return 'Employee'
   if (TITLES[pathname]) return TITLES[pathname]
   return visibleNav(can).find(n => n.to === pathname)?.label ?? 'StrideLog'
+}
+
+// Load a page's code as soon as someone points at its menu item, so the
+// click feels instant. Same imports as App.jsx, so Vite shares the chunk.
+const PAGES = {
+  '/team': () => import('../../pages/Team'),
+  '/reports': () => import('../../pages/Reports'),
+  '/leaderboard': () => import('../../pages/Leaderboard'),
+  '/projects': () => import('../../pages/Projects'),
+  '/progress': () => import('../../pages/Progress'),
+  '/admin': () => import('../../pages/admin/Admin'),
+}
+const fetched = new Set()
+export function prefetchPage(to) {
+  if (fetched.has(to) || !PAGES[to]) return
+  fetched.add(to)
+  PAGES[to]().catch(() => fetched.delete(to))
 }

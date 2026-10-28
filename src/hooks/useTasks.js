@@ -89,6 +89,15 @@ export function useTaskMutations() {
     onSuccess: invalidate,
   })
 
+  // The same task for several people at once (assigning). rows: [{ user_id, ...task }]
+  const addMany = useMutation({
+    mutationFn: async (rows) => {
+      const { error } = await supabase.from('tasks').insert(rows.map(t => ({ date: todayISO(), status: 'pending', ...t })))
+      if (error) throw error
+    },
+    onSuccess: invalidate,
+  })
+
   const update = useMutation({
     mutationFn: async ({ id, ...fields }) => {
       const { error } = await supabase.from('tasks').update(fields).eq('id', id)
@@ -115,7 +124,7 @@ export function useTaskMutations() {
     onSuccess: invalidate,
   })
 
-  return { add, update, remove }
+  return { add, addMany, update, remove }
 }
 
 // Live updates: when a manager assigns or edits one of my tasks it appears

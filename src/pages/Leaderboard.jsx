@@ -8,6 +8,7 @@ import Icon from '../components/ui/Icon'
 import Tooltip from '../components/ui/Tooltip'
 import { CountUp, Meter, ScoreRing } from '../components/ui/Motion'
 import SharingSwitch from '../components/SharingSwitch'
+import RailLayout, { FilterPanel, RailField, RailChoices, RailSearch } from '../components/layout/RailLayout'
 
 const PERIODS = [['this_week', 'This week'], ['last_week', 'Last week'], ['this_month', 'This month'], ['last_month', 'Last month'], ['last_3_months', '3 months']]
 const PERIOD_KEY = 'stridelog:leaderboard_period'
@@ -78,7 +79,7 @@ function HowItWorks() {
 function Highlights({ rows }) {
   const items = Object.entries(BADGES).map(([key, b]) => ({ key, ...b, people: rows.filter(r => r.badges?.includes(key)) }))
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger">
+    <div className="grid grid-cols-2 @4xl:grid-cols-4 @6xl:grid-cols-2 gap-3 stagger">
       {items.map((i, n) => (
         <div key={i.key} style={{ '--i': n + 3 }} className="grid">
           <Card className="relative p-4 card-hover">
@@ -142,14 +143,19 @@ function Podium({ rows }) {
 }
 
 // Full ranking with every part of the score (managers, HR, admins).
-function Ranking({ rows }) {
-  const ranked = rows.filter(r => r.eligible)
+//   rankBy: 'score' or a SCORE_PARTS key to order by   search: name filter
+function Ranking({ rows, rankBy = 'score', search = '' }) {
+  const q = search.trim().toLowerCase()
+  const value = r => r[rankBy] ?? -1
+  const ranked = rows.filter(r => r.eligible && (!q || r.name.toLowerCase().includes(q))).sort((a, b) => value(b) - value(a) || a.rank - b.rank)
   const waiting = rows.filter(r => !r.eligible)
+  const by = rankBy === 'score' ? 'overall score' : SCORE_PARTS.find(p => p.key === rankBy)?.label.toLowerCase()
+  const col = key => (key === rankBy ? 'bg-primary-50 !text-primary-700' : '')
   return (
     <Card className="overflow-hidden">
       <div className="px-5 pt-5 pb-3">
         <p className="section-title">Everyone</p>
-        <p className="section-hint"><span className="hidden md:inline">Hover a column title to see what it measures.</span><span className="md:hidden">Ranked by overall score.</span></p>
+        <p className="section-hint">Ordered by {by}{q ? `, matching ${search.trim()}` : ''}. <span className="hidden md:inline">Hover a column title to see what it measures.</span></p>
       </div>
 
       <div className="hidden md:block overflow-x-auto">
@@ -158,9 +164,9 @@ function Ranking({ rows }) {
             <tr>
               <th className="w-12">#</th>
               <th>Employee</th>
-              <th className="w-48">Score</th>
+              <th className={`w-48 ${col('score')}`}>Score</th>
               {SCORE_PARTS.map(p => (
-                <th key={p.key} className="text-right">
+                <th key={p.key} className={`text-right ${col(p.key)}`}>
                   <span className="inline-flex items-center gap-1">{p.label} <Tooltip align="right" text={`${p.tip} Weight ${p.weight}%.`} /></span>
                 </th>
               ))}
@@ -168,7 +174,7 @@ function Ranking({ rows }) {
           </thead>
           <tbody className="stagger">
             {ranked.map((r, i) => (
-              <tr key={r.user_id} style={{ '--i': Math.min(i, 14) }} className="hover:bg-primary-50/40">
+              <tr key={r.user_id} style={{ '--i': Math.min(i, 14) }} className="transition-colors hover:bg-primary-50/40">
                 <td>
                   <span className={`inline-flex w-7 h-7 rounded-full items-center justify-center text-xs font-bold tabular-nums ${PLACE[r.rank]?.medal ?? 'bg-gray-100 text-gray-600'}`}>{r.rank}</span>
                 </td>
@@ -197,6 +203,7 @@ function Ranking({ rows }) {
 
       {/* Phones: one card per person, the score parts as small meters. */}
       <ul className="md:hidden divide-y divide-gray-100 stagger">
+        {ranked.length === 0 && <li className="px-4 py-6 text-center text-sm text-gray-500">Nobody matches your search.</li>}
         {ranked.map((r, i) => (
           <li key={r.user_id} style={{ '--i': Math.min(i, 12) }} className="px-4 py-3.5">
             <div className="flex items-center gap-3">
@@ -232,16 +239,18 @@ function Support({ rows }) {
   const list = rows.filter(r => r.eligible && ((r.consistency ?? 100) < 60 || (r.follow_through ?? 100) < 50))
   if (!list.length) return null
   return (
-    <Card className="p-5 border-amber-200/70 bg-gradient-to-br from-amber-50/60 to-surface">
-      <p className="section-title flex items-center gap-2"><span className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center"><Icon name="bell" size={15} /></span>Worth a check in</p>
-      <p className="section-hint mb-3">Only you can see this. A low number often means blockers or unclear work, not low effort.</p>
-      <ul className="space-y-2">
+    <Card className="p-4 border-l-4 !border-l-amber-400 !rounded-l-md bg-gradient-to-br from-amber-50/60 to-surface">
+      <p className="text-sm font-semibold text-gray-900 flex items-center gap-2"><span className="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center"><Icon name="bell" size={13} /></span>Worth a check in</p>
+      <p className="text-[11px] text-gray-500 mt-1 mb-2.5">Only you can see this. A low number often means blockers or unclear work, not low effort.</p>
+      <ul className="space-y-2.5">
         {list.map(r => (
-          <li key={r.user_id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <li key={r.user_id} className="flex items-start gap-2.5 text-[13px]">
             <Avatar person={r} size="xs" />
-            <span className="font-medium text-gray-900">{r.name}</span>
-            <span className="text-gray-500">
+            <span className="min-w-0">
+            <span className="block font-medium text-gray-900 truncate">{r.name}</span>
+            <span className="block text-xs text-gray-500">
               {[(r.consistency ?? 100) < 60 && `logged ${r.logged_days} of ${r.expected_days} days`, (r.follow_through ?? 100) < 50 && `finished ${r.done} of ${r.planned} tasks`].filter(Boolean).join(', ')}
+            </span>
             </span>
           </li>
         ))}
@@ -257,7 +266,7 @@ function MyScore({ me }) {
   // Growth above 50 already means improving, so only suggest it when it dips.
   const weakest = [...parts].filter(p => p.key !== 'growth' || me.growth < 50).sort((a, b) => me[a.key] - me[b.key])[0]
   const advice = {
-    consistency: 'Submitting your day, even a short one, lifts consistency fastest.',
+    consistency: 'Updating your tasks every working day, even one small one, lifts consistency fastest.',
     follow_through: 'Plan a little less and finish it; carried over tasks lower follow through.',
     on_time: 'Flag blockers early on assigned tasks so due dates can move before they are missed.',
     growth: 'Small steady steps count: growth compares you only with your own last period.',
@@ -298,25 +307,44 @@ export default function Leaderboard() {
   const full = can('viewTeam')
   const [period, setPeriod] = useState(() => { try { return localStorage.getItem(PERIOD_KEY) || 'this_month' } catch { return 'this_month' } })
   const pick = k => { setPeriod(k); try { localStorage.setItem(PERIOD_KEY, k) } catch { /* private mode */ } }
+  const [rankBy, setRankBy] = useState('score')
+  const [search, setSearch] = useState('')
   const range = presetRange(period)
   const { data: rows = [], isLoading, error } = useLeaderboard(range)
   const me = rows.find(r => r.is_me)
+  const active = Number(rankBy !== 'score') + Number(Boolean(search.trim()))
+
+  const rail = (
+    <>
+      <FilterPanel title="Leaderboard" icon="trophy" active={active} onClear={() => { setRankBy('score'); setSearch('') }}>
+        <RailField label="Period" hint={formatRange(range.from, range.to)}>
+          <RailChoices label="Period" value={period} onChange={pick} options={PERIODS.map(([key, label]) => ({ key, label }))} />
+        </RailField>
+        {full && (
+          <>
+            <RailField label="Rank by">
+              <RailChoices label="Rank by" value={rankBy} onChange={setRankBy}
+                options={[{ key: 'score', label: 'Overall score' }, ...SCORE_PARTS.map(p => ({ key: p.key, label: p.label }))]} />
+            </RailField>
+            <RailField label="Employee"><RailSearch value={search} onChange={setSearch} placeholder="Search a name" label="Search employee" /></RailField>
+          </>
+        )}
+      </FilterPanel>
+      {full && !isLoading && <Support rows={rows} />}
+    </>
+  )
 
   return (
-    <div className="max-w-6xl 2xl:max-w-7xl 3xl:max-w-[88rem] mx-auto space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="page-title flex items-center gap-2.5">
-            <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-300 to-amber-500 text-amber-950 flex items-center justify-center shadow-sm"><Icon name="trophy" size={19} strokeWidth={2} /></span>
-            Leaderboard
-          </h2>
-          <p className="page-subtitle">Recognising steady, reliable work. {formatRange(range.from, range.to)}.</p>
+    <RailLayout rail={rail} active={active} summary={PERIODS.find(([k]) => k === period)?.[1]}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 mr-auto flex items-center gap-2.5">
+          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-300 to-amber-500 text-amber-950 flex items-center justify-center shadow-sm"><Icon name="trophy" size={19} strokeWidth={2} /></span>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Leaderboard</h2>
+            <p className="text-xs text-gray-500">Recognising steady, reliable work. {formatRange(range.from, range.to)}.</p>
+          </div>
         </div>
         <SharingSwitch what="leaderboard" tip="When on, employees see the highlights, the top five and their own score. The full table and check in list stay private to managers." />
-      </div>
-
-      <div className="segmented" role="group" aria-label="Period">
-        {PERIODS.map(([k, l]) => <button key={k} aria-pressed={period === k} onClick={() => pick(k)}>{l}</button>)}
       </div>
 
       {error ? (
@@ -324,15 +352,14 @@ export default function Leaderboard() {
       ) : isLoading ? (
         <div className="space-y-3"><Card className="h-56 skeleton" /><Card className="h-64 skeleton" /></div>
       ) : (
-        <div className="space-y-5 page-in" key={period}>
+        <div className="space-y-4 page-in" key={period}>
           {!full && <MyScore me={me} />}
-          <Podium rows={rows} />
-          <Highlights rows={rows} />
+          <div className="grid grid-cols-1 @6xl:grid-cols-2 gap-4 items-start">
+            <Podium rows={rows} />
+            <Highlights rows={rows} />
+          </div>
           {full ? (
-            <>
-              <Ranking rows={rows} />
-              <Support rows={rows} />
-            </>
+            <Ranking rows={rows} rankBy={rankBy} search={search} />
           ) : rows.some(r => r.eligible && r.rank > 3 && r.rank <= 5) && (
             <Card className="divide-y divide-gray-100 stagger">
               {rows.filter(r => r.eligible && r.rank > 3 && r.rank <= 5).map((r, i) => (
@@ -355,6 +382,6 @@ export default function Leaderboard() {
           <HowItWorks />
         </div>
       )}
-    </div>
+    </RailLayout>
   )
 }

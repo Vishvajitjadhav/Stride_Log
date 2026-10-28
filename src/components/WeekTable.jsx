@@ -1,13 +1,6 @@
 import { daysBetween, addDaysISO, isWorkingDay, todayISO } from '../utils/dates'
-import { STATUS_LABELS } from '../lib/labels'
+import { STATUS_LABELS, statusStyle } from '../lib/status'
 import Badge from './ui/Badge'
-
-const STATUS_TEXT = {
-  done: 'text-emerald-800',
-  in_progress: 'text-amber-800',
-  blocked: 'text-red-700',
-  pending: 'text-gray-600',
-}
 
 // Day by day list of one person's tasks for a week: what they did on each day.
 // tasks: rows from useTaskRange (with categories), logs: rows from useWorkLogRange
@@ -34,11 +27,11 @@ export default function WeekTable({ weekStart, tasks = [], logs = [], holidays, 
             const holiday = holidays?.byDate?.[d]
             if (!working && dayTasks.length === 0 && !log?.submitted) return null
             const state = log?.submitted
-              ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Submitted' : 'Extra day'}</Badge>
+              ? <Badge variant={working ? 'submitted' : 'extra'}>{working ? 'Active' : 'Extra day'}</Badge>
               : d > today ? <Badge variant="off">Upcoming</Badge>
               : !working ? <Badge variant="off">{holiday ? 'Holiday' : 'Weekend'}</Badge>
               : d === today ? <Badge variant="draft">In progress</Badge>
-              : <Badge variant="missing">Not submitted</Badge>
+              : <Badge variant="missing">No activity</Badge>
             const rows = dayTasks.length ? dayTasks : [null]
             const notes = [log?.what_i_did && ['Summary', log.what_i_did], log?.blockers && ['Blocker', log.blockers]].filter(Boolean)
 
@@ -62,7 +55,7 @@ export default function WeekTable({ weekStart, tasks = [], logs = [], holidays, 
                       <span className="sm:hidden block text-xs text-gray-500">{t.categories?.name ?? 'Uncategorized'}</span>
                     </td>
                     <td className="hidden sm:table-cell text-gray-600">{t.categories?.name ?? 'Uncategorized'}</td>
-                    <td className={`text-right font-medium whitespace-nowrap ${STATUS_TEXT[t.status]}`}>{STATUS_LABELS[t.status]}</td>
+                    <td className={`text-right font-medium whitespace-nowrap ${statusStyle(t.status).text}`}>{STATUS_LABELS[t.status]}</td>
                   </>
                 ) : (
                   <td colSpan={3} className="text-gray-400">No tasks logged</td>

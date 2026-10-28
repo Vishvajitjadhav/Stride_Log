@@ -31,6 +31,8 @@ function AppRow({ app }) {
   const [asking, setAsking] = useState(false)
   const available = Boolean(status?.configured && status.enabled)
   const connected = Boolean(status?.connected)
+  // Company Jira reads everyone's issues, so only admins (who set it up) connect.
+  const byCompany = Boolean(status?.company) && !connected
   const syncedAt = profile[INTEGRATIONS[app.kind].syncedAt]
 
   async function syncNow() {
@@ -51,6 +53,7 @@ function AppRow({ app }) {
 
   const state = isLoading ? 'Checking'
     : connected ? 'Connected'
+    : byCompany ? 'Read for you by your company'
     : !status?.configured ? 'Not set up by your admin yet'
     : !status.enabled ? 'Turned off for the company'
     : 'Not connected'
@@ -78,7 +81,7 @@ function AppRow({ app }) {
           )}
           {connected && status.last_error && <p className="text-xs text-red-600 mt-1">Last sync had a problem: {status.last_error}</p>}
         </div>
-        {!connected && available && (
+        {!connected && available && (!byCompany || profile.role === 'admin') && (
           <Button size="sm" onClick={() => connect.mutate(undefined, { onError: e => toast.error(e.message) })} loading={connect.isPending}>
             Connect
           </Button>

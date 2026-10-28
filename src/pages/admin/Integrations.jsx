@@ -9,6 +9,8 @@ import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
 import Switch from '../../components/ui/Switch'
 import AppLogo from '../../components/integrations/AppLogo'
+import CompanyJira from '../../components/integrations/CompanyJira'
+import { useAuth } from '../../contexts/AuthContext'
 
 // Where Microsoft and Atlassian send people back after they sign in.
 const CALLBACK = `${import.meta.env.VITE_SUPABASE_URL ?? 'https://<project>.supabase.co'}/functions/v1/connect`
@@ -69,6 +71,7 @@ function Panel({ kind }) {
   const { data: runs = [] } = useSyncRuns(kind)
   const { data: counts = {} } = useConnectionCounts()
   const [guide, setGuide] = useState(false)
+  const { profile } = useAuth()
   const connected = status?.configured
   const enabled = Boolean(org?.[app.enabledKey])
   const name = kind === 'teams' ? 'Teams' : 'Jira'
@@ -131,6 +134,8 @@ function Panel({ kind }) {
           </div>
         </div>
       </Card>
+
+      {kind === 'jira' && connected && enabled && profile?.role === 'admin' && <CompanyJira />}
 
       <Card>
         <button onClick={() => setGuide(g => !g)} className="w-full flex items-center justify-between px-5 py-4 text-left group">

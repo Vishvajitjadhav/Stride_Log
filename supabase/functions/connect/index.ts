@@ -9,7 +9,8 @@
 // registrations: https://<project>.supabase.co/functions/v1/connect
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import {
-  PROVIDERS, isConfigured, isMock, authorizeUrl, exchangeCode, saveConnection, signState, readState, callbackUrl, type Provider,
+  PROVIDERS, isConfigured, isMock, authorizeUrl, exchangeCode, saveConnection, signState, readState, callbackUrl, accessToken,
+  type Provider, type Connection,
 } from '../_shared/oauth.ts'
 
 const cors = {
@@ -90,7 +91,7 @@ Deno.serve(async req => {
   if (!me?.is_approved || !me.is_active) return json({ error: 'Account not active' }, 403)
 
   const body = await req.json().catch(() => ({}))
-  const { data: org } = await db.from('org_settings').select('teams_sync_enabled, jira_sync_enabled').eq('id', 1).single()
+  const { data: org } = await db.from('org_settings').select('teams_sync_enabled, jira_sync_enabled, jira_company_user').eq('id', 1).single()
   const enabled = { teams: Boolean(org?.teams_sync_enabled), jira: Boolean(org?.jira_sync_enabled) }
 
   if (body.action === 'status') {
@@ -99,9 +100,52 @@ Deno.serve(async req => {
     const out: Record<string, unknown> = {}
     for (const p of PROVIDER_LIST) {
       const c = rows?.find(r => r.provider === p)
-      out[p] = { configured: isConfigured(p), enabled: enabled[p], mock: isMock(p), connected: Boolean(c), ...(c ?? {}) }
+      // company: Jira is read for everyone by the company connection.
+      out[p] = { configured: isConfigured(p), enabled: enabled[p], mock: isMock(p), connected: Boolean(c), company: p === 'jira' && Boolean(org?.jira_company_user), ...(c ?? {}) }
     }
     return json(out)
+  }
+
+  // ── Company Jira (admins): one connection reads chosen projects for everyone ──
+  if (body.action?.startsWith('company_')) {
+    const { data: role } = await db.from('profiles').select('role').eq('id', user.id).single()
+    if (role?.role !== 'admin') return json({ error: 'Only an admin can set up company Jira' }, 403)
+    const { data: o } = await db.from('org_settings').select('jira_company_user').eq('id', 1).single()
+    const companyUser = o?.jira_company_user ?? null
+
+    if (body.action === 'company_use') {
+      const { data: mine } = await db.from('oauth_connections').select('user_id').eq('user_id', user.id).eq('provider', 'jira').maybeSingle()
+      if (!mine) return json({ error: 'Connect your own Jira first under Account, Connected apps.' }, 400)
+      await db.from('org_settings').update({ jira_company_user: user.id }).eq('id', 1)
+      return json({ ok: true })
+    }
+    if (body.action === 'company_stop') {
+      await db.from('org_settings').update({ jira_company_user: null }).eq('id', 1)
+      await db.from('jira_issues').delete().neq('key', '')
+      return json({ ok: true })
+    }
+    if (body.action === 'company_status' || body.action === 'company_projects') {
+      const { data: c } = companyUser
+        ? await db.from('oauth_connections').select('*').eq('user_id', companyUser).eq('provider', 'jira').maybeSingle()
+        : { data: null }
+      const { data: owner } = companyUser ? await db.from('profiles').select('name').eq('id', companyUser).single() : { data: null }
+      if (body.action === 'company_status') {
+        return json({ on: Boolean(companyUser), mine: companyUser === user.id, owner: owner?.name ?? null, account_email: c?.account_email ?? null, site_url: c?.site_url ?? null, broken: Boolean(companyUser && !c) })
+      }
+      // Jira projects the company connection can see.
+      if (!c) return json({ error: 'Use a Jira connection for the company first.' }, 400)
+      if (isMock('jira')) {
+        return json({ projects: [{ key: 'APP', name: 'Mobile App' }, { key: 'WEB', name: 'Web Platform' }, { key: 'CP', name: 'Client Portal' }] })
+      }
+      const token = await accessToken(db, c as Connection)
+      if (!token) return json({ error: 'The company Jira connection was removed. Connect again.' }, 400)
+      const res = await fetch(`https://api.atlassian.com/ex/jira/${c.cloud_id}/rest/api/3/project/search?maxResults=100&orderBy=name`,
+        { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
+      if (!res.ok) return json({ error: `Jira ${res.status}: ${(await res.text()).slice(0, 200)}` }, 502)
+      const list = await res.json()
+      return json({ projects: (list.values ?? []).map((p: { key: string; name: string }) => ({ key: p.key, name: p.name })) })
+    }
+    return json({ error: 'Unknown action' }, 400)
   }
 
   const provider = body.provider as Provider

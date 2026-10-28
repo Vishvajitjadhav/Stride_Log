@@ -1,10 +1,11 @@
 import Icon from '../ui/Icon'
-import { STATUS_LABELS } from '../../lib/labels'
+import { StatusBadge } from '../ui/Badge'
 import { formatShort, todayISO } from '../../utils/dates'
 
 const STATUS_ICON = {
   pending: { name: 'circle', cls: 'text-gray-300 hover:text-primary-500' },
   in_progress: { name: 'progress', cls: 'text-amber-600' },
+  in_review: { name: 'review', cls: 'text-sky-500' },
   done: { name: 'check', cls: 'text-white bg-emerald-600 rounded-full p-0.5' },
   blocked: { name: 'block', cls: 'text-red-600' },
 }
@@ -28,17 +29,17 @@ export default function TaskItem({ task, onStatus, onOpen, showOwner = false, co
     ),
     jira && (
       <span key="j" className="inline-flex items-center gap-1 text-[#0c66e4] dark:text-[#579dff] font-medium" title="Status follows Jira">
-        <span className="w-2 h-2 rotate-45 rounded-[2px] bg-current" />Jira{jiraStatus ? `, ${jiraStatus}` : ''}
+        <span className="w-2 h-2 rotate-45 rounded-[2px] bg-current" />Jira
       </span>
+    ),
+    !done && (jiraStatus || task.status !== 'pending') && (
+      <StatusBadge key="s" status={task.status} label={jiraStatus ?? undefined} />
     ),
     task.project && <span key="p" className="font-medium text-gray-600">{task.project.name}</span>,
     task.categories && (
       <span key="c" className="inline-flex items-center gap-1.5">
         <span className="w-2 h-2 rounded-full" style={{ background: task.categories.color }} />{task.categories.name}
       </span>
-    ),
-    !jira && (task.status === 'in_progress' || task.status === 'blocked') && (
-      <span key="s" className={task.status === 'blocked' ? 'text-red-700 font-medium' : 'text-amber-700 font-medium'}>{STATUS_LABELS[task.status]}</span>
     ),
     task.assigner && !showOwner && <span key="a">Assigned by {task.assigner.name.split(' ')[0]}</span>,
     carried && <span key="r" className="text-amber-700">From {formatShort(task.date)}</span>,

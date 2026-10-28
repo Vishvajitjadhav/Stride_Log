@@ -38,11 +38,11 @@ function dayRows(person, tasks, logs, range, holidays, holidayNames, nameById, t
     const working = isWorkingDay(d, holidays)
     const dayTasks = tasks.filter(t => t.date === d)
     let state
-    if (log?.submitted) state = working ? 'Submitted' : 'Extra day'
+    if (log?.submitted) state = working ? 'Active' : 'Extra day'
     else if (d > today) state = 'Upcoming'
     else if (!working) state = holidayNames[d] ? `Holiday: ${holidayNames[d]}` : 'Weekend'
     else if (d === today) state = 'In progress'
-    else state = 'Not submitted'
+    else state = 'No activity'
     return {
       date: d,
       working,

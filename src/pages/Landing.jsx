@@ -6,7 +6,7 @@ import Avatar from '../components/ui/Avatar'
 import Icon from '../components/ui/Icon'
 
 const FEATURES = [
-  { icon: 'today', title: 'Plan the day', text: 'Employees list their tasks, mark progress and submit the day in under a minute, on phone or desktop.' },
+  { icon: 'today', title: 'Plan the day', text: 'Employees list their tasks, and mark progress in under a minute, on phone or desktop.' },
   { icon: 'team', title: 'See the whole team', text: 'Managers see who is working on what today, and every day of the week at a glance.' },
   { icon: 'analytics', title: 'Report with confidence', text: 'Clear weekly and monthly numbers, plain observations and detailed PDF reports for every employee.' },
 ]

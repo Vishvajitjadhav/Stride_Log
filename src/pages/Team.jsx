@@ -5,12 +5,16 @@ import { usePeople } from '../hooks/usePeople'
 import { useHolidays } from '../hooks/useOrg'
 import { useProjects, projectsOf } from '../hooks/useProjects'
 import { useDayFacts, useFacts } from '../hooks/useAnalytics'
+import { useFilters, bySource, activeCount, SOURCES } from '../hooks/useFilters'
 import {
   todayISO, addDaysISO, weekStartISO, daysBetween, isWorkingDay, formatLong, formatRange,
 } from '../utils/dates'
 import { ROLE_LABELS, isTracked } from '../lib/permissions'
-import { STATUS_LABELS } from '../lib/labels'
+import { STATUS_LABELS, statusStyle } from '../lib/status'
 import TaskEditor from '../components/tasks/TaskEditor'
+import Board from '../components/team/Board'
+import FilterBar from '../components/FilterBar'
+import RailLayout, { FilterPanel, RailField, RailChoices, RailSearch } from '../components/layout/RailLayout'
 import DayDrawer from '../components/DayDrawer'
 import ReportButton from '../components/reports/ReportButton'
 import Card from '../components/ui/Card'
@@ -20,14 +24,6 @@ import Button from '../components/ui/Button'
 import Icon from '../components/ui/Icon'
 import Tooltip from '../components/ui/Tooltip'
 import SharingSwitch from '../components/SharingSwitch'
-import Select from '../components/ui/Select'
-
-const STATUS_DOT = {
-  done: 'bg-emerald-600',
-  in_progress: 'bg-amber-500',
-  blocked: 'bg-red-600',
-  pending: 'bg-gray-300',
-}
 
 // Tasks grouped by project, in order of first appearance, with "No project" last.
 // A person whose tasks have no project gets a single unnamed group.
@@ -66,8 +62,8 @@ function Summary({ items }) {
 function PersonDay({ person, tasks, log, kind, projectNames, projectColor, onAssign, onOpen, tasksOnly, isMe }) {
   const done = tasks.filter(t => t.status === 'done').length
   const status = tasksOnly ? null : log?.submitted
-    ? (kind === 'work' ? <Badge variant="submitted">Submitted</Badge> : <Badge variant="extra">Extra day</Badge>)
-    : kind === 'work' ? <Badge variant="missing">Not submitted</Badge> : <Badge variant="off">{kind === 'holiday' ? 'Holiday' : 'Weekend'}</Badge>
+    ? (kind === 'work' ? <Badge variant="submitted">Active</Badge> : <Badge variant="extra">Extra day</Badge>)
+    : kind === 'work' ? <Badge variant="missing">No activity</Badge> : <Badge variant="off">{kind === 'holiday' ? 'Holiday' : 'Weekend'}</Badge>
 
   return (
     <Card>
@@ -101,7 +97,7 @@ function PersonDay({ person, tasks, log, kind, projectNames, projectColor, onAss
                 <ul className="space-y-2">
                   {g.tasks.map(t => (
                     <li key={t.id} className="flex items-start gap-2.5 text-sm">
-                      <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[t.status]}`} title={STATUS_LABELS[t.status]} />
+                      <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${statusStyle(t.status).dot}`} title={STATUS_LABELS[t.status]} />
                       <span className={`flex-1 min-w-0 ${t.status === 'done' ? 'text-gray-500' : 'text-gray-800'}`}>
                         {t.title}
                         {t.assigned_by && <span className="text-xs text-primary-600"> (assigned)</span>}
@@ -122,7 +118,7 @@ function PersonDay({ person, tasks, log, kind, projectNames, projectColor, onAss
           </div>
         )}
         {onAssign && (
-          <button onClick={onAssign} className="mt-3 text-xs font-medium text-primary-700 hover:text-primary-900 inline-flex items-center gap-1">
+          <button onClick={onAssign} className="mt-3 text-xs font-medium text-primary-700 hover:text-primary-800 inline-flex items-center gap-1">
             <Icon name="plus" size={14} /> Assign a task
           </button>
         )}
@@ -142,7 +138,7 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
   })).sort((a, b) => tasksOnly
     // Employees: themselves first, then by name.
     ? Number(b.person.id === me) - Number(a.person.id === me) || a.person.name.localeCompare(b.person.name)
-    // Managers: not submitted first (needs attention), then by name.
+    // Managers: no activity first (needs attention), then by name.
     : Number(Boolean(a.log?.submitted)) - Number(Boolean(b.log?.submitted)) || a.person.name.localeCompare(b.person.name)
   ), [people, data, tasksOnly, me])
 
@@ -159,7 +155,7 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
       <Summary items={[
         tasksOnly
           ? { label: 'Working on it', value: rows.filter(r => r.tasks.length).length, of: `of ${rows.length}`, tip: 'Teammates with at least one task for this day.' }
-          : { label: 'Submitted', value: submitted, of: `of ${rows.length}`, tip: 'People who submitted their daily log for this day.' },
+          : { label: 'Active', value: submitted, of: `of ${rows.length}`, tip: 'People who worked on a task or wrote a note this day. It happens on its own, nobody has to submit.' },
         { label: 'Tasks done', value: done, of: `of ${all.length}`, tip: 'Tasks marked done out of all tasks planned for, or finished on, this day.' },
         { label: 'Blocked', value: blocked, of: blocked === 1 ? 'task' : 'tasks', tip: 'Tasks waiting on someone or something. Open the person to help.' },
       ]} />
@@ -168,7 +164,7 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
           {kind === 'holiday' ? `${holidays.byDate[date]} is a company holiday.` : 'This is a weekend.'} Logging is optional and counts as an extra day.
         </p>
       )}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 @3xl:grid-cols-2 @7xl:grid-cols-3 gap-3">
         {rows.map(r => (
           <PersonDay key={r.person.id} {...r} kind={kind} tasksOnly={tasksOnly} isMe={r.person.id === me}
             projectNames={projectsOf(projects, r.person.id).map(pr => pr.name).join(', ')} projectColor={projectColor}
@@ -181,13 +177,15 @@ function DayView({ date, people, projects, holidays, canAssign, onAssign, onOpen
 }
 
 // ── Week view: employees × days ─────────────────────────────────────────────
-function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
+function WeekView({ weekStart, people, holidays, sources, onPickDay, onOpen }) {
   const today = todayISO()
   const days = daysBetween(weekStart, addDaysISO(weekStart, 6))
   const { data, isLoading } = useFacts({ from: days[0], to: days[6] })
 
   const cell = (pid, d) => {
-    const tasks = (data?.tasks ?? []).filter(t => t.user_id === pid && t.date === d)
+    // Meetings first, then open work, then what is done.
+    const order = t => (t.source === 'teams' ? 0 : t.status === 'done' ? 2 : 1)
+    const tasks = bySource(data?.tasks ?? [], sources).filter(t => t.user_id === pid && t.date === d).sort((a, b) => order(a) - order(b))
     const log = (data?.logs ?? []).find(l => l.user_id === pid && l.date === d)
     const done = tasks.filter(t => t.status === 'done').length
     const kind = dayKind(d, holidays)
@@ -197,7 +195,7 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
     else if (kind !== 'work') state = 'off'
     else if (d < today) state = 'missed'
     else state = 'open'
-    return { done, total: tasks.length, state }
+    return { done, total: tasks.length, state, tasks }
   }
 
   const STYLE = {
@@ -208,14 +206,14 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
     future: 'text-gray-300',
     open: 'bg-surface text-gray-700',
   }
-  const LABEL = { submitted: 'Submitted', extra: 'Extra day', missed: 'Not submitted', off: 'Day off', future: 'Upcoming', open: 'In progress' }
+  const LABEL = { submitted: 'Active', extra: 'Extra day', missed: 'No activity', off: 'Day off', future: 'Upcoming', open: 'In progress' }
 
   if (isLoading) return <Card className="h-64 skeleton" />
 
   return (
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="table min-w-[720px]">
+        <table className="table min-w-[980px]">
           <thead>
             <tr>
               <th className="sticky left-0 z-10 bg-gray-50 min-w-[11rem]">Employee</th>
@@ -227,7 +225,7 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
                 </th>
               ))}
               <th className="text-right">
-                <span className="inline-flex items-center gap-1">Week <Tooltip align="right" text="Tasks done out of tasks planned for the week, and working days submitted out of working days so far." /></span>
+                <span className="inline-flex items-center gap-1">Week <Tooltip align="right" text="Tasks done out of tasks planned for the week, and active working days out of working days so far." /></span>
               </th>
             </tr>
           </thead>
@@ -248,11 +246,20 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
                   </td>
                   {cells.map(c => (
                     <td key={c.d} className="!px-1.5 !py-1.5">
-                      <button onClick={() => onOpen(p, c.d)} title={`${LABEL[c.state]}: ${c.done} of ${c.total} tasks done. Click to see the tasks.`}
-                        className={`w-full h-11 rounded-md flex flex-col items-center justify-center text-xs tabular-nums transition-all duration-150 hover:ring-2 hover:ring-primary-300 hover:-translate-y-px hover:shadow-sm ${STYLE[c.state]}`}>
-                        {c.total > 0 ? <span className="font-semibold">{c.done}/{c.total}</span> : <span>{c.state === 'off' || c.state === 'future' ? '' : '0'}</span>}
-                        {c.state === 'missed' && <span className="text-[10px]">missed</span>}
-                        {c.state === 'extra' && <span className="text-[10px]">extra</span>}
+                      <button onClick={() => onOpen(p, c.d)} title={`${LABEL[c.state]}: ${c.done} of ${c.total} tasks done. Click to see the day.`}
+                        className={`w-full min-h-[4.75rem] rounded-md p-1.5 flex flex-col gap-0.5 text-left text-xs transition-all duration-150 hover:ring-2 hover:ring-primary-300 hover:-translate-y-px hover:shadow-sm ${STYLE[c.state]}`}>
+                        <span className="text-[10px] font-semibold tabular-nums">
+                          {c.total > 0 ? `${c.done}/${c.total} done` : c.state === 'missed' ? 'No activity' : c.state === 'extra' ? 'Extra day' : ''}
+                        </span>
+                        {c.tasks.slice(0, 3).map(t => (
+                          <span key={t.id} className="flex items-center gap-1 min-w-0 text-[11px] text-gray-700">
+                            {t.source === 'teams'
+                              ? <Icon name="calendar" size={11} className="shrink-0 text-[#4b53bc]" />
+                              : <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusStyle(t.status).dot}`} />}
+                            <span className={`truncate ${t.status === 'done' && t.source !== 'teams' ? 'line-through text-gray-400' : ''}`}>{t.title}</span>
+                          </span>
+                        ))}
+                        {c.tasks.length > 3 && <span className="text-[10px] text-gray-500">{c.tasks.length - 3} more</span>}
                       </button>
                     </td>
                   ))}
@@ -267,10 +274,11 @@ function WeekView({ weekStart, people, holidays, onPickDay, onOpen }) {
         </table>
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1.5 px-5 py-3 border-t border-gray-100 text-xs text-gray-500">
-        {[['bg-emerald-50 ring-emerald-200', 'Submitted'], ['bg-red-50 ring-red-200', 'Not submitted'], ['bg-accent-50 ring-accent-100', 'Extra day (weekend or holiday)'], ['bg-gray-50 ring-gray-200', 'Day off']].map(([c, l]) => (
+        {[['bg-emerald-50 ring-emerald-200', 'Active'], ['bg-red-50 ring-red-200', 'No activity'], ['bg-accent-50 ring-accent-100', 'Extra day (weekend or holiday)'], ['bg-gray-50 ring-gray-200', 'Day off']].map(([c, l]) => (
           <span key={l} className="inline-flex items-center gap-1.5"><span className={`w-3 h-3 rounded ring-1 ring-inset ${c}`} />{l}</span>
         ))}
-        <span>Numbers show tasks done out of tasks planned.</span>
+        <span className="inline-flex items-center gap-1.5"><Icon name="calendar" size={12} className="text-[#4b53bc]" />Teams meeting</span>
+        <span>Dots show task status. Click a day for every task.</span>
       </div>
     </Card>
   )
@@ -283,7 +291,10 @@ export default function Team() {
   const full = can('viewTeam')
   const today = todayISO()
   const [params, setParams] = useSearchParams()
-  const view = full && params.get('view') === 'week' ? 'week' : 'day'
+  const VIEWS = full ? ['day', 'board', 'week'] : ['day', 'board']
+  const view = VIEWS.includes(params.get('view')) ? params.get('view') : 'day'
+  const { filters, setFilter } = useFilters('today')
+  const [editing, setEditing] = useState(null)
   const date = params.get('date') || today
   const set = patch => {
     const next = new URLSearchParams(params)
@@ -297,10 +308,10 @@ export default function Team() {
   const { data: projects = [] } = useProjects()
   const { data: holidays } = useHolidays()
   const [search, setSearch] = useState('')
-  const [project, setProject] = useState('all')
   const [drawer, setDrawer] = useState(null)   // { person, date }
   const [assignTo, setAssignTo] = useState(null)
   const canAssign = can('assignTasks')
+  const project = filters.project
 
   const visible = people.filter(p =>
     isTracked(p) &&
@@ -311,58 +322,79 @@ export default function Team() {
   const step = view === 'week' ? 7 : 1
   const label = view === 'week' ? formatRange(weekStart, addDaysISO(weekStart, 6)) : formatLong(date)
   const isCurrent = view === 'week' ? weekStart === weekStartISO(today) : date === today
+  const active = (view === 'board' ? activeCount(filters) : Number(project !== 'all') + Number(view === 'week' && filters.sources.length < SOURCES.length)) + Number(Boolean(search.trim()))
+  const clear = () => { setFilter({ person: 'all', project: 'all', sources: [] }); setSearch('') }
+  const VIEW_LOOK = { day: { label: 'People', icon: 'team' }, board: { label: 'Board', icon: 'dashboard' }, week: { label: 'Calendar', icon: 'calendar' } }
+
+  const rail = (
+    <FilterPanel active={active} onClear={clear}>
+      <RailField label="View">
+        <RailChoices label="View" value={view} onChange={v => set({ view: v })} options={VIEWS.map(v => ({ key: v, ...VIEW_LOOK[v] }))} />
+      </RailField>
+      {view === 'board' ? (
+        <FilterBar fieldsOnly filters={filters} setFilter={setFilter} people={people.filter(isTracked)} projects={projects} showPerson={full} />
+      ) : (
+        <>
+          <RailField label={view === 'week' ? 'Week' : 'Day'}>
+            <div className="flex items-center rounded-lg bg-surface ring-1 ring-inset ring-gray-200">
+              <button onClick={() => set({ date: addDaysISO(date, -step) })} className="h-9 w-9 shrink-0 flex items-center justify-center rounded-l-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors" aria-label="Previous"><Icon name="left" size={17} /></button>
+              <span className="flex-1 min-w-0 text-center text-[13px] font-medium text-gray-900 truncate">{label}</span>
+              <button onClick={() => set({ date: addDaysISO(date, step) })} className="h-9 w-9 shrink-0 flex items-center justify-center rounded-r-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors" aria-label="Next"><Icon name="right" size={17} /></button>
+            </div>
+            {!isCurrent && (
+              <button onClick={() => set({ date: '' })} className="mt-1.5 text-xs font-semibold text-primary-700 hover:text-primary-800">
+                Back to {view === 'week' ? 'this week' : 'today'}
+              </button>
+            )}
+          </RailField>
+          <FilterBar fieldsOnly filters={filters} setFilter={setFilter} projects={projects} showPeriod={false} showPerson={false} showSources={view === 'week'} />
+          <RailField label="Employee"><RailSearch value={search} onChange={setSearch} placeholder="Search employee" label="Search employee" /></RailField>
+        </>
+      )}
+    </FilterPanel>
+  )
 
   return (
-    <div className="max-w-6xl 2xl:max-w-7xl 3xl:max-w-[88rem] mx-auto space-y-5">
-      {/* Title row */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="page-title">{view === 'week' ? 'Team week' : isCurrent ? 'Team today' : 'Team on this day'}</h2>
-          <p className="page-subtitle">
-            {!full ? 'What your teammates are working on. Read only.'
-              : view === 'week' ? 'What everyone planned and finished each day.' : 'What everyone is working on and how far they have got.'}
+    <RailLayout rail={rail} active={active} summary={view === 'board' ? VIEW_LOOK.board.label : label}>
+      {/* Title and actions */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 mr-auto">
+          <h2 className="text-lg font-semibold text-gray-900 tracking-tight">{view === 'board' ? (full ? 'Team board' : 'My board') : view === 'week' ? 'Team calendar' : isCurrent ? 'Team today' : 'Team on this day'}</h2>
+          <p className="text-xs text-gray-500">
+            {view === 'board' ? (full ? 'Where every piece of work stands and who has it.' : 'Where your work stands.')
+              : !full ? 'What your teammates are working on. Read only.'
+              : view === 'week' ? 'Meetings and tasks for everyone, day by day.' : 'What everyone is working on and how far they have got.'}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <SharingSwitch what="tasks" tip="When on, employees get a read only Team page with everyone's tasks. Daily notes and blockers stay private to managers." />
-          {canAssign && <Link to="/assigned" className="hidden sm:inline text-sm font-medium text-primary-700 hover:text-primary-900 mr-1">Assigned by me</Link>}
-          {full && <ReportButton defaultScope="all" label="Download report" />}
-          {canAssign && <Button onClick={() => setAssignTo('')}><Icon name="plus" size={16} /><span className="hidden sm:inline">Assign task</span></Button>}
+        <SharingSwitch what="tasks" tip="When on, employees get a read only Team page with everyone's tasks. Daily notes and blockers stay private to managers." />
+        {canAssign && <Link to="/assigned" className="hidden sm:inline text-sm font-medium text-primary-700 hover:text-primary-800">Assigned by me</Link>}
+        {full && <ReportButton defaultScope="all" label="Report" />}
+        {canAssign && <Button onClick={() => setAssignTo('')}><Icon name="plus" size={16} /><span className="hidden sm:inline">Assign task</span></Button>}
+      </div>
+
+      {/* Phones and tablets: the rail is folded, so the views sit up here too. */}
+      <div className="lg:hidden">
+        <div className="segmented w-full grid" style={{ gridTemplateColumns: `repeat(${VIEWS.length}, minmax(0, 1fr))` }} role="group" aria-label="View">
+          {VIEWS.map(v => <button key={v} aria-pressed={view === v} onClick={() => set({ view: v })}>{VIEW_LOOK[v].label}</button>)}
         </div>
       </div>
 
-      {/* Date + view controls */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center bg-surface border border-gray-200 rounded-md">
-          <button onClick={() => set({ date: addDaysISO(date, -step) })} className="h-9 w-9 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Previous"><Icon name="left" size={18} /></button>
-          <span className="px-2 text-sm font-medium text-gray-900 min-w-[11rem] text-center">{label}</span>
-          <button onClick={() => set({ date: addDaysISO(date, step) })} className="h-9 w-9 flex items-center justify-center text-gray-500 hover:text-gray-900" aria-label="Next"><Icon name="right" size={18} /></button>
-        </div>
-        {!isCurrent && <Button variant="outline" size="sm" className="h-9" onClick={() => set({ date: '' })}>{view === 'week' ? 'This week' : 'Today'}</Button>}
-        {full && (
-          <div className="segmented" role="group" aria-label="View">
-            <button aria-pressed={view === 'day'} onClick={() => set({ view: 'day' })}>Day</button>
-            <button aria-pressed={view === 'week'} onClick={() => set({ view: 'week' })}>Week</button>
-          </div>
-        )}
-        <div className="flex-1" />
-        <input type="search" placeholder="Search employee" value={search} onChange={e => setSearch(e.target.value)} className="field !h-9 !py-0 sm:!w-52" />
-        {projects.length > 0 && (
-          <Select value={project} onChange={e => setProject(e.target.value)} className="field !h-9 !py-0 sm:!w-44" aria-label="Project">
-            <option value="all">All projects</option>
-            {projects.map(pr => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
-          </Select>
-        )}
-      </div>
-
-      {isLoading ? <Card className="h-48 skeleton" /> : visible.length === 0 ? (
-        <Card className="p-10 text-center text-sm text-gray-500">No employees match your search.</Card>
+      {view === 'board' ? (
+        <Board filters={filters} people={people.filter(isTracked)} holidays={holidays} me={userId} full={full}
+          onOpen={c => {
+            // Jira issues (and Jira work you can't edit) open in Jira.
+            if (c.kind === 'issue' || (c.url && !canAssign && c.userId !== userId)) { if (c.url) window.open(c.url, '_blank', 'noopener'); return }
+            if (canAssign || c.userId === userId) setEditing(c.task)
+            else setDrawer({ person: people.find(p => p.id === c.userId), date: c.task.date })
+          }} />
+      ) : isLoading ? <Card className="h-48 skeleton" /> : visible.length === 0 ? (
+        <Card className="p-10 text-center text-sm text-gray-500">No employees match these filters.</Card>
       ) : view === 'day' ? (
         <DayView date={date} people={visible} projects={projects} holidays={holidays} canAssign={canAssign} onAssign={setAssignTo}
           tasksOnly={!full} me={userId}
           onOpen={(person, d) => setDrawer({ person, date: d })} />
       ) : (
-        <WeekView weekStart={weekStart} people={visible} holidays={holidays} onPickDay={d => set({ view: 'day', date: d })}
+        <WeekView weekStart={weekStart} people={visible} holidays={holidays} sources={filters.sources} onPickDay={d => set({ view: 'day', date: d })}
           onOpen={(person, d) => setDrawer({ person, date: d })} />
       )}
 
@@ -371,9 +403,11 @@ export default function Team() {
           onDate={d => setDrawer(x => ({ ...x, date: d }))} onClose={() => setDrawer(null)} />
       )}
 
+      {editing && <TaskEditor key={editing.id} open task={editing} onClose={() => setEditing(null)} />}
+
       {assignTo !== null && (
         <TaskEditor key={assignTo || 'any'} open assignTo={assignTo} defaultDate={date >= today ? date : today} onClose={() => setAssignTo(null)} />
       )}
-    </div>
+    </RailLayout>
   )
 }

@@ -6,7 +6,7 @@ import { useImport } from '../hooks/useImport'
 import { mapRows } from '../utils/importMap'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
-import { STATUS_LABELS } from '../lib/labels'
+import { STATUS_LABELS } from '../lib/status'
 import Select from '../components/ui/Select'
 
 // Fields we map sheet columns onto, with header auto-detection hints.

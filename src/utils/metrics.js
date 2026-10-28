@@ -109,27 +109,6 @@ export function perPerson({ tasks, logs, people, range, holidays, today }) {
     .sort((a, b) => b.done - a.done || b.consistency - a.consistency || a.name.localeCompare(b.name))
 }
 
-// Daily log heatmap: one row per person, one cell per weekday (Mon to Fri) up
-// to today. Cell state: 'logged' | 'missed' | 'holiday' | 'before' (not yet
-// joined) | 'future'.
-export function logGrid({ logs, people, range, holidays, today }) {
-  const days = workingDays(range.from, range.to)
-  const start = startDates(people, logs)
-  const logged = new Set(inRange(logs, range).filter(l => l.submitted).map(l => `${l.user_id}|${l.date}`))
-  const state = (p, d) => {
-    if (holidays.has(d)) return 'holiday'
-    if (d > today) return 'future'
-    if (d < start.get(p.id)) return 'before'
-    return logged.has(`${p.id}|${d}`) ? 'logged' : 'missed'
-  }
-  return {
-    days,
-    rows: people
-      .map(p => ({ id: p.id, name: p.name, cells: days.map(d => state(p, d)) }))
-      .sort((a, b) => a.name.localeCompare(b.name)),
-  }
-}
-
 // Week buckets for periods up to ~3 months, month buckets for longer ones.
 export function bucketSize(range) {
   return differenceInCalendarDays(parseISO(range.to), parseISO(range.from)) > 95 ? 'month' : 'week'
@@ -233,7 +212,7 @@ export function observations({ current, previous, persons = [], categories = [],
     const p = persons[0]
     const missed = Math.max(0, p.expectedDays - p.loggedDays)
     out.push(`Finished ${p.completionRate}% of planned tasks.`)
-    out.push(missed ? `Missed the daily log on ${plural(missed, 'working day')}.` : 'Submitted a daily log on every working day.')
+    out.push(missed ? `No activity on ${plural(missed, 'working day')}.` : 'Active on every working day.')
   } else if (persons.length > 1) {
     const top = [...persons].filter(p => p.done > 0).sort((a, b) => b.done - a.done)[0]
     if (top) out.push(`${top.name} completed the most tasks (${top.done}, ${top.completionRate}% of planned).`)
@@ -242,11 +221,11 @@ export function observations({ current, previous, persons = [], categories = [],
       .filter(p => p.days > 0)
       .sort((a, b) => b.days - a.days)
     if (missed.length === 0) {
-      out.push('Everyone submitted a daily log on every working day.')
+      out.push('Everyone was active on every working day.')
     } else {
       const names = missed.slice(0, 3).map(p => `${p.name} (${plural(p.days, 'day')})`).join(', ')
       const more = missed.length > 3 ? ` and ${missed.length - 3} more` : ''
-      out.push(`Missed daily logs: ${names}${more}.`)
+      out.push(`Days with no activity: ${names}${more}.`)
     }
   }
 

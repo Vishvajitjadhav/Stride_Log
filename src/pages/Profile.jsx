@@ -19,7 +19,7 @@ import ConnectedApps from '../components/integrations/ConnectedApps'
 // task updates stay in the app so inboxes are not flooded.
 const NOTIFICATIONS = [
   { key: 'assigned', label: 'A task is assigned to me', email: true },
-  { key: 'reminder', label: 'Evening reminder at 6 pm if my day is not submitted', email: true, tracked: true },
+  { key: 'reminder', label: 'Evening reminder at 6 pm if I have logged no work today', email: true, tracked: true },
   { key: 'weekly', label: 'Monday weekly team summary', email: true, reviewers: true },
   { key: 'updated', label: 'Someone updates one of my tasks', email: false },
 ]

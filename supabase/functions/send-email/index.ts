@@ -7,7 +7,7 @@ import { renderEmail, sendEmail, inlineLogo, type Org } from '../_shared/email.t
 const fmtDate = (iso?: string | null) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '0%')
-const STATUS: Record<string, string> = { pending: 'To do', in_progress: 'In progress', done: 'Done', blocked: 'Blocked' }
+const STATUS: Record<string, string> = { pending: 'To do', in_progress: 'In progress', in_review: 'In review', done: 'Done', blocked: 'Blocked' }
 
 type Notification = {
   id: string; user_id: string; type: string; title: string; body: string | null
@@ -56,7 +56,7 @@ function build(n: Notification, name: string, org: Org) {
           org, preheader: 'Your account was approved.',
           heading: `Welcome aboard, ${first}!`,
           paragraphs: [
-            'Your account has been approved. Each day, add what you’re working on, tick things off, and submit your day in under a minute.',
+            'Your account has been approved. Each day, add what you’re working on, and tick things off. Your day is recorded as you go.',
             'Tip: open the app on your phone and choose “Add to Home Screen” to install it.',
           ],
           cta: { label: 'Start my day', path: '/today' },
@@ -65,11 +65,11 @@ function build(n: Notification, name: string, org: Org) {
       }
     case 'log_reminder':
       return {
-        subject: 'Reminder: submit today’s log',
+        subject: 'Reminder: no work logged today',
         ...renderEmail({
           org, preheader: 'Take a minute to wrap up your day.',
           heading: `Wrap up your day, ${first}`,
-          paragraphs: ['You haven’t submitted today’s log yet. Update your task statuses and press Submit. It takes a minute.'],
+          paragraphs: ['Nothing is logged for today yet. Add what you worked on or update your task statuses. It takes a minute.'],
           cta: { label: 'Open My Day', path: '/today' },
         }),
       }
@@ -83,7 +83,7 @@ function build(n: Notification, name: string, org: Org) {
           paragraphs: [`Hi ${first}, here’s how the team did from ${fmtDate(s.from)} to ${fmtDate(s.to)}.`],
           rows: [
             ['Tasks completed', `${s.done} of ${s.planned} (${pct(s.done, s.planned)})`],
-            ['Daily logs submitted', `${s.submitted_logs} of ${s.expected_logs} (${pct(s.submitted_logs, s.expected_logs)})`],
+            ['Active days', `${s.submitted_logs} of ${s.expected_logs} (${pct(s.submitted_logs, s.expected_logs)})`],
             ['Blocked tasks', String(s.blocked)],
             ['Extra days (weekend / holiday)', String(s.extra_days)],
             ['People', String(s.members)],

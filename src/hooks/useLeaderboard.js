@@ -18,7 +18,7 @@ export function useLeaderboard({ from, to }) {
 
 // What each part of the score means, shared by the page and its tooltips.
 export const SCORE_PARTS = [
-  { key: 'consistency', label: 'Consistency', weight: 30, tip: 'Working days with a submitted daily log. Shows up, plans and closes the day.' },
+  { key: 'consistency', label: 'Consistency', weight: 30, tip: 'Working days with work logged: tasks added, updated or finished. Shows up and keeps work moving.' },
   { key: 'follow_through', label: 'Follow through', weight: 30, tip: 'Share of planned tasks that were finished. Big or small, it is about finishing what you set out to do.' },
   { key: 'on_time', label: 'On time', weight: 25, tip: 'Assigned tasks with a due date that were finished by that date. Counted once at least two were due.' },
   { key: 'growth', label: 'Growth', weight: 15, tip: 'Improvement in consistency and follow through compared with the previous period. 50 means steady.' },
