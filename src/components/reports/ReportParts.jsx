@@ -10,23 +10,23 @@ import Tooltip from '../ui/Tooltip'
 
 // ── Status tiles: click one to show only that status ───────────────────────
 export function StatusTiles({ counts, total, completion, active, onToggle }) {
-  const tile = 'rounded-xl border p-3 text-left transition-all duration-150 hover:-translate-y-px hover:shadow-sm'
+  const tile = 'rounded-xl border px-3 py-2 text-left transition-all duration-150 hover:-translate-y-px hover:shadow-sm'
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+    <div className="grid grid-cols-2 @md:grid-cols-4 @2xl:grid-cols-7 gap-2">
       <div className={`${tile} bg-surface border-gray-200 hover:translate-y-0 hover:shadow-none`}>
         <p className="text-xs text-gray-500 flex items-center gap-1">Planned<Tooltip text="Every task planned for the period, whatever its status." /></p>
-        <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">{total}</p>
+        <p className="text-xl font-semibold text-gray-900 tabular-nums">{total}</p>
       </div>
       {ORDER.map(s => (
         <button key={s} onClick={() => onToggle(s)} aria-pressed={active === s} title={active === s ? 'Show every status' : `Show only ${STATUS_LABELS[s]}`}
           className={`${tile} ${active === s ? `${STATUS_STYLE[s].card} ring-2 ring-primary-300` : 'bg-surface border-gray-200'}`}>
-          <p className="text-xs text-gray-500 flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${STATUS_STYLE[s].dot}`} />{STATUS_LABELS[s]}</p>
-          <p className={`text-2xl font-semibold tabular-nums mt-0.5 ${counts[s] && s === 'blocked' ? 'text-red-700' : 'text-gray-900'}`}>{counts[s]}</p>
+          <p className="text-xs text-gray-500 flex items-center gap-1.5 whitespace-nowrap"><span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_STYLE[s].dot}`} />{STATUS_LABELS[s]}</p>
+          <p className={`text-xl font-semibold tabular-nums ${counts[s] && s === 'blocked' ? 'text-red-700' : 'text-gray-900'}`}>{counts[s]}</p>
         </button>
       ))}
       <div className={`${tile} bg-surface border-gray-200 hover:translate-y-0 hover:shadow-none`}>
         <p className="text-xs text-gray-500 flex items-center gap-1">Completion<Tooltip align="right" text="Tasks done out of tasks planned in the period." /></p>
-        <p className={`text-2xl font-semibold tabular-nums mt-0.5 ${completion >= 80 ? 'text-mint-700' : completion >= 50 ? 'text-amber-800' : 'text-red-700'}`}>{completion}%</p>
+        <p className={`text-xl font-semibold tabular-nums ${completion >= 80 ? 'text-mint-700' : completion >= 50 ? 'text-amber-800' : 'text-red-700'}`}>{completion}%</p>
       </div>
     </div>
   )
@@ -98,13 +98,15 @@ export function TrendPill({ trend }) {
   )
 }
 
-export function Spark({ series, weeks }) {
-  const max = Math.max(1, ...series)
+// Tasks finished in each of the last 3 finished weeks, e.g. "2 → 3 → 5".
+export function WeekSteps({ series, weeks }) {
   return (
-    <span className="inline-flex items-end gap-0.5 h-6" role="img" aria-label={`Tasks done per week: ${series.join(', ')}`}>
+    <span className="inline-flex items-center gap-1 text-sm tabular-nums text-gray-700" aria-label={`Tasks done per week: ${series.join(', ')}`}>
       {series.map((v, i) => (
-        <span key={i} title={`Week of ${formatShort(weeks[i])}: ${v} done`}
-          className={`w-1.5 rounded-sm ${i >= series.length - 3 ? 'bg-primary-500' : 'bg-primary-200'}`} style={{ height: `${Math.max(8, (v / max) * 100)}%` }} />
+        <span key={i} className="inline-flex items-center gap-1">
+          {i > 0 && <span className="text-gray-300" aria-hidden="true">→</span>}
+          <span title={`Week of ${formatShort(weeks[i])}: ${v} done`} className={i === series.length - 1 ? 'font-semibold text-gray-900' : ''}>{v}</span>
+        </span>
       ))}
     </span>
   )
@@ -125,14 +127,14 @@ export function PeopleTable({ rows, weeks, onOpen }) {
   )
   return (
     <div className="overflow-x-auto">
-      <table className="table min-w-[640px]">
+      <table className="table min-w-[600px]">
         <thead>
           <tr>
             {th('name', 'Employee', null, 'text-left')}
             {th('done', 'Done', 'Tasks finished out of tasks planned in the period.')}
             {th('completionRate', 'Completion', 'Share of planned tasks that are done.')}
             {th('loggedDays', 'Active days', 'Working days with work logged, out of working days so far.')}
-            <th className="text-right">Last 6 weeks <Tooltip align="right" text="Tasks finished each week. The last 3 weeks (darker) are compared with the 3 before, so each person is only compared with themselves." /></th>
+            <th className="text-right">Last 3 weeks <Tooltip align="right" text="Tasks finished in each of the last 3 finished weeks. The latest week is compared with the two before it, so each person is only compared with themselves." /></th>
           </tr>
         </thead>
         <tbody>
@@ -148,7 +150,7 @@ export function PeopleTable({ rows, weeks, onOpen }) {
               <td className="text-right tabular-nums">{r.planned ? `${r.completionRate}%` : <span className="text-gray-400">No tasks</span>}</td>
               <td className="text-right tabular-nums">{r.loggedDays} of {r.expectedDays}</td>
               <td className="text-right">
-                <span className="inline-flex items-center gap-3"><Spark series={r.series} weeks={weeks} /><TrendPill trend={r.trend} /></span>
+                <span className="inline-flex items-center gap-3"><WeekSteps series={r.series} weeks={weeks} /><TrendPill trend={r.trend} /></span>
               </td>
             </tr>
           ))}
@@ -160,12 +162,13 @@ export function PeopleTable({ rows, weeks, onOpen }) {
 
 // ── Every task, sortable, click a row for its notes ─────────────────────────
 const SOURCE = { manual: 'StrideLog', jira: 'Jira', teams: 'Teams' }
+const FIRST = 10
 const PAGE = 50
 
 export function TaskTable({ tasks, peopleById }) {
   const [sort, setSort] = useState({ key: 'date', dir: -1 })
   const [open, setOpen] = useState(() => new Set())
-  const [shown, setShown] = useState(PAGE)
+  const [shown, setShown] = useState(FIRST)
   const value = (t, k) => (k === 'person' ? peopleById[t.user_id]?.name ?? '' : k === 'status' ? STATUSES.indexOf(t.status) : String(t[k] ?? '').toLowerCase())
   const sorted = useMemo(() => [...tasks].sort((a, b) => {
     const x = value(a, sort.key), y = value(b, sort.key)

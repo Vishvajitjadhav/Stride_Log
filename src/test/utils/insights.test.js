@@ -17,16 +17,16 @@ describe('insights', () => {
     ], weeks)).toEqual([1, 0, 1])
   })
 
-  it('labels a trend against the same person only', () => {
-    expect(trendLabel([2, 2, 2, 4, 4, 4])).toBe('up')
-    expect(trendLabel([5, 5, 5, 2, 3, 2])).toBe('down')
-    expect(trendLabel([3, 4, 3, 3, 3, 4])).toBe('steady')
-    expect(trendLabel([0, 0, 0, 0, 0, 0])).toBe('new')
+  it('labels a trend: last finished week against the two before, same person only', () => {
+    expect(trendLabel([2, 3, 5])).toBe('up')
+    expect(trendLabel([6, 4, 2])).toBe('down')
+    expect(trendLabel([4, 4, 4])).toBe('steady')
+    expect(trendLabel([0, 0, 0])).toBe('new')
     expect(trendLabel([1, 2])).toBe('new')
     // A new joiner has no earlier weeks to compare with.
-    expect(trendLabel([0, 0, 0, 3, 4, 5])).toBe('new')
+    expect(trendLabel([0, 0, 3])).toBe('new')
     // A tiny change on tiny numbers is not a trend.
-    expect(trendLabel([1, 0, 1, 1, 1, 1])).toBe('steady')
+    expect(trendLabel([1, 1, 1.5])).toBe('steady')
   })
 
   it('finds open work that needs attention', () => {
@@ -36,7 +36,7 @@ describe('insights', () => {
       { status: 'pending', due_date: '2026-10-27', changed_at: '2026-10-28T10:00:00Z' },
       { status: 'in_progress', changed_at: '2026-10-19T10:00:00Z' },
       { status: 'done', due_date: '2026-10-01', changed_at: '2026-10-01T10:00:00Z' },
-    ], today)).toEqual({ blocked: 1, overdue: 1, stuck: 1, total: 3 })
+    ], today)).toMatchObject({ blocked: 1, overdue: 1, stuck: 1, total: 3 })
   })
 
   it('writes short sentences, most important first', () => {

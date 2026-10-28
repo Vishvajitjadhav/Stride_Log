@@ -30,18 +30,17 @@ export function weeklyDone(tasks, weeks) {
   })
 }
 
-// Compare the last 3 weeks with the 3 before, against the person's (or
-// project's) own past, never against someone else.
+// Compare the last finished week with the two before it, against the
+// person's (or project's) own past, never against someone else.
 //   'up' Improving | 'down' Dropping | 'steady' | 'new' not enough history
 export function trendLabel(series) {
-  if (series.length < 6) return 'new'
-  const avg = a => a.reduce((n, v) => n + v, 0) / a.length
-  const recent = avg(series.slice(-3))
-  const before = avg(series.slice(-6, -3))
+  if (series.length < 3) return 'new'
+  const last = series[series.length - 1]
+  const before = (series[series.length - 2] + series[series.length - 3]) / 2
   // Nothing to compare with (new joiner, or no work yet).
   if (before === 0) return 'new'
-  if (recent - before >= 1 && recent >= before * 1.15) return 'up'
-  if (before - recent >= 1 && recent <= before * 0.85) return 'down'
+  if (last - before >= 1 && last >= before * 1.15) return 'up'
+  if (before - last >= 1 && last <= before * 0.85) return 'down'
   return 'steady'
 }
 
@@ -52,16 +51,27 @@ export const TREND = {
   new: { label: 'Not enough data', cls: 'bg-gray-50 text-gray-500 ring-gray-200', icon: null },
 }
 
-// Open work that needs a look: blocked, past its due date, or no change for
-// STUCK_DAYS working days. -> { blocked, overdue, stuck, total }
+// Open work that needs a look, most urgent first: blocked, then past its
+// due date, then no change for STUCK_DAYS working days (each task once).
+//   -> [{ task, reason: 'blocked' | 'overdue' | 'stuck', idle }]
+const URGENCY = { blocked: 0, overdue: 1, stuck: 2 }
+export function attentionItems(tasks, today, holidays) {
+  return tasks
+    .filter(t => t.status !== 'done')
+    .map(t => {
+      const idle = t.changed_at ? workingDaysSince(t.changed_at.slice(0, 10), today, holidays) : 0
+      const reason = t.status === 'blocked' ? 'blocked' : t.due_date && t.due_date < today ? 'overdue' : idle >= STUCK_DAYS ? 'stuck' : null
+      return reason && { task: t, reason, idle }
+    })
+    .filter(Boolean)
+    .sort((a, b) => URGENCY[a.reason] - URGENCY[b.reason] || b.idle - a.idle)
+}
+
+// -> { blocked, overdue, stuck, total, items }
 export function attention(tasks, today, holidays) {
-  const open = tasks.filter(t => t.status !== 'done')
-  const blocked = open.filter(t => t.status === 'blocked').length
-  const overdue = open.filter(t => t.due_date && t.due_date < today).length
-  const stuck = open.filter(t => t.status !== 'blocked' && t.changed_at && workingDaysSince(t.changed_at.slice(0, 10), today, holidays) >= STUCK_DAYS).length
-  const total = open.filter(t => t.status === 'blocked' || (t.due_date && t.due_date < today)
-    || (t.changed_at && workingDaysSince(t.changed_at.slice(0, 10), today, holidays) >= STUCK_DAYS)).length
-  return { blocked, overdue, stuck, total }
+  const items = attentionItems(tasks, today, holidays)
+  const count = r => items.filter(i => i.reason === r).length
+  return { blocked: count('blocked'), overdue: count('overdue'), stuck: count('stuck'), total: items.length, items }
 }
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`

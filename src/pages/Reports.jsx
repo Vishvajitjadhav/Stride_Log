@@ -14,6 +14,7 @@ import { DoneColumns } from '../components/charts/Charts'
 import ReportButton from '../components/reports/ReportButton'
 import { StatusTiles, StatusRing, StackBars, PeopleTable, TaskTable } from '../components/reports/ReportParts'
 import Card, { Section } from '../components/ui/Card'
+import Tooltip from '../components/ui/Tooltip'
 import Button from '../components/ui/Button'
 import Icon from '../components/ui/Icon'
 
@@ -72,81 +73,118 @@ export default function Reports() {
     } catch (e) { toast.error(e.message) } finally { setSaving(false) }
   }
 
-  return (
-    <div className="max-w-6xl 2xl:max-w-7xl 3xl:max-w-[88rem] mx-auto space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="page-title">{title}</h2>
-          <p className="page-subtitle">{subtitle}</p>
+  const REASON = { blocked: 'Blocked', overdue: 'Overdue', stuck: 'Stuck' }
+  const side = view && (
+    <>
+      <Card className="p-4 border-primary-200/70">
+        <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+          <span className="w-6 h-6 rounded-lg bg-primary-50 text-primary-700 flex items-center justify-center"><Icon name="trend" size={14} /></span>
+          In short
+        </p>
+        <ul className="mt-3 space-y-2">
+          {view.notes.filter(n => !n.includes('need attention')).map((n, i) => (
+            <li key={i} className="flex gap-2.5 text-[13px] text-gray-700 leading-snug">
+              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary-400 shrink-0" />{n}
+            </li>
+          ))}
+        </ul>
+      </Card>
+      <Card className={`p-4 ${view.att.total ? 'border-red-200' : ''}`}>
+        <div className="flex items-center justify-between gap-2">
+          <p className={`text-sm font-semibold ${view.att.total ? 'text-red-700' : 'text-gray-900'}`}>Needs attention <span className="tabular-nums">{view.att.total}</span></p>
+          <Tooltip align="right" text="Open work that is blocked, past its due date, or has had no change for 5 working days." />
         </div>
-        <div className="flex items-center gap-2">
+        {view.att.total === 0 ? <p className="text-[13px] text-gray-500 mt-2">Nothing is stuck. Good.</p> : (
+          <ul className="mt-2 divide-y divide-gray-100">
+            {view.att.items.slice(0, 6).map(({ task: t, reason, idle }, i) => (
+              // Phones show 3, so the numbers below stay close.
+              <li key={t.id} className={`py-2 min-w-0 ${i >= 3 ? 'hidden md:block' : ''}`}>
+                <p className="text-[13px] text-gray-900 truncate" title={t.title}>{t.title}</p>
+                <p className="text-[11px] text-gray-500 flex items-center gap-1.5 min-w-0">
+                  <span className="font-medium text-red-700 shrink-0">{reason === 'stuck' ? `${REASON[reason]} ${idle} days` : REASON[reason]}</span>
+                  <span className="truncate">{peopleById[t.user_id]?.name}</span>
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+        {view.att.total > 0 && (
+          <Link to="/team?view=board" className="mt-2 inline-flex text-xs font-semibold text-primary-600 hover:text-primary-700">
+            {view.att.total > 6 ? `See all ${view.att.total} on the board` : 'Open the board'}
+          </Link>
+        )}
+      </Card>
+    </>
+  )
+
+  return (
+    <div className="max-w-[112rem] mx-auto space-y-4">
+      {/* One row: who or what (when narrowed), filters, search, downloads */}
+      <div className="flex flex-wrap items-center gap-2">
+        {(single || data?.project) && (
+          <p className="text-sm font-semibold text-gray-900 mr-1" title={subtitle}>{title}</p>
+        )}
+        <FilterBar filters={filters} setFilter={setFilter} people={allPeople} projects={projects} />
+        <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search task, key or person"
+          aria-label="Search tasks" className="field !h-9 !py-0 w-full sm:!w-44 2xl:!w-56" />
+        <div className="flex items-center gap-2 ml-auto">
           <Button variant="outline" onClick={() => save('xlsx')} loading={saving} disabled={!view} title="Summary and every task, ready for Excel">
-            <Icon name="download" size={16} /><span className="hidden sm:inline">Excel</span>
+            <Icon name="download" size={15} />Excel
           </Button>
-          <Button variant="outline" onClick={() => save('csv')} disabled={!view || saving} className="hidden sm:inline-flex" title="Every task as a CSV file">CSV</Button>
-          <ReportButton defaultScope="all" label="PDF report"
+          <Button variant="outline" className="hidden sm:inline-flex" onClick={() => save('csv')} disabled={!view || saving} title="Every task as a CSV file">CSV</Button>
+          <ReportButton defaultScope="all" label="PDF"
             personId={filters.person !== 'all' ? filters.person : undefined}
             projectId={filters.project !== 'all' ? filters.project : undefined} />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <FilterBar filters={filters} setFilter={setFilter} people={allPeople} projects={projects} />
-        <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search task, key or person"
-          aria-label="Search tasks" className="field !h-9 !py-0 sm:!w-56" />
-      </div>
-
       {isLoading || !view ? (
-        <div className="space-y-4">{[0, 1, 2].map(i => <Card key={i} className="h-32 skeleton" />)}</div>
+        <div className="space-y-4">{[0, 1, 2].map(i => <Card key={i} className="h-28 skeleton" />)}</div>
       ) : (
-        <>
-          <Section title="In short" hint="Written from the numbers below, for a quick read."
-            actions={view.att.total > 0 && <Link to="/team?view=board" className="text-sm font-semibold text-primary-600 hover:text-primary-700">Open the board</Link>}>
-            <ul className="space-y-2.5 stagger">
-              {view.notes.map((n, i) => (
-                <li key={i} style={{ '--i': i }} className="flex gap-3 text-sm sm:text-[15px] text-gray-700 leading-relaxed">
-                  <span className="mt-2 w-2 h-2 rounded-full bg-gradient-to-br from-primary-400 to-mint-400 ring-4 ring-primary-50 shrink-0" />{n}
-                </li>
-              ))}
-            </ul>
-          </Section>
+        // Side panel on the right from 1280px wide; above the numbers on smaller screens.
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_17rem] 2xl:grid-cols-[minmax(0,1fr)_20rem] gap-4 items-start">
+          <aside className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-4 xl:sticky xl:top-20 xl:order-last">{side}</aside>
 
-          <StatusTiles counts={view.counts} total={data.tasks.length} completion={data.current.completionRate}
-            active={status} onToggle={s => setStatus(v => (v === s ? null : s))} />
+          {/* Container queries size the main column by its own width, not the screen's. */}
+          <div className="@container min-w-0 space-y-4">
+            <StatusTiles counts={view.counts} total={data.tasks.length} completion={data.current.completionRate}
+              active={status} onToggle={s => setStatus(v => (v === s ? null : s))} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Section title="Status split" hint="Where all planned work stands now.">
-              <StatusRing counts={view.counts} />
-            </Section>
-            {!single && (
-              <Section title="By employee" hint="Click a name to see only their work.">
-                <StackBars rows={view.byPerson} selected={filters.person} empty="No tasks for anyone yet."
-                  onPick={id => setFilter({ person: filters.person === id ? 'all' : id })} />
+            <div className="grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-[15rem_minmax(0,1fr)_minmax(0,1fr)] gap-4">
+              {/* The tiles above carry the same counts, so the ring only shows when there is room. */}
+              <Section title="Status split" bodyClassName="px-5 pb-4 pt-3" className="hidden @5xl:block">
+                <StatusRing counts={view.counts} />
+              </Section>
+              {!single && (
+                <Section title="By employee" hint="Click a name to filter." bodyClassName="px-3 pb-3 pt-2">
+                  <StackBars rows={view.byPerson} selected={filters.person} empty="No tasks for anyone yet."
+                    onPick={id => setFilter({ person: filters.person === id ? 'all' : id })} />
+                </Section>
+              )}
+              <Section title="By project" hint="Click a project to filter." bodyClassName="px-3 pb-3 pt-2" className={single ? '@2xl:col-span-2' : ''}>
+                <StackBars rows={view.byProject} selected={filters.project} empty="No project work in this period."
+                  onPick={id => id !== 'none' && setFilter({ project: filters.project === id ? 'all' : id })} />
+              </Section>
+            </div>
+
+            {!single && data.persons.length > 0 && (
+              <Section title={data.project ? 'Project members' : 'People'} bodyClassName="pt-1"
+                hint="Click a name for their report. Each person is compared only with their own recent weeks.">
+                <PeopleTable rows={data.persons} weeks={data.weeks} onOpen={id => setFilter({ person: id })} />
               </Section>
             )}
-            <Section title="By project" hint="Click a project to see only its work." className={single ? 'lg:col-span-2' : ''}>
-              <StackBars rows={view.byProject} selected={filters.project} empty="No project work in this period."
-                onPick={id => id !== 'none' && setFilter({ project: filters.project === id ? 'all' : id })} />
+
+            <Section title={`Tasks finished each ${size}`} bodyClassName="px-5 pb-4 pt-2"
+              hint={size === 'month' ? 'Solid bars are done, faded bars planned but not done.' : 'Last 8 weeks or more. Solid bars are done, faded bars planned but not done.'}>
+              <DoneColumns data={data.trend} height={180} />
+            </Section>
+
+            <Section title={`Tasks (${view.shown.length})`} bodyClassName="pt-1"
+              hint={status ? 'Showing one status. Click its tile again to show all.' : 'Click a column to sort, a row for its notes.'}>
+              <TaskTable tasks={view.shown} peopleById={peopleById} />
             </Section>
           </div>
-
-          {!single && data.persons.length > 0 && (
-            <Section title={data.project ? 'Project members' : 'People'} bodyClassName="pt-2"
-              hint="Click a name for their report. Each person is compared only with their own recent weeks.">
-              <PeopleTable rows={data.persons} weeks={data.weeks} onOpen={id => setFilter({ person: id })} />
-            </Section>
-          )}
-
-          <Section title={`Tasks finished each ${size}`}
-            hint={size === 'month' ? 'Solid bars show tasks done; faded bars show tasks planned but not done.' : 'At least the last 8 weeks. Solid bars show tasks done; faded bars show tasks planned but not done.'}>
-            <DoneColumns data={data.trend} />
-          </Section>
-
-          <Section title={`Tasks (${view.shown.length})`} bodyClassName="pt-1"
-            hint={status ? 'Showing one status. Click its tile again to show all.' : 'Click a column to sort, a row for its notes.'}>
-            <TaskTable tasks={view.shown} peopleById={peopleById} />
-          </Section>
-        </>
+        </div>
       )}
     </div>
   )

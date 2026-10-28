@@ -111,9 +111,9 @@ export function useDashboard(filters, { self } = {}) {
     const scoped = (project ? [project] : projects)
       .map(p => ({ ...p, members: p.members.filter(m => person ? m.user_id === person : tracked.has(m.user_id)) }))
       .filter(p => !person || p.members.length)
-    // Each person and project against their own last 6 weeks. A week still
+    // Each person and project against their own last 3 weeks. A week still
     // under way would look like a drop, so it waits until the week is over.
-    const weeks = lastWeeks(range.to < weekStartISO(today) ? range.to : addDaysISO(weekStartISO(today), -1), 6)
+    const weeks = lastWeeks(range.to < weekStartISO(today) ? range.to : addDaysISO(weekStartISO(today), -1), 3)
     const withTrend = (row, rows) => {
       const series = weeklyDone(rows, weeks)
       return { ...row, series, trend: trendLabel(series) }

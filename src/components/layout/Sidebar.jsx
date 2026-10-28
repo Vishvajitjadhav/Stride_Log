@@ -24,8 +24,8 @@ export default function Sidebar() {
     }`
 
   return (
-    <aside className={`hidden lg:flex shrink-0 h-dvh sticky top-0 glass border-r border-gray-200/70 flex-col transition-[width] duration-300 ${collapsed ? 'w-[72px]' : 'w-64'}`}>
-      <div className={`h-16 flex items-center ${collapsed ? 'justify-center' : 'px-5'}`}>
+    <aside className={`hidden lg:flex shrink-0 h-dvh sticky top-0 glass border-r border-gray-200/70 flex-col transition-[width] duration-300 ${collapsed ? 'w-[72px]' : 'w-52 2xl:w-60'}`}>
+      <div className={`h-16 flex items-center ${collapsed ? 'justify-center' : 'px-4'}`}>
         <BrandMark compact={collapsed} />
       </div>
 
