@@ -34,10 +34,12 @@ export function weeklyDone(tasks, weeks) {
 // project's) own past, never against someone else.
 //   'up' Improving | 'down' Dropping | 'steady' | 'new' not enough history
 export function trendLabel(series) {
-  if (series.length < 6 || series.every(v => v === 0)) return 'new'
+  if (series.length < 6) return 'new'
   const avg = a => a.reduce((n, v) => n + v, 0) / a.length
   const recent = avg(series.slice(-3))
   const before = avg(series.slice(-6, -3))
+  // Nothing to compare with (new joiner, or no work yet).
+  if (before === 0) return 'new'
   if (recent - before >= 1 && recent >= before * 1.15) return 'up'
   if (before - recent >= 1 && recent <= before * 0.85) return 'down'
   return 'steady'

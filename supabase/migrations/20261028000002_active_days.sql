@@ -51,3 +51,20 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 CREATE TRIGGER tasks_mark_day_active
   AFTER INSERT OR UPDATE ON tasks
   FOR EACH ROW EXECUTE FUNCTION mark_day_active();
+
+-- History: days with real work before this change count as Active too, so
+-- nobody shows "No activity" for a day they finished tasks but never pressed
+-- Submit. Same rules as the trigger, one time.
+INSERT INTO work_logs (user_id, date, submitted_at)
+SELECT DISTINCT a.user_id, a.day, now()
+FROM (
+  SELECT user_id, completed_on AS day FROM tasks WHERE completed_on IS NOT NULL
+  UNION
+  SELECT user_id, (created_at AT TIME ZONE (SELECT timezone FROM org_settings WHERE id = 1))::date FROM tasks WHERE source = 'manual'
+  UNION
+  SELECT user_id, date FROM tasks WHERE source = 'teams' AND status = 'done'
+) a
+WHERE a.day <= org_today()
+ON CONFLICT (user_id, date) DO UPDATE
+  SET submitted_at = coalesce(work_logs.submitted_at, EXCLUDED.submitted_at)
+  WHERE work_logs.submitted_at IS NULL;

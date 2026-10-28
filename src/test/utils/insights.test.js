@@ -23,8 +23,10 @@ describe('insights', () => {
     expect(trendLabel([3, 4, 3, 3, 3, 4])).toBe('steady')
     expect(trendLabel([0, 0, 0, 0, 0, 0])).toBe('new')
     expect(trendLabel([1, 2])).toBe('new')
+    // A new joiner has no earlier weeks to compare with.
+    expect(trendLabel([0, 0, 0, 3, 4, 5])).toBe('new')
     // A tiny change on tiny numbers is not a trend.
-    expect(trendLabel([0, 0, 1, 0, 1, 1])).toBe('steady')
+    expect(trendLabel([1, 0, 1, 1, 1, 1])).toBe('steady')
   })
 
   it('finds open work that needs attention', () => {

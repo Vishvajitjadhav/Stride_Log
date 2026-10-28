@@ -1,6 +1,6 @@
 # StrideLog v6: One clear view of work (Board, Reports, auto day status)
 
-**Status (28 Oct 2026): plan approved with the default decisions. Batch 1 built, in review.**
+**Status (28 Oct 2026): all batches built on one branch, `feat/v6-foundations`, for a single PR. Tick each batch when the PR is merged.**
 
 Main purpose: anyone from a team lead to the CEO can open StrideLog and understand, in under a
 minute, what work got done this week or month, on which project, by whom, and whether people
@@ -10,15 +10,15 @@ and projects are improving. Simple first, detail on click.
 
 Tick a batch (`[x]`) and strike it through when it is merged.
 
-- [ ] **Batch 1. Foundations: status colours, filters, project picker** (in review: branch `feat/v6-foundations`)
-- [ ] **Batch 2. Day status without a Submit button**
-- [ ] **Batch 3. Jira for the whole company**
-- [ ] **Batch 4. Team board and team calendar**
-- [ ] **Batch 5. Reports page like the sample**
-- [ ] **Batch 6. Insights: is it improving?**
-- [ ] **Batch 7. Final pass: every screen size, dark mode, tests**
+- [ ] **Batch 1. Foundations: status colours, filters, project picker** (built)
+- [ ] **Batch 2. Day status without a Submit button** (built)
+- [ ] **Batch 3. Jira for the whole company** (built)
+- [ ] **Batch 4. Team board and team calendar** (built)
+- [ ] **Batch 5. Reports page like the sample** (built)
+- [ ] **Batch 6. Insights: is it improving?** (built)
+- [ ] **Batch 7. Final pass: every screen size, dark mode, tests** (built)
 
-One branch and one PR per batch, so each can be checked on its own.
+All batches ship together in one PR (one commit per batch, so each can still be reviewed on its own).
 
 ---
 

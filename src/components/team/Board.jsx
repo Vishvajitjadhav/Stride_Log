@@ -16,7 +16,7 @@ const days = n => `${n} ${n === 1 ? 'day' : 'days'}`
 function Source({ c }) {
   if (c.source === 'jira') {
     return (
-      <span className="inline-flex items-center gap-1 font-medium text-[#0c66e4] dark:text-[#579dff]">
+      <span className="inline-flex items-center gap-1 shrink-0 whitespace-nowrap font-medium text-[#0c66e4] dark:text-[#579dff]">
         <span className="w-2 h-2 rotate-45 rounded-[2px] bg-current" aria-hidden="true" />{c.key ?? 'Jira'}
       </span>
     )
@@ -30,7 +30,7 @@ function BoardCard({ c, person, onOpen }) {
   const alert = c.blocked || c.stuck || c.overdue
   const title = c.key && c.title?.startsWith(c.key) ? c.title.slice(c.key.length).trim() : c.title
   const flag = c.blocked ? 'Blocked'
-    : c.stuck ? `No change for ${days(c.changedDays)}`
+    : c.stuck ? `Stuck ${days(c.changedDays)}`
     : c.overdue ? `Overdue since ${formatShort(c.due)}`
     : c.status === 'done' ? `Done ${c.task?.completed_on ? formatShort(c.task.completed_on) : ''}`.trim()
     : c.changedDays ? `Updated ${days(c.changedDays)} ago` : 'Updated today'
@@ -46,9 +46,9 @@ function BoardCard({ c, person, onOpen }) {
       <p className={`text-sm font-medium mt-1 line-clamp-2 ${c.status === 'done' ? 'text-gray-600' : 'text-gray-900'}`}>
         {title || <span className="italic text-gray-400">Untitled task</span>}
       </p>
-      <div className="flex items-center gap-2 mt-2.5 min-w-0">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2.5 min-w-0">
         {person ? (
-          <><Avatar person={person} size="xs" /><span className="text-xs text-gray-700 truncate">{person.name}</span></>
+          <span className="flex items-center gap-1.5 min-w-0"><Avatar person={person} size="xs" /><span className="text-xs text-gray-700 truncate">{person.name}</span></span>
         ) : c.assigneeName ? (
           <span className="text-xs text-gray-600 truncate" title="This person is not in StrideLog">{c.assigneeName}, not in StrideLog</span>
         ) : (
@@ -57,7 +57,8 @@ function BoardCard({ c, person, onOpen }) {
             Nobody yet
           </span>
         )}
-        <span className={`ml-auto shrink-0 text-[11px] ${alert ? 'font-medium text-red-700' : 'text-gray-500'}`}>{flag}</span>
+        <span title={c.stuck ? `No change for ${days(c.changedDays)} (working days)` : undefined}
+          className={`ml-auto shrink-0 text-[11px] whitespace-nowrap ${alert ? 'font-medium text-red-700' : 'text-gray-500'}`}>{flag}</span>
       </div>
     </button>
   )
