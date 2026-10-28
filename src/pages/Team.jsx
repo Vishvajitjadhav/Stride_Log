@@ -118,7 +118,7 @@ function PersonDay({ person, tasks, log, kind, projectNames, projectColor, onAss
           </div>
         )}
         {onAssign && (
-          <button onClick={onAssign} className="mt-3 text-xs font-medium text-primary-700 hover:text-primary-900 inline-flex items-center gap-1">
+          <button onClick={onAssign} className="mt-3 text-xs font-medium text-primary-700 hover:text-primary-800 inline-flex items-center gap-1">
             <Icon name="plus" size={14} /> Assign a task
           </button>
         )}
@@ -324,7 +324,7 @@ export default function Team() {
   const isCurrent = view === 'week' ? weekStart === weekStartISO(today) : date === today
 
   return (
-    <div className="max-w-6xl 2xl:max-w-7xl 3xl:max-w-[88rem] mx-auto space-y-5">
+    <div className="max-w-[120rem] mx-auto space-y-5">
       {/* Title row */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -337,7 +337,7 @@ export default function Team() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <SharingSwitch what="tasks" tip="When on, employees get a read only Team page with everyone's tasks. Daily notes and blockers stay private to managers." />
-          {canAssign && <Link to="/assigned" className="hidden sm:inline text-sm font-medium text-primary-700 hover:text-primary-900 mr-1">Assigned by me</Link>}
+          {canAssign && <Link to="/assigned" className="hidden sm:inline text-sm font-medium text-primary-700 hover:text-primary-800 mr-1">Assigned by me</Link>}
           {full && <ReportButton defaultScope="all" label="Download report" />}
           {canAssign && <Button onClick={() => setAssignTo('')}><Icon name="plus" size={16} /><span className="hidden sm:inline">Assign task</span></Button>}
         </div>

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import BrandMark from '../components/BrandMark'
 import { useAuth } from '../contexts/AuthContext'
 import Input from '../components/ui/Input'
+import ProductTrailer from '../components/auth/ProductTrailer'
+import { LogoMark } from '../components/Logo'
 
 const GOOGLE_ENABLED = import.meta.env.VITE_GOOGLE_AUTH === 'true'
 const MICROSOFT_ENABLED = import.meta.env.VITE_MICROSOFT_AUTH === 'true'
@@ -97,7 +99,26 @@ export default function Login() {
     : isSignup ? 'An admin will approve your access' : 'Sign in to your workspace'
 
   return (
-    <div className="min-h-dvh auth-bg flex items-center justify-center px-4 py-10">
+    <div className="min-h-dvh grid lg:grid-cols-[minmax(0,1.2fr)_minmax(28rem,1fr)] bg-canvas">
+      {/* Desktop: the product in motion beside the form. */}
+      <div className="hidden lg:block sticky top-0 h-dvh"><ProductTrailer /></div>
+
+      <div className="flex flex-col min-h-dvh lg:min-h-0">
+      {/* Phones and tablets: a short animated band instead of the full preview. */}
+      <div className="lg:hidden trailer-bg relative overflow-hidden rounded-b-[2rem] px-6 pt-[calc(env(safe-area-inset-top)+2rem)] pb-7">
+        <div className="trailer-grid absolute inset-0" aria-hidden="true" />
+        <div className="relative flex items-center gap-3">
+          <LogoMark size={36} />
+          <p className="text-xl font-semibold text-white tracking-tight">Plan. Track. <span className="trailer-shine">Grow.</span></p>
+        </div>
+        <div className="relative flex items-end gap-1.5 h-14 mt-5" aria-hidden="true">
+          {[30, 45, 40, 62, 70, 84, 95].map((h, i) => (
+            <span key={i} className="trailer-bar flex-1 rounded-t-md bg-gradient-to-t from-primary-500 to-mint-400" style={{ height: `${h}%`, animationDelay: `${i * 110}ms` }} />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1 auth-bg flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-8">
           <BrandMark />
@@ -173,6 +194,8 @@ export default function Login() {
             </>
           )}
         </p>
+      </div>
+      </div>
       </div>
     </div>
   )

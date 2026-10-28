@@ -211,7 +211,7 @@ export default function TaskEditor({ open, onClose, task, assignTo, defaultDate 
             </div>
           </div>
         ) : (
-          <button type="button" onClick={() => setDetails(true)} className="text-sm font-medium text-primary-700 hover:text-primary-900">
+          <button type="button" onClick={() => setDetails(true)} className="text-sm font-medium text-primary-700 hover:text-primary-800">
             Add details
           </button>
         )}

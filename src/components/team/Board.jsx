@@ -37,7 +37,7 @@ function BoardCard({ c, person, onOpen }) {
 
   return (
     <button onClick={() => onOpen(c)}
-      className={`w-full text-left rounded-xl border p-3 transition-all duration-150 hover:-translate-y-px hover:shadow-sm ${st.card} ${alert ? 'ring-2 ring-inset ring-red-300 dark:ring-red-200' : ''}`}>
+      className={`w-full text-left rounded-xl border p-3 card-hover ${st.card} ${alert ? 'ring-2 ring-inset ring-red-300 dark:ring-red-200' : ''}`}>
       <div className="flex items-center gap-2 text-[11px] text-gray-500 min-w-0">
         <Source c={c} />
         {c.project && <span className="truncate">{c.project}</span>}
@@ -78,7 +78,7 @@ function Column({ col, cards, peopleById, onOpen }) {
         {cards.length === 0 && <p className="text-xs text-gray-400 text-center py-6">Nothing here</p>}
         {cards.slice(0, shown).map(c => <BoardCard key={c.id} c={c} person={peopleById[c.userId]} onOpen={onOpen} />)}
         {cards.length > shown && (
-          <button onClick={() => setShown(n => n + PAGE)} className="w-full text-xs font-medium text-primary-700 hover:text-primary-900 py-2">
+          <button onClick={() => setShown(n => n + PAGE)} className="w-full text-xs font-medium text-primary-700 hover:text-primary-800 py-2">
             Show {Math.min(PAGE, cards.length - shown)} more
           </button>
         )}
@@ -110,25 +110,26 @@ export default function Board({ filters, setFilter, people, projects, holidays, 
   })
   const open = cards.filter(c => c.status !== 'done')
   const stats = [
-    { label: 'Open', value: open.length, tip: 'Work not done yet: to do, in progress, in review and blocked.' },
-    { label: 'Needs attention', value: open.filter(c => c.stuck || c.overdue || c.blocked).length, tone: 'text-red-700',
+    { label: 'Open', value: open.length, tone: 'bg-surface border-gray-200 text-gray-900', tip: 'Work not done yet: to do, in progress, in review and blocked.' },
+    { label: 'Needs attention', value: open.filter(c => c.stuck || c.overdue || c.blocked).length, tone: 'bg-red-50 border-red-200 text-red-700',
       tip: `Blocked, overdue, or no change for ${STUCK_DAYS} working days or more. These cards have a red outline.` },
-    ...(full ? [{ label: 'Unassigned', value: open.filter(c => !c.userId && !c.assigneeName).length, tone: 'text-amber-800', tip: 'Jira issues nobody is assigned to yet.' }] : []),
-    { label: 'Done', value: cards.length - open.length, tone: 'text-mint-700', tip: 'Finished in the chosen period.' },
+    ...(full ? [{ label: 'Unassigned', value: open.filter(c => !c.userId && !c.assigneeName).length, tone: 'bg-amber-50 border-amber-200 text-amber-800', tip: 'Jira issues nobody is assigned to yet.' }] : []),
+    { label: 'Done', value: cards.length - open.length, tone: 'bg-mint-50 border-mint-200 text-mint-700', tip: 'Finished in the chosen period.' },
   ]
 
   return (
     <div className="space-y-4">
       <FilterBar filters={filters} setFilter={setFilter} people={people} projects={projects} showPerson={full} />
 
-      <Card className={`grid ${stats.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} divide-x divide-gray-200`}>
+      {/* Tinted by meaning; a zero stays neutral so colour only shows where it matters. */}
+      <div className={`grid ${stats.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} gap-2.5`}>
         {stats.map(s => (
-          <div key={s.label} className="px-4 py-3 sm:px-5">
-            <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5">{s.label}<Tooltip text={s.tip} /></p>
-            <p className={`mt-1 text-lg sm:text-xl font-semibold tabular-nums ${s.value ? s.tone ?? 'text-gray-900' : 'text-gray-900'}`}>{s.value}</p>
+          <div key={s.label} className={`rounded-xl border px-4 py-2.5 shadow-[var(--shadow-card)] transition-colors duration-300 ${s.value ? s.tone : 'bg-surface border-gray-200 text-gray-900'}`}>
+            <p className="text-xs font-medium opacity-75 flex items-center gap-1.5">{s.label}<Tooltip text={s.tip} /></p>
+            <p className="mt-0.5 text-xl font-semibold tabular-nums">{s.value}</p>
           </div>
         ))}
-      </Card>
+      </div>
 
       {isLoading ? (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">{COLUMNS.map(c => <Card key={c.key} className="h-64 skeleton" />)}</div>

@@ -55,7 +55,7 @@ export const TREND = {
 // due date, then no change for STUCK_DAYS working days (each task once).
 //   -> [{ task, reason: 'blocked' | 'overdue' | 'stuck', idle }]
 const URGENCY = { blocked: 0, overdue: 1, stuck: 2 }
-export function attentionItems(tasks, today, holidays) {
+function attentionItems(tasks, today, holidays) {
   return tasks
     .filter(t => t.status !== 'done')
     .map(t => {

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { addDaysISO } from '../utils/dates'
 
@@ -11,6 +11,7 @@ export function useBoard({ from, to, userId, withIssues = false, enabled = true 
   return useQuery({
     queryKey: ['facts', 'board', from, to, userId ?? null, withIssues],
     enabled: Boolean(enabled && from && to),
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const openFrom = addDaysISO(from, -30)
       const tasks = []

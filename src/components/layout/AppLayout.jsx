@@ -1,5 +1,4 @@
 import { Outlet, useLocation } from 'react-router-dom'
-import Sidebar from './Sidebar'
 import TopBar from './TopBar'
 import BottomNav from './BottomNav'
 import OfflineBanner from '../OfflineBanner'
@@ -9,8 +8,7 @@ import InstallBanner from '../InstallBanner'
 export default function AppLayout() {
   const { pathname } = useLocation()
   return (
-    <div className="flex min-h-dvh">
-      <Sidebar />
+    <div className="min-h-dvh flex flex-col">
       <div className="flex-1 min-w-0 flex flex-col">
         <TopBar />
         <OfflineBanner />

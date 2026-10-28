@@ -235,7 +235,7 @@ export default function MyDay() {
             <Button type="submit" disabled={!quick.trim()} aria-label="Add task" className="shrink-0"><Icon name="plus" size={16} /><span className="hidden sm:inline">Add</span></Button>
           </div>
         </form>
-        <button onClick={() => setEditing('new')} className="text-xs font-medium text-primary-700 hover:text-primary-900 mt-2">
+        <button onClick={() => setEditing('new')} className="text-xs font-medium text-primary-700 hover:text-primary-800 mt-2">
           Add with due date or notes
         </button>
 

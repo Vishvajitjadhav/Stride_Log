@@ -109,27 +109,6 @@ export function perPerson({ tasks, logs, people, range, holidays, today }) {
     .sort((a, b) => b.done - a.done || b.consistency - a.consistency || a.name.localeCompare(b.name))
 }
 
-// Daily log heatmap: one row per person, one cell per weekday (Mon to Fri) up
-// to today. Cell state: 'logged' | 'missed' | 'holiday' | 'before' (not yet
-// joined) | 'future'.
-export function logGrid({ logs, people, range, holidays, today }) {
-  const days = workingDays(range.from, range.to)
-  const start = startDates(people, logs)
-  const logged = new Set(inRange(logs, range).filter(l => l.submitted).map(l => `${l.user_id}|${l.date}`))
-  const state = (p, d) => {
-    if (holidays.has(d)) return 'holiday'
-    if (d > today) return 'future'
-    if (d < start.get(p.id)) return 'before'
-    return logged.has(`${p.id}|${d}`) ? 'logged' : 'missed'
-  }
-  return {
-    days,
-    rows: people
-      .map(p => ({ id: p.id, name: p.name, cells: days.map(d => state(p, d)) }))
-      .sort((a, b) => a.name.localeCompare(b.name)),
-  }
-}
-
 // Week buckets for periods up to ~3 months, month buckets for longer ones.
 export function bucketSize(range) {
   return differenceInCalendarDays(parseISO(range.to), parseISO(range.from)) > 95 ? 'month' : 'week'

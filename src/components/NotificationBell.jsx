@@ -12,7 +12,7 @@ const TYPE_ICON = {
   weekly_summary: 'analytics',
 }
 
-export default function NotificationBell() {
+export default function NotificationBell({ tone }) {
   const { data: items = [], unread, markAllRead } = useNotifications()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -33,7 +33,7 @@ export default function NotificationBell() {
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={toggle} className="relative p-2 -mr-2 text-gray-500 hover:text-gray-800 rounded-lg" aria-label={`Notifications${unread ? ` (${unread} unread)` : ''}`}>
+      <button onClick={toggle} className={`relative p-2 rounded-lg transition-all duration-200 active:scale-95 ${tone === 'dark' ? 'text-white/70 hover:text-white hover:bg-white/10' : '-mr-2 text-gray-500 hover:text-gray-800'}`} aria-label={`Notifications${unread ? ` (${unread} unread)` : ''}`}>
         <Icon name="bell" />
         {unread > 0 && (
           <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">

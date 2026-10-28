@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useHolidays } from './useOrg'
 import { usePeople } from './usePeople'
 import { useProjects } from './useProjects'
 import { previousRange, weekStartISO, addDaysISO, todayISO, compareLabel } from '../utils/dates'
-import { summarize, compare, perPerson, perProject, trend, bucketSize, categoryMix, inRange } from '../utils/metrics'
+import { summarize, compare, perPerson, perProject, trend, bucketSize, inRange } from '../utils/metrics'
 import { lastWeeks, weeklyDone, trendLabel } from '../utils/insights'
 import { isTracked } from '../lib/permissions'
 import { bySource } from './useFilters'
@@ -30,6 +30,9 @@ export function useFacts({ from, to, userId, enabled = true }) {
   return useQuery({
     queryKey: ['facts', from, to, userId ?? null],
     enabled: Boolean(enabled && from && to),
+    // Keep showing the last numbers while a new period loads, so changing a
+    // filter dims the page for a moment instead of flashing empty boxes.
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const scope = q => {
         q = q.gte('date', from).lte('date', to)
@@ -131,11 +134,9 @@ export function useDashboard(filters, { self } = {}) {
       previous,
       growth: compare(current, previous),
       trend: trend({ ...ctx, range }),
-      categories: categoryMix(inRange(tasks, range)),
       persons: perPerson({ ...ctx, range }).map(p => withTrend(p, tasks.filter(t => t.user_id === p.id))),
       tasks: inRange(tasks, range),
       weeks,
-      holidayNames: holidaysQ.data?.byDate ?? {},
       projects: projectRows,
     }
   }, [factsQ.data, holidaysQ.data, peopleQ.data, projectsQ.data, filters.preset, range.from, range.to, person, projectId, sources, self, today]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -143,6 +144,7 @@ export function useDashboard(filters, { self } = {}) {
   return {
     data,
     isLoading: factsQ.isLoading || (!self && peopleQ.isLoading),
+    isFetching: factsQ.isFetching,
     error: factsQ.error,
     allPeople: (peopleQ.data ?? []).filter(isTracked),
     projects: projectsQ.data ?? [],

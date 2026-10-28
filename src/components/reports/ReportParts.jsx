@@ -7,26 +7,32 @@ import Avatar from '../ui/Avatar'
 import Icon from '../ui/Icon'
 import Tooltip from '../ui/Tooltip'
 
-
 // ── Status tiles: click one to show only that status ───────────────────────
+// Each status tile carries its colour as a top stripe; the selected one fills
+// with its tint. Completion is tinted by how good it is.
 export function StatusTiles({ counts, total, completion, active, onToggle }) {
-  const tile = 'rounded-xl border px-3 py-2 text-left transition-all duration-150 hover:-translate-y-px hover:shadow-sm'
+  const tile = 'rounded-xl border border-gray-200 bg-surface px-3 py-2 text-left shadow-[var(--shadow-card)]'
+  const tone = completion >= 80 ? 'bg-mint-50 border-mint-200 text-mint-700' : completion >= 50 ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-red-50 border-red-200 text-red-700'
   return (
     <div className="grid grid-cols-2 @md:grid-cols-4 @2xl:grid-cols-7 gap-2">
-      <div className={`${tile} bg-surface border-gray-200 hover:translate-y-0 hover:shadow-none`}>
+      <div className={tile}>
         <p className="text-xs text-gray-500 flex items-center gap-1">Planned<Tooltip text="Every task planned for the period, whatever its status." /></p>
         <p className="text-xl font-semibold text-gray-900 tabular-nums">{total}</p>
       </div>
-      {ORDER.map(s => (
-        <button key={s} onClick={() => onToggle(s)} aria-pressed={active === s} title={active === s ? 'Show every status' : `Show only ${STATUS_LABELS[s]}`}
-          className={`${tile} ${active === s ? `${STATUS_STYLE[s].card} ring-2 ring-primary-300` : 'bg-surface border-gray-200'}`}>
-          <p className="text-xs text-gray-500 flex items-center gap-1.5 whitespace-nowrap"><span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_STYLE[s].dot}`} />{STATUS_LABELS[s]}</p>
-          <p className={`text-xl font-semibold tabular-nums ${counts[s] && s === 'blocked' ? 'text-red-700' : 'text-gray-900'}`}>{counts[s]}</p>
-        </button>
-      ))}
-      <div className={`${tile} bg-surface border-gray-200 hover:translate-y-0 hover:shadow-none`}>
-        <p className="text-xs text-gray-500 flex items-center gap-1">Completion<Tooltip align="right" text="Tasks done out of tasks planned in the period." /></p>
-        <p className={`text-xl font-semibold tabular-nums ${completion >= 80 ? 'text-mint-700' : completion >= 50 ? 'text-amber-800' : 'text-red-700'}`}>{completion}%</p>
+      {ORDER.map(s => {
+        const on = active === s
+        return (
+          <button key={s} onClick={() => onToggle(s)} aria-pressed={on} title={on ? 'Show every status' : `Show only ${STATUS_LABELS[s]}`}
+            style={{ borderTopColor: STATUS_STYLE[s].hex }}
+            className={`${tile} border-t-[3px] card-hover ${on ? `${STATUS_STYLE[s].card} ring-2 ring-offset-1 ring-offset-canvas ring-primary-400` : ''}`}>
+            <p className="text-xs text-gray-500 flex items-center gap-1.5 whitespace-nowrap"><span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_STYLE[s].dot}`} />{STATUS_LABELS[s]}</p>
+            <p className={`text-xl font-semibold tabular-nums ${counts[s] && s === 'blocked' ? 'text-red-700' : 'text-gray-900'}`}>{counts[s]}</p>
+          </button>
+        )
+      })}
+      <div className={`${tile} ${tone}`}>
+        <p className="text-xs flex items-center gap-1 opacity-80">Completion<Tooltip align="right" text="Tasks done out of tasks planned in the period." /></p>
+        <p className="text-xl font-semibold tabular-nums">{completion}%</p>
       </div>
     </div>
   )
@@ -73,7 +79,7 @@ export function StackBars({ rows, selected, onPick, empty }) {
     <div className="space-y-1">
       {rows.map(r => (
         <button key={r.id} onClick={() => onPick(r.id)} aria-pressed={selected === r.id}
-          className={`w-full flex items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-gray-50 ${selected === r.id ? 'bg-primary-50 ring-1 ring-primary-200' : ''}`}>
+          className={`w-full flex items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-all duration-200 active:scale-[.99] ${selected === r.id ? 'bg-primary-50 ring-1 ring-inset ring-primary-300' : 'hover:bg-gray-50'}`}>
           <span className="w-28 sm:w-32 shrink-0 text-sm text-gray-800 truncate" title={r.name}>{r.name}</span>
           <span className="flex-1 min-w-0 h-5 rounded-md bg-gray-100 overflow-hidden flex" style={{ maxWidth: `${(r.total / max) * 100}%` }}
             title={ORDER.filter(s => r.counts[s]).map(s => `${STATUS_LABELS[s]} ${r.counts[s]}`).join(', ')}>
@@ -89,7 +95,7 @@ export function StackBars({ rows, selected, onPick, empty }) {
 }
 
 // ── Trend pill and tiny week by week bars ──────────────────────────────────
-export function TrendPill({ trend }) {
+function TrendPill({ trend }) {
   const t = TREND[trend] ?? TREND.new
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset whitespace-nowrap ${t.cls}`}>
@@ -99,7 +105,7 @@ export function TrendPill({ trend }) {
 }
 
 // Tasks finished in each of the last 3 finished weeks, e.g. "2 → 3 → 5".
-export function WeekSteps({ series, weeks }) {
+function WeekSteps({ series, weeks }) {
   return (
     <span className="inline-flex items-center gap-1 text-sm tabular-nums text-gray-700" aria-label={`Tasks done per week: ${series.join(', ')}`}>
       {series.map((v, i) => (
@@ -188,7 +194,7 @@ export function TaskTable({ tasks, peopleById }) {
   return (
     <div>
       <div className="flex justify-end px-5 pb-2">
-        <button onClick={() => setOpen(allOpen ? new Set() : new Set(sorted.slice(0, shown).map(t => t.id)))} className="text-xs font-medium text-primary-700 hover:text-primary-900">
+        <button onClick={() => setOpen(allOpen ? new Set() : new Set(sorted.slice(0, shown).map(t => t.id)))} className="text-xs font-medium text-primary-700 hover:text-primary-800">
           {allOpen ? 'Collapse all' : 'Expand all'}
         </button>
       </div>
@@ -240,7 +246,7 @@ export function TaskTable({ tasks, peopleById }) {
         </table>
       </div>
       {sorted.length > shown && (
-        <button onClick={() => setShown(n => n + PAGE)} className="w-full text-sm font-medium text-primary-700 hover:text-primary-900 py-3">
+        <button onClick={() => setShown(n => n + PAGE)} className="w-full text-sm font-medium text-primary-700 hover:text-primary-800 py-3">
           Show {Math.min(PAGE, sorted.length - shown)} more of {sorted.length - shown}
         </button>
       )}
